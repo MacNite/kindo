@@ -38,6 +38,7 @@ const de: Messages = {
     chores: "Haushalt", meals: "Essen", shopping: "Einkauf", dates: "Wichtige Tage", photos: "Fotos",
   },
   calendar: {
+    recurringHint: "Teil einer Terminserie: Bitte in der Kalender-App ändern, aus der sie stammt.",
     editEvent: "Termin bearbeiten", eventTitle: "Titel", titlePlaceholder: "z. B. Schwimmkurs", startTime: "Von", endTime: "Bis",
     month: "Monat", week: "Woche", agenda: "Liste", sources: "Kalender", newEvent: "Neuer Termin",
     readOnly: "Nur lesen", from: "Aus {source}", who: "Wer", where: "Wo", when: "Wann",
@@ -134,6 +135,8 @@ const de: Messages = {
   account: { signOut: "Abmelden", changePassword: "Passwort ändern", currentPassword: "Aktuelles Passwort", newPassword: "Neues Passwort" },
   devices: { hint: "Wandanzeigen brauchen kein Login. Öffne /pair auf dem Tablet und bestätige hier den angezeigten Code.", pair: "Wandanzeige koppeln", name: "Name", defaultName: "Küche", approve: "Koppeln", approved: "Gekoppelt. Die Anzeige öffnet gleich die Wandansicht.", paired: "Gekoppelte Anzeigen", none: "Noch keine Anzeige gekoppelt.", lastSeen: "Zuletzt aktiv {when}", revoke: "Entkoppeln" },
   logins: { none: "Noch kein Login.", give: "Login einrichten", manage: "Login", create: "Login für {name}", edit: "Login von {name}", remove: "Login entfernen", resetHint: "Setzt ein neues Passwort und meldet die Person überall ab.", ssoHint: "Leer lassen, um sich nur mit {name} über diese E-Mail anzumelden." },
+  integrations: { failed: "Letzte Synchronisierung fehlgeschlagen: {error}", synced: "synchronisiert {when}", waiting: "Wartet auf die erste Synchronisierung", syncNow: "Jetzt synchronisieren", remove: "Trennen", removeConfirm: "{name} trennen? Die Kalender und Termine verschwinden aus Kindo, auf dem Server wird nichts gelöscht.", addAnother: "Weitere hinzufügen", connect: "Verbinden", connecting: "Verbinde…", serverUrl: "Serveradresse", caldavUrlHint: "Bei Nextcloud: deine Nextcloud-Adresse, gefolgt von /remote.php/dav", username: "Benutzername", appPassword: "App-Passwort", appPasswordHint: "In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen anlegen. Es wird nur verschlüsselt auf dem Kindo-Server gespeichert." },
+  sources: { background: "Tägliche Betreuung", backgroundHint: "Schule oder Kita: dezent angezeigt und nicht unter „Demnächst“.", readOnlyHint: "Niemand kann hier aus Kindo Termine anlegen oder ändern.", whoHint: "Termine bekommen die Farben dieser Personen, außer Kindo hat sie selbst zugeordnet.", remove: "Aus Kindo entfernen", localHint: "Kindos eigener Kalender, gespeichert in Kindos Datenbank." },
   settings: {
     title: "Einstellungen",
     sections: {

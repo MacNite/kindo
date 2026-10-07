@@ -53,6 +53,20 @@ enum CalendarProvider {
   local
 }
 
+enum ConnectionKind {
+  caldav
+  google
+  ics
+  immich
+  homeassistant
+}
+
+enum ConnectionStatus {
+  ok
+  error
+  pending
+}
+
 enum ImportantDateKind {
   birthday
   anniversary
@@ -270,6 +284,14 @@ model CalendarSource {
   /// Every event of this source is daily attendance (school, Kita): shown quietly.
   background       Boolean          @default(false)
   sortOrder        Int              @default(0)
+  /// Where the calendar lives; null for Kindo's own and the demo's.
+  connectionId     String?
+  connection       Connection?      @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  /// The calendar's address at its connection (a CalDAV collection URL, a Google calendar id).
+  remoteId         String?
+  /// Change marker from the last sync (CalDAV ctag), to skip unchanged calendars.
+  syncState        String?
+  lastSyncAt       DateTime?
   events           Event[]
 }
 
@@ -287,6 +309,12 @@ model Event {
   location   String?
   icon       String?
   background Boolean        @default(false)
+  /// The iCalendar UID, and the object's address and version at its server.
+  uid        String?
+  href       String?
+  etag       String?
+  /// One occurrence of a recurring series: shown, but edited at the source.
+  recurring  Boolean        @default(false)
 
   @@index([start])
   @@index([sourceId])
@@ -419,4 +447,25 @@ model PairingRequest {
   approvedAt DateTime?
   deviceName String?
   approvedBy String?
+}
+
+/// A connection to an outside service (§17): a Nextcloud account, a Google
+/// account, an ICS feed, an Immich server, Home Assistant. Its secret (app
+/// password, API key, refresh token, private feed URL) is encrypted with
+/// KINDO_SECRET_KEY and never leaves the server.
+model Connection {
+  id         String           @id @default(cuid())
+  kind       ConnectionKind
+  name       String
+  url        String?
+  username   String?
+  /// Encrypted (see src/server/crypto.ts).
+  secret     String?
+  /// Kind-specific settings, never secret.
+  config     Json             @default("{}")
+  status     ConnectionStatus @default(pending)
+  lastError  String?
+  lastSyncAt DateTime?
+  createdAt  DateTime         @default(now())
+  sources    CalendarSource[]
 }

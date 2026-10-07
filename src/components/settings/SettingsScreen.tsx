@@ -3,22 +3,21 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  CalendarDays, CalendarHeart, ChevronRight, Cloud, Gift, Globe, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Rss, Sparkles, UserRound, Users,
+  CalendarDays, CalendarHeart, ChevronRight, Gift, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Sparkles, UserRound, Users,
 } from "lucide-react";
-import type { Integration } from "@/lib/types";
-import { useI18n, type MessageKey } from "@/i18n";
+import { useI18n } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
 import { useStore } from "@/lib/state/store";
 import { updateHousehold } from "@/lib/services/actions";
 import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
-import { PROVIDER_ICON } from "../calendar/CalendarScreen";
 import { MemberEditor, DatesSection, RoutineSettings } from "./Editors";
 import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountSections";
+import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSections";
 import { lockAgain } from "@/lib/services/accounts";
 import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
 import { PageHeader } from "../ui/Panel";
-import { Avatar, AvatarStack } from "../ui/Avatar";
+import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { cn } from "../ui/cn";
@@ -89,9 +88,9 @@ function Hint({ children }: { children: ReactNode }) {
 }
 
 function Section({ id, code }: { id: SectionId; code?: string }) {
-  const { t, tx, fmt, language, weekdayName, region } = useI18n();
+  const { t, fmt, language, weekdayName, region } = useI18n();
   const { prefs, setPrefs } = usePrefs();
-  const { getMembers, getMember, getSources, data, viewer } = useStore();
+  const { getMembers, getMember, viewer } = useStore();
   const [editingMember, setEditingMember] = useState<string | "new" | null>(null);
   const [editingLogin, setEditingLogin] = useState<string | null>(null);
 
@@ -141,30 +140,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
       );
 
     case "calendar":
-      return (
-        <>
-          <Hint>{t("settings.calendar.hint")}</Hint>
-          <Card className="p-2">
-            <ul className="divide-y divide-line">
-              {getSources().map((s) => {
-                const I = PROVIDER_ICON[s.provider];
-                return (
-                  <li key={s.id} className="flex items-center gap-4 p-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken"><I size={18} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-bold">{tx(s.name)}</span>
-                      <span className="block truncate text-sm text-soft">{t(`providers.${s.provider}`)}{s.account && `, ${s.account}`}</span>
-                    </span>
-                    <span className="text-sm text-soft max-sm:hidden">{t("settings.calendar.belongsTo")}</span>
-                    {s.defaultMemberIds.length ? <AvatarStack size="sm" members={s.defaultMemberIds.flatMap((x) => getMember(x) ?? [])} /> : <span className="text-sm font-bold">{t("common.everyone")}</span>}
-                  </li>
-                );
-              })}
-            </ul>
-            <Link href="/settings?section=integrations" className="m-2 inline-block"><Button variant="ghost"><Plus size={18} />{t("settings.calendar.add")}</Button></Link>
-          </Card>
-        </>
-      );
+      return <CalendarSourcesSection />;
 
     case "routines":
       return <RoutineSettings />;
@@ -246,43 +222,11 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
     }
 
     case "integrations":
-      return (
-        <>
-          <Hint>{t("settings.integrations.hint")}</Hint>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {data.integrations.map((i) => <IntegrationCard key={i.id} integration={i} />)}
-          </div>
-        </>
-      );
+      return <IntegrationsSection />;
   }
 }
 
 const TODAY_SAMPLE = new Date(new Date().getFullYear(), 11, 24, 18, 30).getTime();
-
-const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, immich: ImageIcon, google: Globe, ics: Rss, homeassistant: House };
-
-function IntegrationCard({ integration: i }: { integration: Integration }) {
-  const { t, tx } = useI18n();
-  const I = INT_ICON[i.id];
-  const status = { connected: { cls: "bg-ok/15 text-ok", dot: "bg-ok" }, partial: { cls: "bg-star/20 text-ink", dot: "bg-star" }, off: { cls: "bg-sunken text-soft", dot: "bg-line" } }[i.status];
-  const primary = i.id === "nextcloud";
-  return (
-    <Card className={cn("flex flex-col gap-3", primary && "lg:col-span-2 ring-2 ring-ink/10")}>
-      <div className="flex items-start gap-4">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-tile bg-sunken"><I size={22} /></span>
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-lg font-semibold">{t(`settings.integrations.${i.id}` as MessageKey)}</p>
-          <p className="text-sm text-soft">{t(`settings.integrations.${i.id}Body` as MessageKey)}</p>
-          <span className={cn("mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold", status.cls)}>
-            <span className={cn("h-2 w-2 rounded-full", status.dot)} />{t(`common.${i.status}`)}
-          </span>
-        </div>
-      </div>
-      {i.detail && <p className="text-sm">{tx(i.detail)}</p>}
-      <div><Button size="sm" variant="outline" disabled title={t("common.planned")}>{t("common.configure")}</Button></div>
-    </Card>
-  );
-}
 
 function FamilyForm() {
   const { t } = useI18n();

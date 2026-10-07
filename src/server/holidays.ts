@@ -2,7 +2,7 @@ import { addDays, dateKey } from "@/lib/dates";
 import { utcToLocalDay } from "@/lib/events";
 import type { Tx } from "./db";
 import { fetchText, normaliseFeedUrl } from "./http";
-import { parseCalendar, type ParsedEvent } from "./ical";
+import { parseCalendar, type ParsedEvent } from "./calendar/ical";
 import { errorMessage, log } from "./log";
 
 /** How long a successful holiday sync stays fresh. */

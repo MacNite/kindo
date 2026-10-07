@@ -5,9 +5,10 @@ import { guessCategory } from "@/lib/shopping";
 import { completionOutcome } from "@/lib/ledger";
 import { householdDayKeyIn } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
-import { prisma, type Tx } from "./db";
+import { inTx, type Tx } from "./db";
 import { UserError, notFound } from "./errors";
 import { toStoredEvent } from "./events";
+import { createRemoteEvent, deleteRemoteEvent, updateRemoteEvent } from "./calendar/sync";
 import type { S } from "./validation";
 
 /**
@@ -20,11 +21,6 @@ type In<K extends keyof typeof S> = z.output<(typeof S)[K]>;
 const json = (v: unknown) => v as Prisma.InputJsonValue;
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 const isMissing = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025";
-
-/** Runs `fn` in a transaction when given the root client; inside one already, just runs it. */
-async function inTx<T>(db: Tx, fn: (tx: Tx) => Promise<T>): Promise<T> {
-  return "$transaction" in db ? (db as typeof prisma).$transaction((tx) => fn(tx)) : fn(db);
-}
 
 // ── Routines and chores: ticking off ────────────────────────────────────────
 interface ItemInfo { pictogram: string; label: Text; value: TaskValue; ownerId: string | null }
@@ -325,25 +321,37 @@ export async function deleteImportantDate(db: Tx, input: In<"byId">) {
   await db.importantDate.deleteMany({ where: { id: input.id } });
 }
 
-// ── Calendar (Kindo's own events) ───────────────────────────────────────────
+// ── Calendar ────────────────────────────────────────────────────────────────
+/**
+ * Saves an event: in Kindo's own calendar directly, in a connected one
+ * (Nextcloud) on its server first (§19.5). Recurring series are edited in the
+ * calendar app that owns them.
+ */
 export async function saveEvent(db: Tx, input: In<"event">) {
   const source = await db.calendarSource.findUnique({ where: { id: input.sourceId } });
   if (!source) throw notFound("calendar");
   if (source.readOnly) throw new UserError("readOnly");
-  const data = toStoredEvent({ ...input, location: input.location || undefined });
+  const e = { ...input, location: input.location || undefined };
   if (input.id) {
     const existing = await db.event.findUnique({ where: { id: input.id }, include: { source: true } });
     if (!existing) throw notFound("event");
-    if (existing.source.readOnly) throw new UserError("readOnly");
-    await db.event.update({ where: { id: input.id }, data });
+    if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
+    if (existing.sourceId !== input.sourceId) throw new UserError("invalid", "events don't move between calendars");
+    if (existing.source.connectionId) {
+      await updateRemoteEvent(db, existing, e);
+      return input.id;
+    }
+    await db.event.update({ where: { id: input.id }, data: toStoredEvent(e) });
     return input.id;
   }
-  return (await db.event.create({ data })).id;
+  if (source.connectionId) return createRemoteEvent(db, source.id, e);
+  return (await db.event.create({ data: toStoredEvent(e) })).id;
 }
 
 export async function deleteEvent(db: Tx, input: In<"byId">) {
   const existing = await db.event.findUnique({ where: { id: input.id }, include: { source: true } });
   if (!existing) return;
-  if (existing.source.readOnly) throw new UserError("readOnly");
+  if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
+  if (existing.source.connectionId) return deleteRemoteEvent(db, existing);
   await db.event.delete({ where: { id: input.id } });
 }

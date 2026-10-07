@@ -17,6 +17,10 @@ env:
   TEST_DATABASE_URL: postgresql://kindo:kindo@127.0.0.1:5432/kindo_test?schema=public
   # A second, empty database for the schema/migration drift check.
   SHADOW_DATABASE_URL: postgresql://kindo:kindo@127.0.0.1:5432/kindo_shadow?schema=public
+  # A real CalDAV server (Radicale) for the Nextcloud tests, started below.
+  CALDAV_TEST_URL: http://127.0.0.1:5232/
+  CALDAV_TEST_USER: anna
+  CALDAV_TEST_PASSWORD: app-password
 
 jobs:
   test:
@@ -47,6 +51,20 @@ jobs:
       - run: npm ci
 
       - run: npx prisma generate
+
+      - name: Start a CalDAV server (Radicale)
+        run: |
+          pip install --quiet "radicale==3.*"
+          mkdir -p /tmp/radicale
+          printf '[server]\nhosts = 127.0.0.1:5232\n[auth]\ntype = htpasswd\nhtpasswd_filename = /tmp/radicale/users\nhtpasswd_encryption = plain\n[storage]\nfilesystem_folder = /tmp/radicale/collections\n[rights]\ntype = owner_only\n' > /tmp/radicale/config
+          echo "anna:app-password" > /tmp/radicale/users
+          nohup python3 -m radicale --config /tmp/radicale/config > /tmp/radicale/log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS -u anna:app-password -X MKCALENDAR http://127.0.0.1:5232/anna/family/ -o /dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/radicale/log
+          exit 1
 
       - name: Validate the Prisma schema
         run: npx prisma validate

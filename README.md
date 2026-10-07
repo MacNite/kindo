@@ -163,11 +163,11 @@ docs/                 SPEC.md (product + decisions), screenshots
 
 UI strings live in `src/i18n/messages/`. `de.ts` is typed against `en.ts`, so a missing German string fails the build. A unit test also checks that placeholders match. Language (UI text) and region (date format, 12/24 h, week start, numbers, currency) are set separately in **Settings → Language & region**.
 
-## Integrations (planned)
+## Integrations
 
-The seams are in place and documented in code. Nothing connects yet.
+Everything below runs on the server. Passwords, API keys and tokens are entered in Settings → Integrations, stored encrypted with `KINDO_SECRET_KEY`, and never sent to a device.
 
-- **Nextcloud / CalDAV** (primary calendar source): `CalendarAdapter` in [`src/lib/services/calendar.ts`](src/lib/services/calendar.ts). It runs server-side so app passwords never reach the browser. `Recurrence` maps 1:1 onto RRULE, so routines can later be stored as VTODO.
+- **Nextcloud / CalDAV** (the main calendar source): add the server address (`https://cloud.example.com/remote.php/dav`), username and an app password. Kindo discovers the calendars, and in Settings → Calendar you choose whose each one is (its events take their colours), whether it is read-only, and whether it is daily attendance like school. Calendars are synced every few minutes (`KINDO_SYNC_MINUTES`) into Kindo's database, so the wall stays fast when Nextcloud is down. New events and changes to single events are written to Nextcloud first; the people Kindo assigns travel along in `X-KINDO-MEMBERS`. Repeating series are shown, and edited in the calendar app they come from.
 - **Immich** (several servers): `PhotoAdapter` and `buildPool()` in [`src/lib/services/photos.ts`](src/lib/services/photos.ts). Thumbnails will be proxied by Kindo so API keys stay on the server.
 - **Google Calendar, ICS subscriptions, Home Assistant:** shown in Settings → Integrations.
 

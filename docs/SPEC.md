@@ -125,7 +125,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 2. **Persistence:** *(done)* PostgreSQL and Prisma, a `migrate` image and service, household state moved from `store.tsx` to Server Actions. Realtime sync between wall and phones (SSE).
 3. **Recurrence engine:** *(done)* occurrences per date, daily reset, completion history.
 4. **Accounts:** *(done)* local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
-5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar.
+5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar. *(done)*
 6. **Immich adapter** with a thumbnail proxy and cache.
 7. **PWA:** installable, offline shopping list, wake lock on the wall.
 8. Google Calendar, ICS, Home Assistant (presence for the photo frame).
@@ -161,3 +161,8 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D25 | Wall displays pair with a six-digit code (and QR) that an admin confirms; they get a long-lived, revocable device token in an HttpOnly cookie, renewed while the screen is in use. Without the PIN a device may view and tick off (routines, chores, shopping, tasks); planning, approvals and settings need the settings PIN, which unlocks the device for 10 minutes | The kitchen tablet must work for a four-year-old without anyone signing in, but it must not let a visitor change the household. |
 | D26 | One server secret, `KINDO_SECRET_KEY`, is stretched with HKDF into separate keys for sessions, cookie signatures and stored integration secrets | One value to configure and back up, without reusing a key across purposes. |
 | D27 | Permission levels: view, tick, manage (adults, or a device unlocked with the PIN), admin (admins: people, logins, devices, household, integrations). The server checks them in every Server Action; the UI only hides what a viewer can't use | One rule set, enforced in one place (`src/server/actor.ts`). |
+| D28 | Integration secrets (CalDAV app passwords, API keys, refresh tokens, private feed URLs) are entered in Settings, stored AES-256-GCM encrypted in the `Connection` table, and decrypted only where a sync needs them | Families configure Kindo in the UI, not in `.env`, and a database dump alone reveals nothing. |
+| D29 | External calendars are synced by a background job into the Event table (every `KINDO_SYNC_MINUTES`, CalDAV skips calendars whose ctag is unchanged), with stable event ids | The wall stays fast and works when Nextcloud is down; screens keep their selection across syncs. |
+| D30 | CalDAV writes cover single events only: create, edit and delete go to the server first and the calendar is pulled back. Occurrences of recurring series are read-only in Kindo. Kindo's member assignment travels in `X-KINDO-MEMBERS` (space-separated ids) | Kindo never shows an event its calendar doesn't have, and editing one occurrence of a series is the calendar app's job. Some servers keep only the first comma-separated value of unknown properties. |
+| D31 | A calendar removed in Settings stays removed when the connection is rediscovered (`Connection.config.ignored`) | Removing a calendar must not be undone by the next sync. |
+| D32 | `Field` is a `<label>` only around a native input; around chips and pickers it is a labelled group | A label around buttons turns its whole area into a click on the first button. |

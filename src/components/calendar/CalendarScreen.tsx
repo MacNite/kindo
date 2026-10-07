@@ -317,10 +317,11 @@ function EventDialog({ event, onClose, onEdit }: { event: CalendarEvent | null; 
   const S = getSource(event.sourceId);
   const I = S ? PROVIDER_ICON[S.provider] : Cloud;
   const ms = event.memberIds.flatMap((id) => getMember(id) ?? []);
-  const writable = S && !S.readOnly;
+  const writable = S && !S.readOnly && !event.recurring;
   return (
     <Dialog open onClose={onClose} title={tx(event.title)}
-      footer={writable ? <Button variant="outline" onClick={() => onEdit(event)}><Pencil size={16} />{t("common.edit")}</Button> : undefined}>
+      footer={writable ? <Button variant="outline" onClick={() => onEdit(event)}><Pencil size={16} />{t("common.edit")}</Button>
+        : event.recurring && S && !S.readOnly ? <span className="text-sm text-soft">{t("calendar.recurringHint")}</span> : undefined}>
       <dl className="flex flex-col gap-4">
         <Row label={t("calendar.when")}>{fmt.dateLong(event.start)}{!event.allDay && `, ${fmt.time(event.start)}–${fmt.time(event.end)}`}</Row>
         {event.location && <Row label={t("calendar.where")}><span className="inline-flex items-center gap-1.5"><MapPin size={16} />{event.location}</span></Row>}

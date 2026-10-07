@@ -41,6 +41,7 @@ const en = {
     chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
   },
   calendar: {
+    recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
     editEvent: "Edit event", eventTitle: "Title", titlePlaceholder: "e.g. Swimming lesson", startTime: "From", endTime: "Until",
     month: "Month", week: "Week", agenda: "Agenda", sources: "Calendars", newEvent: "New event",
     readOnly: "Read only", from: "From {source}", who: "Who", where: "Where", when: "When",
@@ -137,6 +138,8 @@ const en = {
   account: { signOut: "Sign out", changePassword: "Change password", currentPassword: "Current password", newPassword: "New password" },
   devices: { hint: "Wall displays need no login. Open /pair on the tablet, then confirm the code it shows here.", pair: "Pair a wall display", name: "Name", defaultName: "Kitchen", approve: "Pair", approved: "Paired. The display opens the wall in a moment.", paired: "Paired displays", none: "No display paired yet.", lastSeen: "Last seen {when}", revoke: "Unpair" },
   logins: { none: "No login yet.", give: "Give a login", manage: "Login", create: "Login for {name}", edit: "{name}'s login", remove: "Remove login", resetHint: "Sets a new password and signs the person out everywhere.", ssoHint: "Leave empty to sign in only with {name}, using this email." },
+  integrations: { failed: "Last sync failed: {error}", synced: "synced {when}", waiting: "Waiting for the first sync", syncNow: "Sync now", remove: "Disconnect", removeConfirm: "Disconnect {name}? Its calendars and events leave Kindo; nothing is deleted on the server.", addAnother: "Add another", connect: "Connect", connecting: "Connecting…", serverUrl: "Server address", caldavUrlHint: "For Nextcloud: your Nextcloud address followed by /remote.php/dav", username: "Username", appPassword: "App password", appPasswordHint: "Create one in Nextcloud under Settings → Security → Devices & sessions. It is stored encrypted on the Kindo server only." },
+  sources: { background: "Daily attendance", backgroundHint: "School or Kita: shown quietly, left out of “coming up”.", readOnlyHint: "Nobody can add or change events here from Kindo.", whoHint: "Events take these people's colours unless Kindo assigned them itself.", remove: "Remove from Kindo", localHint: "Kindo's own calendar, stored in Kindo's database." },
   settings: {
     title: "Settings",
     sections: {

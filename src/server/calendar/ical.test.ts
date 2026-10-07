@@ -1,9 +1,9 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseCalendar } from "./ical";
-import { holidayRanges } from "./holidays";
+import { holidayRanges } from "../holidays";
 
-const ics = readFileSync(new URL("../../tests/fixtures/school.ics", import.meta.url), "utf8");
+const ics = readFileSync(new URL("../../../tests/fixtures/school.ics", import.meta.url), "utf8");
 const window = { from: new Date(2026, 9, 1), to: new Date(2026, 11, 31) };
 
 describe("parseCalendar", () => {

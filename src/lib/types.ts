@@ -31,6 +31,11 @@ export interface CalendarSource {
   account?: string; // e.g. "cloud.mueller.home"
   defaultMemberIds: string[];
   readOnly: boolean;
+  /** Every event is daily attendance (school, Kita): shown quietly. */
+  background?: boolean;
+  /** Lives on a connection (Nextcloud, Google, a feed) rather than in Kindo. */
+  connectionId?: string;
+  lastSyncAt?: Date;
 }
 
 export interface CalendarEvent {
@@ -45,6 +50,8 @@ export interface CalendarEvent {
   icon?: string; // pictogram id
   /** Daily attendance like school or Kita: shown quietly, left out of "coming up". */
   background?: boolean;
+  /** One occurrence of a recurring series: edited in the calendar app that owns it. */
+  recurring?: boolean;
 }
 
 // ── Recurrence ──────────────────────────────────────────────────────────────
@@ -192,6 +199,20 @@ export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" 
 export type WidgetSize = "s" | "m" | "l";
 export interface WidgetConfig { id: WidgetId; enabled: boolean; size: WidgetSize }
 
+/** A connection to an outside service, as an admin's Settings screen sees it: never its secret (§17). */
+export interface ConnectionInfo {
+  id: string;
+  kind: "caldav" | "google" | "ics" | "immich" | "homeassistant";
+  name: string;
+  url?: string;
+  username?: string;
+  status: "ok" | "error" | "pending";
+  lastError?: string;
+  lastSyncAt?: Date;
+  /** Non-secret, kind-specific settings. */
+  config: Record<string, unknown>;
+}
+
 export interface Integration {
   id: "nextcloud" | "immich" | "google" | "ics" | "homeassistant";
   status: "connected" | "partial" | "off";
@@ -263,6 +284,8 @@ export interface HouseholdData {
   holidays: { start: string; end: string; summary: string }[];
   weather: Weather | null;
   integrations: Integration[];
+  /** Admins only; empty for everyone else. */
+  connections: ConnectionInfo[];
 }
 
 /** The snapshot as it crosses the wire: dates of days are filled in on the device. */

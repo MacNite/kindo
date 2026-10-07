@@ -1,5 +1,5 @@
 "use client";
-import type { ReactNode } from "react";
+import { isValidElement, useId, type ReactNode } from "react";
 import { cn } from "./cn";
 
 export function Segmented<T extends string>({ value, onChange, options, size = "md", className, label }: {
@@ -28,13 +28,29 @@ export function Switch({ checked, onChange, label }: { checked: boolean; onChang
   );
 }
 
+/**
+ * A labelled form field. Around a native input it is a <label>; around
+ * anything else (person chips, pickers) a labelled group, because a <label>
+ * wrapping buttons turns its whole area into a click on the first one.
+ */
 export function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+  const id = useId();
+  const native = isValidElement(children) && typeof children.type === "string" && ["input", "select", "textarea"].includes(children.type);
+  if (native) {
+    return (
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-bold">{label}</span>
+        {children}
+        {hint && <span className="mt-1 block text-sm text-soft">{hint}</span>}
+      </label>
+    );
+  }
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-bold">{label}</span>
+    <div role="group" aria-labelledby={id} className="block">
+      <span id={id} className="mb-1.5 block text-sm font-bold">{label}</span>
       {children}
       {hint && <span className="mt-1 block text-sm text-soft">{hint}</span>}
-    </label>
+    </div>
   );
 }
 

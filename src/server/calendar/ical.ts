@@ -41,7 +41,8 @@ function registerTimezones(cal: ICAL.Component) {
 
 function details(ev: ICAL.Event, start: ICAL.Time, end: ICAL.Time, recurring: boolean): ParsedEvent {
   const comp = ev.component;
-  const members = comp.getFirstPropertyValue("x-kindo-members");
+  // ical.js reads commas in unknown X- properties as several values: take them all.
+  const members = comp.getFirstProperty("x-kindo-members")?.getValues().map(String).join(",");
   const icon = comp.getFirstPropertyValue("x-kindo-icon");
   let endDate = dateOf(end);
   const startDate = dateOf(start);
@@ -56,7 +57,7 @@ function details(ev: ICAL.Event, start: ICAL.Time, end: ICAL.Time, recurring: bo
     end: endDate,
     allDay: start.isDate,
     recurring,
-    memberIds: typeof members === "string" && members ? members.split(",").map((s) => s.trim()).filter(Boolean) : undefined,
+    memberIds: members ? members.split(/[\s,]+/).filter(Boolean) : undefined,
     icon: typeof icon === "string" && icon ? icon : undefined,
   };
 }
@@ -103,4 +104,47 @@ export function parseCalendar(text: string, window: { from: Date; to: Date }): P
     }
   }
   return out.sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+// ── Writing ─────────────────────────────────────────────────────────────────
+export interface EventToWrite {
+  uid: string;
+  title: string;
+  start: Date;
+  end: Date;
+  /** Dates at UTC midnight with an exclusive end (§20 D17). */
+  allDay: boolean;
+  location?: string;
+  memberIds: string[];
+  icon?: string;
+}
+
+const icalDate = (d: Date) => ICAL.Time.fromData({ year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), isDate: true });
+
+/**
+ * One VEVENT in its own VCALENDAR, as CalDAV stores it. Times are written in
+ * UTC, which every calendar app reads; Kindo's member assignment travels in
+ * X-KINDO-MEMBERS so it survives the round trip (§5).
+ */
+export function buildEventIcs(e: EventToWrite, now = new Date()): string {
+  const cal = new ICAL.Component(["vcalendar", [], []]);
+  cal.updatePropertyWithValue("prodid", "-//Kindo//Family dashboard//EN");
+  cal.updatePropertyWithValue("version", "2.0");
+  const v = new ICAL.Component("vevent");
+  v.updatePropertyWithValue("uid", e.uid);
+  v.updatePropertyWithValue("dtstamp", ICAL.Time.fromJSDate(now, true));
+  v.updatePropertyWithValue("summary", e.title);
+  if (e.allDay) {
+    v.updatePropertyWithValue("dtstart", icalDate(e.start));
+    v.updatePropertyWithValue("dtend", icalDate(e.end));
+  } else {
+    v.updatePropertyWithValue("dtstart", ICAL.Time.fromJSDate(e.start, true));
+    v.updatePropertyWithValue("dtend", ICAL.Time.fromJSDate(e.end, true));
+  }
+  if (e.location) v.updatePropertyWithValue("location", e.location);
+  // Space-separated: some servers keep only the first of comma-separated values in unknown properties.
+  if (e.memberIds.length) v.updatePropertyWithValue("x-kindo-members", e.memberIds.join(" "));
+  if (e.icon) v.updatePropertyWithValue("x-kindo-icon", e.icon);
+  cal.addSubcomponent(v);
+  return cal.toString();
 }

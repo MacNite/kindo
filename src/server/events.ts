@@ -20,5 +20,6 @@ export function fromStoredEvent(r: EventRow): CalendarEvent {
   return {
     id: r.id, sourceId: r.sourceId, title: r.title as Text, start: r.start, end: r.end, allDay: r.allDay || undefined,
     memberIds: r.memberIds, location: r.location ?? undefined, icon: r.icon ?? undefined, background: r.background || undefined,
+    recurring: r.recurring || undefined,
   };
 }

@@ -1,6 +1,6 @@
 import type {
   ApprovalRequest, CalendarSource, Chore, Completion, HouseholdWire, ImportantDate, Integration, Member, OneOffTask,
-  Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, WidgetConfig,
+  Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, WidgetConfig, ConnectionInfo,
 } from "@/lib/types";
 import { addDays, dateKey, startOfDay } from "@/lib/dates";
 import type { Tx } from "./db";
@@ -25,7 +25,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
   const today = startOfDay(now);
   const sinceDay = dateKey(addDays(today, -HISTORY_DAYS));
 
-  const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, sources, events, albums, holidays] = await Promise.all([
+  const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, sources, events, albums, holidays, connections] = await Promise.all([
     db.member.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { user: { select: { email: true } } } }),
     db.routine.findMany({ include: { steps: { orderBy: { position: "asc" } } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     db.chore.findMany({ orderBy: { createdAt: "asc" } }),
@@ -45,6 +45,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     }),
     db.photoAlbum.findMany({ orderBy: [{ server: "asc" }, { name: "asc" }] }),
     db.holidayRange.findMany({ where: { end: { gte: sinceDay } }, orderBy: { start: "asc" } }),
+    db.connection.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
   const routineItems: Routine[] = routines.map((r) => ({
@@ -91,19 +92,37 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     dates: dates.map((d): ImportantDate => ({ id: d.id, kind: d.kind, title: d.title as Text, date: d.date, yearly: d.yearly, memberId: d.memberId ?? undefined })),
     sources: sources.map((s): CalendarSource => ({
       id: s.id, provider: s.provider, name: s.name as Text, account: s.account ?? undefined, defaultMemberIds: s.defaultMemberIds, readOnly: s.readOnly,
+      background: s.background || undefined, connectionId: s.connectionId ?? undefined, lastSyncAt: s.lastSyncAt ?? undefined,
     })),
     events: events.map(fromStoredEvent),
     albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight })),
     holidays: holidays.map((h) => ({ start: h.start, end: h.end, summary: h.summary })),
     weather: household.demo ? demoWeather(today) : null,
-    integrations: integrationsFor(household.demo),
+    integrations: integrationsFor(household.demo, connections, sources),
+    // Addresses and usernames are for the admin's eyes; secrets are for nobody's (§17).
+    connections: viewer.isAdmin ? connections.map((c): ConnectionInfo => ({
+      id: c.id, kind: c.kind, name: c.name, url: c.url ?? undefined, username: c.username ?? undefined, status: c.status,
+      lastError: c.lastError ?? undefined, lastSyncAt: c.lastSyncAt ?? undefined, config: (c.config ?? {}) as Record<string, unknown>,
+    })) : [],
   };
 }
 
-/** Integration status for Settings. Real connections arrive with steps 5–8 of the roadmap. */
-function integrationsFor(demo: boolean): Integration[] {
-  const ids: Integration["id"][] = ["nextcloud", "immich", "google", "ics", "homeassistant"];
-  if (!demo) return ids.map((id) => ({ id, status: "off" }));
+type ConnRow = { id: string; kind: ConnectionInfo["kind"]; status: ConnectionInfo["status"] };
+
+/** Integration status for Settings, from the household's connections (or the demo's pretend ones). */
+function integrationsFor(demo: boolean, connections: ConnRow[], sources: { connectionId: string | null }[]): Integration[] {
+  const card = (id: Integration["id"], kinds: ConnRow["kind"][]): Integration => {
+    const mine = connections.filter((c) => kinds.includes(c.kind));
+    if (!mine.length) return { id, status: "off" };
+    const calendars = sources.filter((s) => mine.some((c) => c.id === s.connectionId)).length;
+    const status = mine.every((c) => c.status === "ok") ? "connected" : "partial";
+    const detail = kinds.includes("immich") || kinds.includes("homeassistant")
+      ? { en: `${mine.length} connected`, de: `${mine.length} verbunden` }
+      : { en: `${calendars} calendars`, de: `${calendars} Kalender` };
+    return { id, status, detail };
+  };
+  const real: Integration[] = [card("nextcloud", ["caldav"]), card("immich", ["immich"]), card("google", ["google"]), card("ics", ["ics"]), card("homeassistant", ["homeassistant"])];
+  if (!demo || connections.length) return real;
   return [
     { id: "nextcloud", status: "connected", detail: { en: "Demo: 2 calendars", de: "Demo: 2 Kalender" } },
     { id: "immich", status: "connected", detail: { en: "Demo: 2 servers, 4 albums in rotation", de: "Demo: 2 Server, 4 Alben in Rotation" } },
