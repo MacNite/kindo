@@ -23,7 +23,7 @@ Kindo is **not** a smart-home dashboard. Family organisation comes first.
 
 ## §3 People and accounts
 
-People and login accounts are **separate**. Children never need an account.
+People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email). Wall displays are paired as devices and need no login (§19.4).
 
 A member has a name, avatar (emoji, photo or initial), colour, role (`admin`, `adult`, `child`), an optional birthday and an optional account.
 
@@ -124,7 +124,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 1. **v0.1, UX prototype:** all screens on mock data, Docker image, CI. *(done)*
 2. **Persistence:** *(done)* PostgreSQL and Prisma, a `migrate` image and service, household state moved from `store.tsx` to Server Actions. Realtime sync between wall and phones (SSE).
 3. **Recurrence engine:** *(done)* occurrences per date, daily reset, completion history.
-4. **Accounts:** local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
+4. **Accounts:** *(done)* local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar.
 6. **Immich adapter** with a thumbnail proxy and cache.
 7. **PWA:** installable, offline shopping list, wake lock on the wall.
@@ -157,3 +157,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D21 | Background jobs run inside the app process (`src/instrumentation.ts`); one instance leads by holding a PostgreSQL advisory lock | No separate worker container yet, and still correct with more than one app container. |
 | D22 | "Every N weeks" stores its start date; the RRULE's DTSTART is that date | The family decides which Saturdays, and the rule round-trips through CalDAV unchanged. |
 | D23 | Completions are kept as history rows and survive edits of their routine; the history view measures days against today's routines | History without a second table, and calm by design: dots that fill, no streaks or scores. |
+| D24 | Everything is behind a login or a paired device. Logins use Better Auth (email + password, generic OIDC for authentik); nobody signs up: an admin creates logins for adults, and single sign-on only signs in emails that have a login | A family instance must not be open to the LAN, and a family has no strangers who need self-registration. |
+| D25 | Wall displays pair with a six-digit code (and QR) that an admin confirms; they get a long-lived, revocable device token in an HttpOnly cookie, renewed while the screen is in use. Without the PIN a device may view and tick off (routines, chores, shopping, tasks); planning, approvals and settings need the settings PIN, which unlocks the device for 10 minutes | The kitchen tablet must work for a four-year-old without anyone signing in, but it must not let a visitor change the household. |
+| D26 | One server secret, `KINDO_SECRET_KEY`, is stretched with HKDF into separate keys for sessions, cookie signatures and stored integration secrets | One value to configure and back up, without reusing a key across purposes. |
+| D27 | Permission levels: view, tick, manage (adults, or a device unlocked with the PIN), admin (admins: people, logins, devices, household, integrations). The server checks them in every Server Action; the UI only hides what a viewer can't use | One rule set, enforced in one place (`src/server/actor.ts`). |

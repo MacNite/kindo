@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  CalendarDays, CalendarHeart, ChevronRight, Cloud, Gift, Globe, House, ImageIcon, Languages, LayoutGrid, Palette, Pencil, Plug, Plus, Rss, Sparkles, Users,
+  CalendarDays, CalendarHeart, ChevronRight, Cloud, Gift, Globe, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Rss, Sparkles, UserRound, Users,
 } from "lucide-react";
 import type { Integration } from "@/lib/types";
 import { useI18n, type MessageKey } from "@/i18n";
@@ -13,35 +13,57 @@ import { updateHousehold } from "@/lib/services/actions";
 import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
 import { MemberEditor, DatesSection, RoutineSettings } from "./Editors";
+import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountSections";
+import { lockAgain } from "@/lib/services/accounts";
 import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
 import { PageHeader } from "../ui/Panel";
 import { Avatar, AvatarStack } from "../ui/Avatar";
 import { Button } from "../ui/Button";
-import { Field, Segmented, Switch, inputCls } from "../ui/Segmented";
+import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { cn } from "../ui/cn";
 
 const SECTIONS = [
   { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "dates", Icon: CalendarHeart }, { id: "calendar", Icon: CalendarDays },
   { id: "routines", Icon: Sparkles }, { id: "rewards", Icon: Gift }, { id: "photos", Icon: ImageIcon },
   { id: "dashboard", Icon: LayoutGrid }, { id: "appearance", Icon: Palette }, { id: "language", Icon: Languages },
-  { id: "integrations", Icon: Plug },
+  { id: "integrations", Icon: Plug }, { id: "devices", Icon: Monitor }, { id: "account", Icon: UserRound },
 ] as const;
+/** Sections only an admin changes; everyone else doesn't see them (the server refuses anyway). */
+const ADMIN_ONLY = new Set(["integrations", "devices"]);
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function SettingsScreen() {
   const { t } = useI18n();
-  const asked = useSearchParams().get("section");
-  const [section, setSection] = useState<SectionId | null>(() => SECTIONS.find((s) => s.id === asked)?.id ?? null);
+  const params = useSearchParams();
+  const asked = params.get("section");
+  const { viewer, requestPin } = useStore();
+  const sections = SECTIONS.filter((s) => (s.id === "account" ? viewer.kind === "user" : !ADMIN_ONLY.has(s.id) || viewer.isAdmin));
+  const [section, setSection] = useState<SectionId | null>(() => sections.find((s) => s.id === asked)?.id ?? null);
   // Desktop always shows a section; phones show the list first.
   const active = section ?? "family";
 
+  // A wall display shows settings only after someone enters the PIN (§19.4).
+  if (viewer.kind === "device" && !viewer.elevated) {
+    return (
+      <div>
+        <PageHeader title={t("settings.title")} />
+        <div className="flex max-w-md flex-col items-start gap-4 rounded-panel bg-surface p-6">
+          <Lock size={28} className="text-soft" />
+          <p className="text-soft">{viewer.pinSet ? t("pin.settingsLocked") : t("pin.notSet")}</p>
+          {viewer.pinSet && <Button variant="primary" onClick={requestPin}><KeyRound size={18} />{t("pin.unlock")}</Button>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <PageHeader title={t("settings.title")} />
+      <PageHeader title={t("settings.title")}
+        actions={viewer.kind === "device" ? <Button variant="outline" onClick={async () => { await lockAgain(); window.location.reload(); }}><Lock size={16} />{t("pin.lock")}</Button> : undefined} />
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <nav className={cn("flex flex-col gap-1", section && "max-md:hidden")}>
-          {SECTIONS.map(({ id, Icon }) => (
+          {sections.map(({ id, Icon }) => (
             <button key={id} onClick={() => setSection(id)} aria-current={active === id ? "page" : undefined}
               className={cn("flex h-12 items-center gap-3 rounded-full px-4 text-left font-bold max-md:bg-surface max-md:rounded-card max-md:h-14",
                 active === id ? "md:bg-ink md:text-surface" : "text-soft hover:bg-sunken hover:text-ink max-md:text-ink")}>
@@ -52,7 +74,7 @@ export function SettingsScreen() {
         <div className={cn("min-w-0", !section && "max-md:hidden")}>
           <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden">← {t("common.back")}</button>
           <h2 className="mb-4 font-display text-2xl font-bold">{t(`settings.sections.${active}`)}</h2>
-          <Section id={active} />
+          <Section id={active} code={params.get("code") ?? undefined} />
         </div>
       </div>
     </div>
@@ -66,11 +88,12 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="mb-4 max-w-prose text-soft">{children}</p>;
 }
 
-function Section({ id }: { id: SectionId }) {
+function Section({ id, code }: { id: SectionId; code?: string }) {
   const { t, tx, fmt, language, weekdayName, region } = useI18n();
   const { prefs, setPrefs } = usePrefs();
-  const { getMembers, getMember, getSources, data } = useStore();
+  const { getMembers, getMember, getSources, data, viewer } = useStore();
   const [editingMember, setEditingMember] = useState<string | "new" | null>(null);
+  const [editingLogin, setEditingLogin] = useState<string | null>(null);
 
   switch (id) {
     case "family":
@@ -79,6 +102,12 @@ function Section({ id }: { id: SectionId }) {
     case "dates":
       return <DatesSection />;
 
+    case "account":
+      return <AccountSection />;
+
+    case "devices":
+      return <DevicesSection initialCode={code} />;
+
     case "members":
       return (
         <>
@@ -86,7 +115,7 @@ function Section({ id }: { id: SectionId }) {
           <div className="grid gap-3 lg:grid-cols-2">
             {getMembers().map((m) => (
               <Card key={m.id} className="relative flex items-start gap-4">
-                <button onClick={() => setEditingMember(m.id)} aria-label={`${t("common.edit")}: ${m.name}`} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-soft hover:bg-sunken"><Pencil size={16} /></button>
+                {viewer.isAdmin && <button onClick={() => setEditingMember(m.id)} aria-label={`${t("common.edit")}: ${m.name}`} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-soft hover:bg-sunken"><Pencil size={16} /></button>}
                 <Avatar member={m} size="lg" />
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-xl font-bold">{m.name}</p>
@@ -96,14 +125,18 @@ function Section({ id }: { id: SectionId }) {
                     <dd className="flex items-center gap-2"><span className="h-4 w-4 rounded-full" style={{ background: m.color }} />{m.color}</dd>
                     {m.birthday && <><dt className="text-soft">{t("settings.members.birthday")}</dt><dd>{fmt.dateShort(new Date(m.birthday + "T00:00"))}</dd></>}
                     <dt className="text-soft">{t("settings.members.login")}</dt>
-                    <dd className="min-w-0 truncate">{m.account ? m.account.email : <span className="text-soft">{t("settings.members.noLogin")}</span>}</dd>
+                    <dd className="min-w-0 truncate">{m.account ? m.account.email : <span className="text-soft">{m.role === "child" ? t("settings.members.noLogin") : t("logins.none")}</span>}</dd>
                   </dl>
+                  {viewer.isAdmin && m.role !== "child" && (
+                    <Button size="sm" variant="ghost" className="-ml-3 mt-2" onClick={() => setEditingLogin(m.id)}><KeyRound size={14} />{m.account ? t("logins.manage") : t("logins.give")}</Button>
+                  )}
                 </div>
               </Card>
             ))}
           </div>
-          <Button className="mt-4" variant="outline" onClick={() => setEditingMember("new")}><Plus size={18} />{t("settings.members.add")}</Button>
+          {viewer.isAdmin && <Button className="mt-4" variant="outline" onClick={() => setEditingMember("new")}><Plus size={18} />{t("settings.members.add")}</Button>}
           {editingMember && <MemberEditor member={editingMember === "new" ? null : getMember(editingMember) ?? null} onClose={() => setEditingMember(null)} />}
+          {editingLogin && getMember(editingLogin) && <LoginEditor member={getMember(editingLogin)!} onClose={() => setEditingLogin(null)} />}
         </>
       );
 
@@ -155,10 +188,7 @@ function Section({ id }: { id: SectionId }) {
             <p className="mb-4 text-sm text-soft">{t("settings.dashboard.kioskHint")}</p>
             <Link href="/wall"><Button variant="outline">{t("settings.dashboard.openKiosk")}</Button></Link>
           </Card>
-          <Card className="flex items-center justify-between gap-3 md:col-span-2">
-            <span className="font-bold">{t("settings.dashboard.pin")}</span>
-            <Switch label={t("settings.dashboard.pin")} checked onChange={() => {}} />
-          </Card>
+          <div className="md:col-span-2"><PinCard /></div>
         </div>
       );
 

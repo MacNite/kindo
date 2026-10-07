@@ -5,7 +5,7 @@ import { loadSnapshot } from "@/server/snapshot";
 import { seedDemo } from "@/server/demo/seed";
 import { setupHousehold } from "@/server/setup";
 import { dateKey } from "@/lib/dates";
-import { TEST_DB, resetTestDatabase } from "./db";
+import { TEST_DB, VIEWER, resetTestDatabase } from "./db";
 
 const day = dateKey(new Date());
 
@@ -33,7 +33,7 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
   });
 
   it("loads the demo family into one snapshot, without any server-only fields", async () => {
-    const s = await loadSnapshot(db);
+    const s = await loadSnapshot(db, VIEWER);
     expect(s?.members.map((m) => m.name)).toEqual(["Anna", "Max", "Lena", "Paul"]);
     expect(s?.balances).toMatchObject({ lena: 125, paul: 64 });
     expect(s?.approvals).toHaveLength(2);
@@ -148,10 +148,14 @@ describe.skipIf(!TEST_DB)("first-run setup", () => {
   }, 60_000);
   afterAll(() => db?.$disconnect());
 
-  it("creates the household and its first admin, once", async () => {
-    const input = { demo: false, household: "Schmidts", timezone: "Europe/Vienna", member: { name: "Eva", color: "#3B78C2", avatar: { kind: "initial" as const } } };
+  it("creates the household and its first admin with a login, once", async () => {
+    const input = {
+      demo: false, household: "Schmidts", timezone: "Europe/Vienna", member: { name: "Eva", color: "#3B78C2", avatar: { kind: "initial" as const } },
+      email: "eva@example.test", password: "correct horse battery",
+    };
     const { memberId } = await setupHousehold(db, input);
-    expect(await db.member.findUniqueOrThrow({ where: { id: memberId } })).toMatchObject({ role: "admin", name: "Eva" });
+    const eva = await db.member.findUniqueOrThrow({ where: { id: memberId }, include: { user: true } });
+    expect(eva).toMatchObject({ role: "admin", name: "Eva", user: { email: "eva@example.test" } });
     expect(await db.shoppingList.count()).toBe(1);
     expect(await db.calendarSource.findUnique({ where: { id: "local" } })).not.toBeNull();
     await expect(setupHousehold(db, input)).rejects.toMatchObject({ code: "conflict" });

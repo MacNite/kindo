@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { prepare } from "./helpers";
+import { ADMIN_STATE } from "./logins";
 
 test("a shopping item survives a reload", async ({ page }) => {
   await prepare(page);
@@ -14,8 +15,8 @@ test("a shopping item survives a reload", async ({ page }) => {
 });
 
 test("the wall sees a tick from a phone without reloading (§19.2)", async ({ browser }) => {
-  const wall = await browser.newPage();
-  const phone = await browser.newPage();
+  const wall = await (await browser.newContext({ storageState: ADMIN_STATE })).newPage();
+  const phone = await (await browser.newContext({ storageState: ADMIN_STATE })).newPage();
   await prepare(wall);
   await prepare(phone);
   await wall.goto("/kids/lena");

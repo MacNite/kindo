@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { SetupScreen } from "@/components/setup/SetupScreen";
 import { prisma } from "@/server/db";
-import { hasHousehold } from "@/server/demo/seed";
+import { setupState } from "@/server/setup";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  if (await hasHousehold(prisma)) redirect("/");
-  return <SetupScreen />;
+  const state = await setupState(prisma);
+  if (state === "done") redirect("/");
+  return <SetupScreen claim={state === "claim"} />;
 }

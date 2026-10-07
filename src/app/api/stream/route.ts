@@ -1,4 +1,7 @@
+import { cookies } from "next/headers";
 import { subscribe, type Change } from "@/server/realtime";
+import { DEVICE_COOKIE, getActor } from "@/server/actor";
+import { env } from "@/server/env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,7 +13,9 @@ const HEARTBEAT_MS = 25_000;
  * Server-Sent Events: tells every open screen that something changed (§19.2).
  * Carries only the topic, never data: the device refetches what it may see.
  */
-export function GET(req: Request) {
+export async function GET(req: Request) {
+  const actor = await getActor();
+  if (!actor) return new Response("unauthenticated", { status: 401 });
   const encoder = new TextEncoder();
   let cleanup = () => {};
   const stream = new ReadableStream<Uint8Array>({
@@ -38,7 +43,12 @@ export function GET(req: Request) {
       cleanup();
     },
   });
-  return new Response(stream, {
-    headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" },
-  });
+  const headers = new Headers({ "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" });
+  // A wall display reconnects here all the time: renew its device cookie, so
+  // the browsers' 400-day cookie limit never unpairs a screen that is in use.
+  if (actor.kind === "device") {
+    const token = (await cookies()).get(DEVICE_COOKIE)?.value;
+    if (token) headers.append("Set-Cookie", `${DEVICE_COOKIE}=${token}; Path=/; Max-Age=${400 * 24 * 3600}; HttpOnly; SameSite=Lax${env().secureCookies ? "; Secure" : ""}`);
+  }
+  return new Response(stream, { headers });
 }

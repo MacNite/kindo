@@ -1,6 +1,6 @@
 import type {
   ApprovalRequest, CalendarSource, Chore, Completion, HouseholdWire, ImportantDate, Integration, Member, OneOffTask,
-  Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, WidgetConfig,
+  Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, WidgetConfig,
 } from "@/lib/types";
 import { addDays, dateKey, startOfDay } from "@/lib/dates";
 import type { Tx } from "./db";
@@ -19,14 +19,14 @@ const value = (v: unknown) => v as TaskValue;
  * Everything the screens need, in one query batch (§19.2). Only what a device
  * may see goes in here: no secrets, no tokens, no connection details (§17).
  */
-export async function loadSnapshot(db: Tx, now = new Date()): Promise<HouseholdWire | null> {
+export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Promise<HouseholdWire | null> {
   const household = await db.household.findUnique({ where: { id: 1 } });
   if (!household) return null;
   const today = startOfDay(now);
   const sinceDay = dateKey(addDays(today, -HISTORY_DAYS));
 
   const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, sources, events, albums, holidays] = await Promise.all([
-    db.member.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+    db.member.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { user: { select: { email: true } } } }),
     db.routine.findMany({ include: { steps: { orderBy: { position: "asc" } } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     db.chore.findMany({ orderBy: { createdAt: "asc" } }),
     // Pending approvals are always included, however old: someone still has to answer them.
@@ -67,7 +67,11 @@ export async function loadSnapshot(db: Tx, now = new Date()): Promise<HouseholdW
       dayStartsAt: household.dayStartsAt, morningUntil: household.morningUntil, afternoonUntil: household.afternoonUntil,
       holidayIcsUrls: household.holidayIcsUrls, holidaysSyncedAt: household.holidaysSyncedAt ?? undefined, holidaysError: household.holidaysError ?? undefined,
     },
-    members: members.map((m): Member => ({ id: m.id, name: m.name, role: m.role, color: m.color, avatar: m.avatar as Member["avatar"], birthday: m.birthday ?? undefined })),
+    viewer,
+    members: members.map((m): Member => ({
+      id: m.id, name: m.name, role: m.role, color: m.color, avatar: m.avatar as Member["avatar"], birthday: m.birthday ?? undefined,
+      account: m.user ? { email: m.user.email } : undefined,
+    })),
     routines: routineItems,
     chores: chores.map((c): Chore => ({
       id: c.id, memberId: c.memberId, recurrence: c.recurrence as unknown as Recurrence,

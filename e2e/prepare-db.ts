@@ -33,6 +33,7 @@ async function main() {
   const env = { ...process.env, DATABASE_URL: url };
   execSync("npx prisma migrate deploy", { stdio: "inherit", env });
   execSync("npx tsx prisma/seed-demo.ts", { stdio: "inherit", env });
+  execSync("npx tsx e2e/seed-logins.ts", { stdio: "inherit", env });
 }
 
 main().catch((e) => {

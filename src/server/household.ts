@@ -236,7 +236,10 @@ export async function saveMember(db: Tx, input: In<"member">) {
 
 export async function deleteMember(db: Tx, input: In<"byId">) {
   await assertAnotherAdmin(db, input.id);
+  const m = await db.member.findUnique({ where: { id: input.id }, select: { userId: true } });
   await db.member.deleteMany({ where: { id: input.id } });
+  // A login always belongs to a person: it goes with them.
+  if (m?.userId) await db.user.deleteMany({ where: { id: m.userId } });
 }
 
 /** A household always keeps at least one admin, or nobody could change settings any more. */

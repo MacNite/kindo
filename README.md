@@ -36,11 +36,17 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 Requirements: Docker with Compose v2.
 
 ```sh
-cp .env.example .env      # set POSTGRES_PASSWORD; optional: port, image tags, time zone
+cp .env.example .env      # set POSTGRES_PASSWORD and KINDO_SECRET_KEY; optional: APP_URL, single sign-on, time zone
 docker compose up -d
 ```
 
-Open <http://localhost:3000> and set up your household, or tick *Start with the demo family*. For the wall display open <http://localhost:3000/wall> in full-screen/kiosk mode on the tablet.
+Open <http://localhost:3000> and set up your household and your admin login, or tick *Start with the demo family*.
+
+### Logins and the wall display
+
+- **Everything is behind a login.** Adults get a login from an admin (Settings → Members). Children never need one.
+- **Single sign-on** with authentik or any OpenID Connect provider: set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, with the redirect URI `<APP_URL>/api/auth/callback/oidc`. It signs in people whose email already has a login; it never creates new ones.
+- **Wall display:** open `/pair` on the tablet. It shows a code and a QR code; an admin confirms it in Settings → Devices. The tablet then shows the wall and the child view without a login. It can tick off routines, chores and shopping; anything else (approving extras, planning, settings) asks for the **settings PIN**, which an admin sets in Settings → Devices and which unlocks the tablet for 10 minutes.
 
 | Service | What it does |
 |---|---|

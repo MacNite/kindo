@@ -7,7 +7,7 @@ import { syncHolidays, holidaysDue } from "@/server/holidays";
 import { setHolidayFeeds, setCompletion } from "@/server/household";
 import { loadSnapshot } from "@/server/snapshot";
 import { seedDemo } from "@/server/demo/seed";
-import { TEST_DB, resetTestDatabase } from "./db";
+import { TEST_DB, VIEWER, resetTestDatabase } from "./db";
 
 const ics = readFileSync(new URL("./fixtures/school.ics", import.meta.url), "utf8");
 
@@ -42,7 +42,7 @@ describe.skipIf(!TEST_DB)("school holidays (§7, §19.3)", () => {
     expect(n).toBeGreaterThanOrEqual(3);
     expect(await db.holidayRange.findFirst({ where: { summary: "Herbstferien" } })).toMatchObject({ start: "2026-10-26", end: "2026-10-30" });
     expect(await holidaysDue(db)).toBe(false);
-    const snap = await loadSnapshot(db, new Date(2026, 9, 7));
+    const snap = await loadSnapshot(db, VIEWER, new Date(2026, 9, 7));
     expect(snap?.holidays.map((h) => h.summary)).toContain("Herbstferien");
   });
 

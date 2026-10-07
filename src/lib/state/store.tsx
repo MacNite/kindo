@@ -47,6 +47,8 @@ function useHousehold(initial: HouseholdWire) {
   const periodAt = useCallback((now: Date = new Date()) => currentPeriod(now, times), [times]);
   const [error, setError] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus>("connecting");
+  /** A wall display tried something that needs the settings PIN: what to retry once it's unlocked. */
+  const [pinRequest, setPinRequest] = useState<{ retry: () => Promise<unknown> } | null>(null);
   const pending = useRef(0);
   const stale = useRef(false);
   const fetching = useRef(false);
@@ -62,7 +64,7 @@ function useHousehold(initial: HouseholdWire) {
     try {
       const w = await A.getSnapshot();
       if (!w) {
-        window.location.assign("/setup");
+        window.location.assign("/login");
         return;
       }
       if (pending.current === 0) setData(hydrate(w));
@@ -90,8 +92,11 @@ function useHousehold(initial: HouseholdWire) {
     }
     pending.current--;
     if (!result.ok) {
-      setError(result.error);
       stale.current = true;
+      if (result.error === "unauthenticated") window.location.assign("/login");
+      // A wall display needs the PIN: ask for it, then try again (§19.4).
+      else if (result.error === "pin") setPinRequest({ retry: call });
+      else setError(result.error);
     }
     if (pending.current === 0) void refresh();
     return result;
@@ -204,7 +209,8 @@ function useHousehold(initial: HouseholdWire) {
 
   return {
     data, ...selectors, sync, error, clearError: () => setError(null), refresh, run,
-    routineDay: today, times, periodAt,
+    routineDay: today, times, periodAt, viewer: data.viewer,
+    pinRequest, requestPin: () => setPinRequest({ retry: async () => {} }), closePin: () => setPinRequest(null),
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,
     rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode,

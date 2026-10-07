@@ -14,7 +14,7 @@ import { cn } from "../ui/cn";
 const COLORS = ["#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B", "#C2477A", "#2A8C9E"];
 
 /** First run: name the household and its first admin, or start with the demo family (§20 D11). */
-export function SetupScreen() {
+export function SetupScreen({ claim = false }: { claim?: boolean }) {
   const { t, language } = useI18n();
   const { setPrefs } = usePrefs();
   const [household, setHousehold] = useState("");
@@ -22,6 +22,8 @@ export function SetupScreen() {
   const [color, setColor] = useState(COLORS[0]);
   const [timezone] = useState(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Berlin");
   const [demo, setDemo] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,7 +31,7 @@ export function SetupScreen() {
     e.preventDefault();
     setBusy(true);
     const avatar: Member["avatar"] = { kind: "initial" };
-    const r = await setup({ demo, household: demo ? "Demo" : household, timezone, member: { name: demo ? "Demo" : name, color, avatar } });
+    const r = await setup({ demo, household: demo || claim ? "Household" : household, timezone, member: { name: demo ? "Demo" : name || "Admin", color, avatar }, email, password });
     if (r.ok) window.location.assign("/");
     else {
       setBusy(false);
@@ -48,9 +50,9 @@ export function SetupScreen() {
           ))}
         </div>
       </div>
-      <p className="text-soft">{t("setup.intro")}</p>
+      <p className="text-soft">{claim ? t("setup.claimIntro") : t("setup.intro")}</p>
       <form onSubmit={submit} className="flex flex-col gap-5 rounded-panel bg-surface p-6">
-        {!demo && <>
+        {!demo && !claim && <>
           <Field label={t("setup.household")} hint={t("settings.family.hint")}>
             <input required className={inputCls} value={household} onChange={(e) => setHousehold(e.target.value)} placeholder={t("setup.householdPlaceholder")} />
           </Field>
@@ -66,13 +68,21 @@ export function SetupScreen() {
             </div>
           </Field>
         </>}
-        <label className="flex items-start gap-3 rounded-card bg-sunken p-4">
-          <input type="checkbox" className="mt-1 h-5 w-5" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
-          <span><span className="flex items-center gap-2 font-bold"><Sparkles size={16} />{t("setup.demo")}</span><span className="text-sm text-soft">{t("setup.demoHint")}</span></span>
-        </label>
-        <p className="text-sm text-soft">{t("setup.timezone", { zone: timezone })}</p>
+        <Field label={t("login.email")}>
+          <input required type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+        </Field>
+        <Field label={t("login.password")} hint={t("setup.passwordHint")}>
+          <input required type="password" minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        </Field>
+        {!claim && (
+          <label className="flex items-start gap-3 rounded-card bg-sunken p-4">
+            <input type="checkbox" className="mt-1 h-5 w-5" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
+            <span><span className="flex items-center gap-2 font-bold"><Sparkles size={16} />{t("setup.demo")}</span><span className="text-sm text-soft">{t("setup.demoHint")}</span></span>
+          </label>
+        )}
+        {!claim && <p className="text-sm text-soft">{t("setup.timezone", { zone: timezone })}</p>}
         <ErrorText code={error} />
-        <Button type="submit" variant="primary" size="lg" disabled={busy || (!demo && (!household.trim() || !name.trim()))}>{t("setup.start")}</Button>
+        <Button type="submit" variant="primary" size="lg" disabled={busy || password.length < 8 || !email.includes("@") || (!demo && !claim && (!household.trim() || !name.trim()))}>{t("setup.start")}</Button>
       </form>
     </main>
   );

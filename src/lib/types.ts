@@ -198,6 +198,23 @@ export interface Integration {
   detail?: Text;
 }
 
+// ── Who is looking ──────────────────────────────────────────────────────────
+/** The signed-in person or paired wall display (§19.4), as far as the screens need to know. */
+export interface Viewer {
+  kind: "user" | "device";
+  name: string;
+  memberId?: string;
+  role?: Role;
+  /** May plan and change things (adults, or a wall unlocked with the PIN). */
+  canManage: boolean;
+  /** May change people, logins, devices and integrations. */
+  isAdmin: boolean;
+  /** A wall display that the PIN has unlocked for a few minutes. */
+  elevated?: boolean;
+  /** Has an admin set a settings PIN? */
+  pinSet: boolean;
+}
+
 // ── Household snapshot ──────────────────────────────────────────────────────
 export interface HouseholdSettings {
   name: string;
@@ -225,6 +242,7 @@ export interface HouseholdSettings {
  */
 export interface HouseholdData {
   household: HouseholdSettings;
+  viewer: Viewer;
   members: Member[];
   routines: Routine[];
   chores: Chore[];

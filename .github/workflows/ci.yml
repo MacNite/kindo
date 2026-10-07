@@ -128,10 +128,11 @@ jobs:
 
       - name: The app image starts and is healthy
         run: |
-          docker run -d --name kindo --network host -e DATABASE_URL=${{ env.DATABASE_URL }} kindo:ci
+          docker run -d --name kindo --network host -e DATABASE_URL=${{ env.DATABASE_URL }} -e KINDO_SECRET_KEY=ci-only-secret-key-0123456789abcdefghij kindo:ci
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3000/api/health; then
-              curl -fsS -o /dev/null http://127.0.0.1:3000/wall && exit 0
+              # Signed out, a household page sends you to the sign-in page.
+              curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3000/wall | grep -q '/login$' && exit 0
             fi
             sleep 2
           done

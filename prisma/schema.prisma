@@ -82,6 +82,8 @@ model Household {
   holidayIcsUrls   String[]   @default([])
   holidaysSyncedAt DateTime?
   holidaysError    String?
+  /// Hash of the PIN that unlocks settings on a paired wall display (§19.4).
+  settingsPinHash  String?
   /// Loaded from the bundled demo family (§20 D11).
   demo             Boolean    @default(false)
   createdAt        DateTime   @default(now())
@@ -99,6 +101,9 @@ model Member {
   birthday  String?
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
+  /// People and logins are separate (§3): children never have one.
+  userId    String?  @unique
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   routines    Routine[]
   chores      Chore[]
@@ -322,4 +327,96 @@ model HolidayRange {
   feed    String
 
   @@index([end])
+}
+
+// ---------------------------------------------------------------------------
+// Accounts (§19.4): Better Auth's tables, plus kiosk devices.
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  member        Member?
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// A paired kiosk screen (the wall tablet). It needs no login: a long-lived,
+/// revocable token in a cookie lets it show the wall and the child view.
+model Device {
+  id         String    @id @default(cuid())
+  name       String
+  /// SHA-256 of the device token; the token itself only lives in the device's cookie.
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime?
+  revokedAt  DateTime?
+  pairedById String?
+}
+
+/// A wall display waiting to be paired: it shows `code`, an admin confirms it.
+model PairingRequest {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  /// SHA-256 of the secret in the waiting device's cookie.
+  secretHash String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  approvedAt DateTime?
+  deviceName String?
+  approvedBy String?
 }
