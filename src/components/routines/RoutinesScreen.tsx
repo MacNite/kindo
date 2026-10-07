@@ -1,0 +1,215 @@
+"use client";
+import Link from "next/link";
+import { useState, type CSSProperties } from "react";
+import { Maximize2, Moon, Plus, Sun, Sunrise, ShieldCheck } from "lucide-react";
+import type { Member, Period, Recurrence, TaskItem, TaskValue } from "@/lib/types";
+import { useI18n } from "@/i18n";
+import { allChores, allRoutines, getMember, getMembers } from "@/lib/services/household";
+import { Button } from "../ui/Button";
+import { PageHeader } from "../ui/Panel";
+import { Segmented, Switch, Field, inputCls } from "../ui/Segmented";
+import { Avatar } from "../ui/Avatar";
+import { Pictogram } from "../ui/Pictogram";
+import { RewardAmount } from "../ui/RewardAmount";
+import { Dialog } from "../ui/Dialog";
+import { PictogramPicker, RecurrenceEditor, Stepper, describeRecurrence } from "./Editors";
+import { TaskCard } from "./ChildRoutine";
+import { cn } from "../ui/cn";
+
+const PERIOD_ICON: Record<Period, typeof Sun> = { morning: Sunrise, afternoon: Sun, evening: Moon };
+
+interface Draft { memberId: string | null; item: TaskItem; recurrence: Recurrence }
+
+export function RoutinesScreen() {
+  const i18n = useI18n();
+  const { t } = i18n;
+  const [tab, setTab] = useState<"routines" | "chores" | "extras">("routines");
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const kids = getMembers().filter((m) => m.role === "child");
+
+  const newDraft = (memberId: string | null, value: TaskValue = { kind: "expected" }, recurrence: Recurrence = { kind: "daily" }) =>
+    setDraft({ memberId, recurrence, item: { id: "new", pictogram: "toothbrush", label: "", value } });
+
+  return (
+    <div>
+      <PageHeader title={t("routines.title")} subtitle={t("routines.subtitle")}
+        actions={kids.map((k) => (
+          <Link key={k.id} href={`/kids/${k.id}`}><Button variant="outline" size="md"><Maximize2 size={16} />{k.name}</Button></Link>
+        ))} />
+      <Segmented className="mb-6" value={tab} onChange={setTab} options={[
+        { value: "routines", label: t("routines.tabRoutines") }, { value: "chores", label: t("routines.tabChores") }, { value: "extras", label: t("routines.tabExtras") },
+      ]} />
+
+      {tab === "routines" && (
+        <div className="flex flex-col gap-8">
+          {kids.map((m) => <MemberRoutines key={m.id} member={m} onEdit={setDraft} onAdd={() => newDraft(m.id)} />)}
+        </div>
+      )}
+
+      {tab === "chores" && (
+        <ChoreList kind="expected" onEdit={setDraft} onAdd={() => newDraft("max", { kind: "expected" }, { kind: "weekdays", days: [2] })} />
+      )}
+
+      {tab === "extras" && (
+        <>
+          <div className="mb-5 grid gap-3 md:grid-cols-2">
+            <Explain title={t("rewards.expectedTitle")} body={t("rewards.expectedBody")} />
+            <Explain title={t("rewards.extraTitle")} body={t("rewards.extraBody")} accent />
+          </div>
+          <ChoreList kind="extra" onEdit={setDraft} onAdd={() => newDraft("lena", { kind: "extra", points: 20, needsApproval: true }, { kind: "once", date: new Date().toISOString().slice(0, 10) })} />
+        </>
+      )}
+
+      {draft && <TaskEditor draft={draft} onClose={() => setDraft(null)} />}
+    </div>
+  );
+}
+
+function Explain({ title, body, accent }: { title: string; body: string; accent?: boolean }) {
+  return (
+    <div className={cn("rounded-card p-5", accent ? "bg-star/15" : "bg-surface")}>
+      <p className="font-display text-lg font-semibold">{title}</p>
+      <p className="mt-1 text-soft">{body}</p>
+    </div>
+  );
+}
+
+function MemberRoutines({ member, onEdit, onAdd }: { member: Member; onEdit: (d: Draft) => void; onAdd: () => void }) {
+  const i18n = useI18n();
+  const { t, tx } = i18n;
+  const routines = allRoutines().filter((r) => r.memberId === member.id);
+  return (
+    <section style={{ "--m": member.color } as CSSProperties}>
+      <header className="mb-3 flex items-center gap-3">
+        <Avatar member={member} size="md" />
+        <h2 className="font-display text-2xl font-bold">{member.name}</h2>
+        <Button size="sm" variant="ghost" className="ml-auto" onClick={onAdd}><Plus size={16} />{t("routines.addRoutine")}</Button>
+      </header>
+      <div className="grid gap-3 lg:grid-cols-3">
+        {routines.map((r) => {
+          const I = PERIOD_ICON[r.period];
+          return (
+            <div key={r.id} className="rounded-panel bg-surface p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="tint m-text grid h-9 w-9 place-items-center rounded-full"><I size={18} /></span>
+                <div>
+                  <p className="font-bold leading-tight">{t(`period.${r.period}`)}</p>
+                  <p className="text-sm text-soft">{describeRecurrence(r.recurrence, i18n)}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {r.items.map((it) => (
+                  <button key={it.id} onClick={() => onEdit({ memberId: member.id, item: it, recurrence: r.recurrence })} title={tx(it.label)}
+                    className="tint m-text flex aspect-square flex-col items-center justify-center gap-1 rounded-tile hover:ring-2 hover:ring-[var(--m)]">
+                    <Pictogram id={it.pictogram} className="h-7 w-7" />
+                    <span className="line-clamp-1 px-1 text-[11px] font-bold text-soft">{tx(it.label)}</span>
+                  </button>
+                ))}
+                <button onClick={() => onEdit({ memberId: member.id, item: { id: "new", pictogram: "book", label: "", value: { kind: "expected" } }, recurrence: r.recurrence })}
+                  aria-label={t("routines.addStep")} className="grid aspect-square place-items-center rounded-tile border-2 border-dashed border-line text-soft hover:text-ink">
+                  <Plus />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ChoreList({ kind, onEdit, onAdd }: { kind: "expected" | "extra"; onEdit: (d: Draft) => void; onAdd: () => void }) {
+  const i18n = useI18n();
+  const { t, tx } = i18n;
+  const chores = allChores().filter((c) => c.item.value.kind === kind);
+  return (
+    <div className="rounded-panel bg-surface p-2">
+      <ul className="divide-y divide-line">
+        {chores.map((c) => {
+          const m = getMember(c.memberId);
+          return (
+            <li key={c.id}>
+              <button onClick={() => onEdit({ memberId: c.memberId, item: c.item, recurrence: c.recurrence })} style={{ "--m": m?.color ?? "rgb(var(--soft))" } as CSSProperties}
+                className="flex w-full items-center gap-4 rounded-card p-3 text-left hover:bg-sunken">
+                <span className="tint m-text grid h-12 w-12 shrink-0 place-items-center rounded-tile"><Pictogram id={c.item.pictogram} className="h-6 w-6" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold">{tx(c.item.label)}</span>
+                  <span className="block text-sm text-soft">{describeRecurrence(c.recurrence, i18n)}</span>
+                </span>
+                {c.item.value.kind === "extra" && (
+                  <span className="flex items-center gap-2">
+                    {c.item.value.needsApproval && <ShieldCheck size={18} className="text-soft" aria-label={t("routines.needsApproval")} />}
+                    <RewardAmount points={c.item.value.points} plus />
+                  </span>
+                )}
+                {m ? <span className="flex items-center gap-2 text-sm font-bold"><Avatar member={m} size="sm" /><span className="max-sm:hidden">{m.name}</span></span>
+                  : <span className="text-sm font-bold text-soft">{t("common.anyone")}</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <Button variant="ghost" className="m-2" onClick={onAdd}><Plus size={18} />{t("routines.addChore")}</Button>
+    </div>
+  );
+}
+
+function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
+  const { t, tx } = useI18n();
+  const [d, setD] = useState(draft);
+  const member = getMember(d.memberId);
+  const item = d.item;
+  const set = (p: Partial<TaskItem>) => setD((x) => ({ ...x, item: { ...x.item, ...p } }));
+  const preview: TaskItem = { ...item, label: tx(item.label) || " " };
+
+  return (
+    <Dialog open wide onClose={onClose} title={item.id === "new" ? t("routines.newTask") : t("routines.editTask")}
+      footer={<><span className="mr-auto self-center text-sm text-soft">{t("common.notSaved")}</span><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" onClick={onClose}>{t("common.save")}</Button></>}>
+      <div style={{ "--m": member?.color ?? "rgb(var(--soft))" } as CSSProperties} className="grid gap-6 md:grid-cols-[1fr_220px]">
+        <div className="flex flex-col gap-6">
+          <Field label={t("routines.pictogram")}><PictogramPicker value={item.pictogram} onChange={(pictogram) => set({ pictogram })} /></Field>
+          <Field label={t("routines.label")} hint={t("routines.labelHint")}>
+            <input className={inputCls} value={tx(item.label)} onChange={(e) => set({ label: e.target.value })} />
+          </Field>
+          <Field label={t("routines.assignTo")}>
+            <div className="flex flex-wrap gap-2">
+              {[...getMembers(), null].map((m) => (
+                <button key={m?.id ?? "any"} onClick={() => setD((x) => ({ ...x, memberId: m?.id ?? null }))} aria-pressed={d.memberId === (m?.id ?? null)}
+                  className={cn("inline-flex h-11 items-center gap-2 rounded-full border-2 pl-1 pr-4 font-bold", d.memberId === (m?.id ?? null) ? "border-ink" : "border-line text-soft")}>
+                  {m ? <Avatar member={m} size="sm" /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-sunken">?</span>}{m?.name ?? t("common.anyone")}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label={t("routines.repeats")}><RecurrenceEditor value={d.recurrence} onChange={(recurrence) => setD((x) => ({ ...x, recurrence }))} /></Field>
+          <Field label={t("routines.points")}>
+            <div className="flex flex-col gap-3">
+              <Segmented value={item.value.kind} onChange={(k) => set({ value: k === "expected" ? { kind: "expected" } : { kind: "extra", points: 20, needsApproval: true } })}
+                options={[{ value: "expected", label: t("routines.expected") }, { value: "extra", label: t("routines.extra") }]} />
+              <p className="text-sm text-soft">{item.value.kind === "expected" ? t("routines.expectedHint") : t("routines.extraHint")}</p>
+              {item.value.kind === "extra" && (() => {
+                const v = item.value;
+                return (
+                  <div className="flex flex-col gap-3 rounded-card bg-sunken p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <RewardAmount points={v.points} iconSize={20} className="text-lg" />
+                      <Stepper value={v.points} step={5} min={5} max={200} onChange={(points) => set({ value: { ...v, points } })} />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-bold">{t("routines.needsApproval")}</span>
+                      <Switch label={t("routines.needsApproval")} checked={v.needsApproval} onChange={(needsApproval) => set({ value: { ...v, needsApproval } })} />
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </Field>
+        </div>
+        <div className="md:sticky md:top-0 md:self-start">
+          <p className="mb-2 text-sm font-bold text-soft">{t("routines.preview", { name: member?.name ?? t("common.anyone") })}</p>
+          <div className="tint rounded-card p-4"><TaskCard item={preview} done={false} onToggle={() => {}} /></div>
+        </div>
+      </div>
+    </Dialog>
+  );
+}

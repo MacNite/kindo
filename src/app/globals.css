@@ -1,0 +1,55 @@
+/* Fonts: Bricolage Grotesque for the clock/headings, Atkinson Hyperlegible for
+   everything you read — designed for legibility, which matters on a wall
+   screen read from across the kitchen. Fallbacks keep it usable offline. */
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 238 241 236;       /* kitchen-tile sage */
+  --surface: 251 252 250;
+  --sunken: 227 232 225;
+  --ink: 29 43 47;         /* slate */
+  --soft: 91 106 109;
+  --line: 211 219 210;
+  --star: 225 160 30;
+  --ok: 46 139 110;
+  color-scheme: light;
+}
+.dark {
+  --bg: 17 23 25;
+  --surface: 25 33 36;
+  --sunken: 34 44 48;
+  --ink: 232 238 234;
+  --soft: 150 164 165;
+  --line: 45 57 60;
+  --star: 240 186 72;
+  --ok: 92 190 155;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tints derived from a member's colour. Components set --m on an element. */
+.tint { background: color-mix(in srgb, var(--m) 13%, rgb(var(--surface))); }
+.tint-strong { background: color-mix(in srgb, var(--m) 28%, rgb(var(--surface))); }
+.m-text { color: color-mix(in srgb, var(--m) 78%, rgb(var(--ink))); }
+.m-border { border-color: color-mix(in srgb, var(--m) 45%, transparent); }
+.m-bg { background: var(--m); }
+
+:focus-visible { outline: 3px solid color-mix(in srgb, rgb(var(--ink)) 60%, transparent); outline-offset: 2px; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+.num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}

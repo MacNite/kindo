@@ -1,0 +1,128 @@
+name: Publish image
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      platforms:
+        description: Platforms to build
+        required: false
+        default: linux/amd64
+        type: choice
+        options:
+          - linux/amd64
+          - linux/amd64,linux/arm64
+
+# GITHUB_TOKEN needs write access to the container registry; nothing else.
+permissions:
+  contents: read
+  packages: write
+
+# A newer push to main supersedes an image that has not been published yet.
+# Release-tag builds are kept independent from branch builds.
+concurrency:
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
+
+env:
+  REGISTRY: ghcr.io
+  # Lowercased below: GHCR rejects uppercase characters in an image name.
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # A broken image must never reach the registry, so the fast checks run first.
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lowercase the image name
+        id: image
+        run: echo "name=${IMAGE_NAME,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Select platforms
+        id: platforms
+        run: |
+          # Emulated arm64 builds are slow, so they are reserved for releases
+          # and for an explicit manual run.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "list=${{ inputs.platforms }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ startsWith(github.ref, 'refs/tags/v') }}" = "true" ]; then
+            echo "list=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+          else
+            echo "list=linux/amd64" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-qemu-action@v3
+        if: contains(steps.platforms.outputs.list, 'arm64')
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+          labels: |
+            org.opencontainers.image.title=Kindo
+            org.opencontainers.image.description=Self-hosted family dashboard: today, routines, calendar and rewards on one screen
+            org.opencontainers.image.licenses=AGPL-3.0-only
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ steps.platforms.outputs.list }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            KINDO_VERSION=${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Image published"
+            echo
+            echo "**Digest:** \`${{ steps.build.outputs.digest }}\`"
+            echo "**Platforms:** \`${{ steps.platforms.outputs.list }}\`"
+            echo
+            echo "Tags:"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

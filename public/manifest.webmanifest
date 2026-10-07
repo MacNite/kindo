@@ -1,0 +1,9 @@
+{
+  "name": "Kindo",
+  "short_name": "Kindo",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EEF1EC",
+  "theme_color": "#EEF1EC",
+  "icons": []
+}

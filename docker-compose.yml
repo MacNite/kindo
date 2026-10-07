@@ -1,0 +1,31 @@
+name: kindo
+
+services:
+  app:
+    # Published by .github/workflows/publish.yml. Pin a version tag in .env
+    # for a reproducible deployment.
+    image: ${APP_IMAGE:-ghcr.io/macnite/kindo:latest}
+    # Kept so `docker compose up -d --build` builds locally from source.
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  # No database in v0.1: the prototype runs on mock data. PostgreSQL and a
+  # one-shot `migrate` service join here, as in BrewCore, once persistence
+  # lands (see docs/SPEC.md, "Roadmap").

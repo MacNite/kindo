@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: npm run test:e2e
+        env:
+          E2E_PORT: 3100
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t kindo:ci .
+
+      - name: The image starts and is healthy
+        run: |
+          docker run -d --name kindo -p 3000:3000 kindo:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/api/health; then
+              curl -fsS -o /dev/null http://127.0.0.1:3000/ && exit 0
+            fi
+            sleep 2
+          done
+          docker logs kindo
+          exit 1
+
+      - name: The Docker healthcheck reports healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' kindo)
+            [ "$status" = "healthy" ] && exit 0
+            sleep 2
+          done
+          echo "Health status: $status" >&2
+          docker logs kindo
+          exit 1
+
+      - name: The image runs as a non-root user
+        run: test "$(docker run --rm --entrypoint id kindo:ci -u)" != "0"

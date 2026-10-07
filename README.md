@@ -1,0 +1,157 @@
+# Kindo
+
+A self-hosted family dashboard for the kitchen wall, built around the family's day rather than the smart home:
+
+```
+People → Today → Routines & Tasks → Calendar → Rewards
+```
+
+Kindo puts one screen on the wall that the whole family can read at a glance: what's happening today, and what each person still has to do. Young children who can't read yet follow their morning and evening routines through large picture cards. Parents get the same data on their phones.
+
+> **Status: v0.1 UX prototype.** Every screen is clickable and uses realistic mock data. There is **no database, no login and no real integration yet**. Ticking things off is kept in memory until reload. This release validates the UX before the backend is built (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*).
+
+| Wall display | Child view |
+|---|---|
+| ![Wall display](docs/screenshots/wall-display.png) | ![Child view](docs/screenshots/child-view-lena.png) |
+| **Home (desktop)** | **Calendar (dark)** |
+| ![Home](docs/screenshots/home-desktop.png) | ![Calendar](docs/screenshots/calendar-week-dark.png) |
+
+<p align="center"><img src="docs/screenshots/mobile-home.png" alt="Mobile home" width="260"></p>
+
+## What's in the prototype
+
+- **Family lanes:** one column per person, in their colour, showing the current routine as picture tiles, appointments and chores. School and Kita appear as a quiet line.
+- **Child view:** large pictogram cards, progress shown as dots, morning/afternoon/evening chosen by icon. Leaving the view needs a press-and-hold.
+- **Wall display:** a kiosk layout readable from a few metres. It becomes a photo frame when idle, and a tap returns to the dashboard.
+- **Calendar:** month, week and agenda views, colour-coded by person, with filters and calendar sources (Nextcloud/CalDAV, Google, ICS, local).
+- **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library.
+- **Rewards:** off, stars, tokens or pocket money. Expected routines earn nothing, extras can earn a reward. Includes parent approval.
+- **Everyday lists:** shopping (several lists, quick add), tasks, weekly meal plan, important dates with countdowns.
+- **Photos:** several Immich servers, album pool, weighting.
+- **Customization:** show, hide, reorder and resize home widgets.
+- **Languages and themes:** English and German (separate language and region formats), light, dark and system themes.
+
+## Running with Docker Compose
+
+Requirements: Docker with Compose v2.
+
+```sh
+cp .env.example .env      # optional: port, image tag, time zone
+docker compose up -d
+```
+
+Open <http://localhost:3000>. For the wall display open <http://localhost:3000/wall> in full-screen/kiosk mode on the tablet.
+
+| Service | What it does |
+|---|---|
+| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Healthcheck at `/api/health`. |
+
+There is no database yet. PostgreSQL and a one-shot `migrate` service will join the stack once persistence lands, following the BrewCore pattern.
+
+### Without Compose
+
+```sh
+docker run -d --name kindo -p 3000:3000 ghcr.io/macnite/kindo:latest
+```
+
+### Building locally
+
+```sh
+docker compose up -d --build
+```
+
+## Images
+
+The **Publish image** workflow ([`.github/workflows/publish.yml`](.github/workflows/publish.yml)) runs lint, typecheck and unit tests, then pushes to GitHub Container Registry.
+
+| Trigger | Tags | Platforms |
+|---|---|---|
+| Push to `main` | `latest`, `main`, `sha-<short>` | `linux/amd64` |
+| Tag `v1.2.3` | `1.2.3`, `1.2`, `1`, `latest`, `sha-<short>` | `linux/amd64`, `linux/arm64` |
+| Tag `v0.x.y` | as above, without the bare major tag | `linux/amd64`, `linux/arm64` |
+| Manual run | as for the ref | selectable |
+
+Images carry provenance attestations and an SBOM. For a reproducible deployment, pin a version in `.env`:
+
+```sh
+APP_IMAGE=ghcr.io/macnite/kindo:0.1.0
+```
+
+To release, tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+
+> After the first publish, GHCR packages are **private** by default. To pull without logging in, open the package on GitHub → *Package settings* → *Change visibility* → *Public*.
+
+## Development
+
+Requirements: Node.js 22.
+
+```sh
+npm install
+npm run dev               # http://localhost:3000
+```
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build, served from the standalone output exactly as in the image |
+| `npm run lint` | ESLint (`next/core-web-vitals`, `next/typescript`) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm test` | Vitest unit tests (recurrence, dates, translation parity, photo pool) |
+| `npm run test:e2e` | Playwright: every route renders, plus the key flows on desktop and phone |
+| `npm run check` | lint + typecheck + unit tests |
+
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above on every push. It also builds the Docker image and checks that the image starts, becomes healthy and runs as a non-root user.
+
+### Screens
+
+| URL | Screen |
+|---|---|
+| `/` | Home: family lanes and widgets (desktop), separate layout on phones |
+| `/wall` | Wall display (kiosk) with photo frame |
+| `/kids`, `/kids/lena`, `/kids/paul` | Child view |
+| `/calendar`, `/routines`, `/tasks`, `/shopping`, `/meals`, `/rewards`, `/photos`, `/settings` | Management screens |
+| `/screensaver` | The photo frame on its own |
+
+### Project structure
+
+```
+src/
+  app/
+    (app)/            Management screens inside the AppShell (rail on desktop, bottom nav on phones)
+    (kiosk)/          Full-screen surfaces: wall, kids, screensaver
+    api/health/       Liveness endpoint for Docker
+    layout.tsx, providers.tsx
+  components/
+    ui/               Design-system primitives (Avatar, Button, Panel, Dialog, Pictogram, …)
+    layout/           AppShell, navigation, language/theme toggle
+    widgets/          FamilyLanes, dashboard widgets, HomeScreen, WallDashboard
+    routines/         ChildRoutine, RoutinesScreen, RecurrenceEditor, PictogramPicker
+    calendar/ shopping/ rewards/ photos/ settings/
+  lib/
+    types.ts          Domain model: the contract between UI and data
+    services/         Data seams (calendar, photos, household). The UI reads only from here
+    state/            Device prefs and in-memory household state
+    data/             Mock household, generated relative to today
+    recurrence.ts     Recurrence model, matcher, RRULE mapping
+    pictograms.tsx    Pictogram library
+  i18n/               messages/en.ts + de.ts (parity enforced by types and tests), formats
+e2e/                  Playwright specs
+docker/               entrypoint.sh, healthcheck.sh
+docs/                 SPEC.md (product + decisions), screenshots
+```
+
+### Localization
+
+UI strings live in `src/i18n/messages/`. `de.ts` is typed against `en.ts`, so a missing German string fails the build. A unit test also checks that placeholders match. Language (UI text) and region (date format, 12/24 h, week start, numbers, currency) are set separately in **Settings → Language & region**.
+
+## Integrations (planned)
+
+The seams are in place and documented in code. Nothing connects yet.
+
+- **Nextcloud / CalDAV** (primary calendar source): `CalendarAdapter` in [`src/lib/services/calendar.ts`](src/lib/services/calendar.ts). It runs server-side so app passwords never reach the browser. `Recurrence` maps 1:1 onto RRULE, so routines can later be stored as VTODO.
+- **Immich** (several servers): `PhotoAdapter` and `buildPool()` in [`src/lib/services/photos.ts`](src/lib/services/photos.ts). Thumbnails will be proxied by Kindo so API keys stay on the server.
+- **Google Calendar, ICS subscriptions, Home Assistant:** shown in Settings → Integrations.
+
+## License
+
+[AGPL-3.0-only](LICENSE). Kindo was inspired by the feature sets of FamilyHub and Kinboard but shares no code, names or assets with them.

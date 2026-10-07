@@ -1,0 +1,163 @@
+/**
+ * English UI strings. `de.ts` is typed against this object, so a missing
+ * German key is a compile error — German can never silently fall behind.
+ * Placeholders use {name} syntax.
+ */
+const en = {
+  app: { name: "Kindo" },
+  nav: {
+    home: "Home", calendar: "Calendar", routines: "Routines", tasks: "Tasks", shopping: "Shopping",
+    meals: "Meals", rewards: "Rewards", photos: "Photos", settings: "Settings", more: "More",
+    wall: "Wall display", kids: "Kids",
+  },
+  common: {
+    today: "Today", tomorrow: "Tomorrow", yesterday: "Yesterday", allDay: "All day", done: "Done",
+    edit: "Edit", save: "Save", cancel: "Cancel", add: "Add", close: "Close", everyone: "Everyone",
+    anyone: "Anyone", inDays: "in {n} days", now: "Now", seeAll: "See all", ofTotal: "{done} of {total}",
+    approve: "Approve", decline: "Not yet", back: "Back", hide: "Hide", show: "Show",
+    moveEarlier: "Move earlier", moveLater: "Move later", size: "Size", configure: "Set up",
+    connected: "Connected", partial: "Partly set up", off: "Not connected", planned: "Later version",
+    mockNote: "Prototype: changes are kept until you reload.", until: "until {time}", minutes: "{n} min",
+    whole: "Whole family", notSaved: "Prototype: this form isn't saved yet.",
+  },
+  greeting: { morning: "Good morning", afternoon: "Good afternoon", evening: "Good evening" },
+  roles: { admin: "Household admin", adult: "Adult", child: "Child" },
+  period: { morning: "Morning", afternoon: "Afternoon", evening: "Evening" },
+  sky: { sun: "Sunny", partly: "Partly cloudy", cloud: "Cloudy", rain: "Rain", snow: "Snow" },
+  weather: { range: "{high}° / {low}°", rain: "{p}% rain" },
+  home: {
+    familyToday: "Today in the family",
+    customize: "Customize", doneCustomizing: "Done",
+    customizeHint: "Choose which cards show on this screen, their order and size.",
+    hiddenWidgets: "Hidden cards", nothingHidden: "All cards are on the screen.",
+    upNext: "Up next", laterToday: "Later today", nothingLeft: "Nothing else planned today.",
+    freeDay: "No plans", routinesLeft: "{n} to go", allDoneShort: "All done",
+    waitingForOk: "Waiting for your OK", openWall: "Wall display", tonight: "Tonight",
+    chores: "Chores", events: "{n} events", eventOne: "1 event", tomorrow: "Tomorrow",
+  },
+  widgets: {
+    clock: "Clock", weather: "Weather", agenda: "Today", upcoming: "Coming up", routines: "Routines",
+    chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
+  },
+  calendar: {
+    month: "Month", week: "Week", agenda: "Agenda", sources: "Calendars", newEvent: "New event",
+    readOnly: "Read only", from: "From {source}", who: "Who", where: "Where", when: "When",
+    today: "Today", previous: "Previous", next: "Next", more: "+{n} more", source: "Calendar",
+  },
+  providers: { caldav: "Nextcloud", google: "Google", ics: "Subscription", local: "Local" },
+  routines: {
+    title: "Routines & chores",
+    subtitle: "What each person does, and when. Routines are part of the day; extras are optional help.",
+    tabRoutines: "Routines", tabChores: "Chores", tabExtras: "Extras",
+    addRoutine: "New routine", addChore: "New chore", addStep: "Add step",
+    editTask: "Edit step", newTask: "New step",
+    expected: "Expected", expectedHint: "Part of the day. No points.",
+    extra: "Extra", extraHint: "Optional help that earns a reward.",
+    points: "Reward", needsApproval: "A parent confirms before it counts",
+    pictogram: "Picture", label: "Name", labelHint: "Optional. Shown small under the picture.",
+    assignTo: "Who", repeats: "Repeats", childView: "Child view", steps: "{n} steps",
+    preview: "How it looks for {name}", earns: "+{n}",
+  },
+  recurrence: {
+    daily: "Every day", weekdays: "Some days", weekly: "Weekly", everyN: "Every few weeks",
+    monthly: "Monthly", once: "Once", schoolDays: "School days",
+    s_daily: "Every day", s_weekdays: "Every {days}", s_weekly: "Every {day}",
+    s_everyN: "Every {n} weeks on {day}", s_monthly: "Day {n} of every month",
+    s_once: "Once, on {date}", s_schoolDays: "Every school day, not in holidays",
+    every: "Every", weeks: "weeks", on: "On", day: "Day of month", date: "Date",
+    next: "Next", rrule: "Calendar rule",
+  },
+  picker: {
+    title: "Choose a picture", builtin: "Pictures", emoji: "Emoji", photo: "Own photo",
+    upload: "Upload a photo", uploadHint: "For little ones, a photo of their own toothbrush or bed often works best.",
+    cat_morning: "Morning", cat_household: "Household", cat_evening: "Evening", cat_outdoor: "Outdoors", cat_school: "School & play",
+  },
+  tasks: {
+    title: "Tasks", subtitle: "One-off things that need doing.", add: "Add a task", placeholder: "What needs doing?",
+    open: "Open", done: "Done", overdue: "Overdue", due: "Due {date}", noDue: "No date", unassigned: "Anyone",
+  },
+  shopping: {
+    title: "Shopping", add: "Add to {list}", items: "{n} to buy", clearDone: "Clear ticked items",
+    inTrolley: "In the trolley ({n})", whoAdds: "For",
+    cat_produce: "Fruit & veg", cat_dairy: "Dairy", cat_bakery: "Bakery", cat_pantry: "Pantry", cat_frozen: "Frozen",
+    cat_household: "Household", cat_hardware: "Hardware", cat_care: "Personal care", cat_other: "Other",
+    offline: "Lists will work offline once the app is installed on a phone.",
+  },
+  meals: {
+    title: "Meals", subtitle: "Dinner this week.", dinner: "Dinner", cooks: "{name} cooks",
+    toShopping: "Add ingredients to shopping", recipesLater: "Recipes and ingredient lists come in a later version.",
+    empty: "Nothing planned", tonight: "Tonight",
+  },
+  rewards: {
+    title: "Rewards",
+    mode: "Reward system", off: "No rewards", stars: "Stars", tokens: "Tokens", money: "Pocket money",
+    offHint: "Routines and chores without points.", starsHint: "Children collect stars for extras.",
+    tokensHint: "Like stars, shown as tokens.", moneyHint: "Points are converted to pocket money.",
+    available: "What {name} can choose", redeem: "Choose", needMore: "{n} more",
+    approvals: "Waiting for a parent", noApprovals: "Nothing waiting.",
+    howTitle: "How rewards work here",
+    expectedTitle: "Expected routines", expectedBody: "Brushing teeth, getting dressed, making the bed. These are part of the day and earn nothing.",
+    extraTitle: "Extra help", extraBody: "Washing the car, helping in the garden, tidying the garage. These are optional and can earn a reward.",
+    disabledBody: "Rewards are switched off. Routines still work, just without points.",
+    redeemed: "{reward} chosen", rate: "1 point = {value}",
+  },
+  dates: {
+    title: "Dates to remember", turns: "turns {n}", years: "{n} years",
+    birthday: "Birthday", anniversary: "Anniversary", school: "School", other: "Date",
+  },
+  photos: {
+    title: "Photos", subtitle: "The wall display becomes a photo frame when nobody is using it.",
+    servers: "Photo sources", addServer: "Add Immich server", albums: "{n} albums", photos: "{n} photos",
+    pool: "Screensaver pool", poolHint: "Albums ticked here are shuffled together.",
+    weighting: "Mix", weightingHint: "How often each album appears.",
+    behaviour: "When it starts", idle: "After no touch for", showMeta: "Show date, place and album",
+    start: "Start screensaver", flowActive: "Dashboard", flowIdle: "No touch", flowSaver: "Photos", flowTouch: "Touch",
+    presence: "Presence sensor support is planned.", wake: "Tap to return",
+  },
+  kids: {
+    choose: "Who are you?", back: "Family screen", allDone: "All done",
+    nextUp: "Next", parentHint: "Hold to leave",
+  },
+  settings: {
+    title: "Settings",
+    sections: {
+      family: "Family", members: "Members", calendar: "Calendar", routines: "Routines & chores",
+      rewards: "Rewards", photos: "Photos", dashboard: "Dashboard", appearance: "Appearance",
+      language: "Language & region", integrations: "Integrations",
+    },
+    family: { name: "Family name", location: "Location for weather", timezone: "Time zone", hint: "Shown on the wall display greeting." },
+    members: {
+      add: "Add person", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
+      color: "Colour", hint: "People and logins are separate. Children don't need an account.",
+    },
+    calendar: { hint: "Each calendar belongs to one or more people, so its events take their colour.", add: "Add calendar", belongsTo: "Belongs to" },
+    routines: {
+      periods: "Times of day", periodsHint: "Decides which routine the wall shows right now.",
+      morningUntil: "Morning until", afternoonUntil: "Afternoon until", schoolCal: "School holidays from", resetAt: "Routines reset at",
+    },
+    dashboard: {
+      layout: "Home screen layout", layoutHint: "Open the home screen and tap Customize.", openLayout: "Arrange home screen",
+      kiosk: "Wall display", kioskHint: "Full screen, no admin controls, photo frame when idle.", openKiosk: "Open wall display",
+      pin: "Settings need a PIN on the wall display",
+    },
+    appearance: { theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large" },
+    language: {
+      language: "Language", region: "Formats", preview: "Preview", date: "Date", time: "Time",
+      weekStart: "Week starts", number: "Number", currency: "Currency",
+      hint: "Language and formats are set separately, e.g. English text with German dates.",
+    },
+    integrations: {
+      hint: "Connections are shown for the concept only. Nothing is connected in this prototype.",
+      nextcloud: "Nextcloud (CalDAV)", nextcloudBody: "Two-way sync of calendars and, later, tasks. The main calendar source.",
+      immich: "Immich", immichBody: "Albums for the screensaver and photo card. Several servers can be added.",
+      google: "Google Calendar", googleBody: "Calendars from Google accounts.",
+      ics: "Calendar subscriptions (ICS)", icsBody: "Read-only feeds like school holidays or waste collection.",
+      homeassistant: "Home Assistant", homeassistantBody: "A few useful home states on the family screen. Not a smart-home panel.",
+    },
+  },
+};
+
+export default en;
+
+type DeepStrings<T> = { [K in keyof T]: T[K] extends string ? string : DeepStrings<T[K]> };
+export type Messages = DeepStrings<typeof en>;
