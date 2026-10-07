@@ -85,6 +85,8 @@ export async function syncSource(db: Tx, conn: Connection, source: SourceRow, op
   const rows = toRows(source, events, members);
   // Replace the calendar's events in one go: screens never see it half synced.
   await inTx(db, async (tx) => {
+    // One writer per calendar: a second sync (Settings and the background job at once) waits for the first.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`kindo:sync:${source.id}`}, 0))`;
     await tx.event.deleteMany({ where: { sourceId: source.id } });
     if (rows.length) await tx.event.createMany({ data: rows });
     await tx.calendarSource.update({ where: { id: source.id }, data: { syncState: opts.state ?? null, lastSyncAt: now } });

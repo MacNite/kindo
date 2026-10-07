@@ -3,6 +3,9 @@ import { defineConfig } from "vitest/config";
 
 // Run date logic in a DST-observing zone so daylight-saving bugs show up in CI.
 process.env.TZ = "Europe/Berlin";
+// The server config requires a database address even where a test never connects
+// (signing, encryption). Integration tests use TEST_DATABASE_URL, not this.
+process.env.DATABASE_URL ??= "postgresql://unused@127.0.0.1:1/unused";
 
 export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
