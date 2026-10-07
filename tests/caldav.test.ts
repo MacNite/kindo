@@ -78,6 +78,14 @@ describe.skipIf(!TEST_DB || !URL_)("Nextcloud / CalDAV (§19.5)", () => {
     expect((await db.connection.findUniqueOrThrow({ where: { id: connectionId } })).status).toBe("ok");
   });
 
+  it("two syncs of the same calendar at once don't trip over each other", async () => {
+    // Connecting in Settings syncs, and the background job may pick the new connection up at the same moment.
+    const conn = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
+    const before = await db.event.count({ where: { sourceId } });
+    await Promise.all(Array.from({ length: 4 }, () => syncConnection(db, conn, { force: true })));
+    expect(await db.event.count({ where: { sourceId } })).toBe(before);
+  });
+
   it("a calendar removed from Kindo stays removed after the next discovery", async () => {
     await C.removeSource(db, { id: sourceId });
     await C.syncNow(db, { id: connectionId });
