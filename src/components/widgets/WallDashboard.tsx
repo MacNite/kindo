@@ -5,10 +5,7 @@ import { ImageIcon, LayoutGrid, Smile } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
-import { MEALS } from "@/lib/data/meals";
-import { FAMILY_NAME } from "@/lib/data/members";
 import { sameDay } from "@/lib/dates";
-import { getMember } from "@/lib/services/household";
 import { FamilyLanes } from "./FamilyLanes";
 import { BigClock, WeatherNow, DatesList } from "./Widgets";
 import { Screensaver } from "../photos/Screensaver";
@@ -23,7 +20,7 @@ import { useGreeting } from "./HomeScreen";
 export function WallDashboard() {
   const today = useToday();
   const { t, tx } = useI18n();
-  const { idleMinutes, shopping } = useStore();
+  const { idleMinutes, shopping, shoppingLists, data, getMember } = useStore();
   const greeting = useGreeting();
   const [saver, setSaver] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -40,18 +37,18 @@ export function WallDashboard() {
     return () => { clearTimeout(timer.current); evs.forEach((e) => window.removeEventListener(e, poke)); };
   }, [poke]);
 
-  const tonight = MEALS.find((m) => sameDay(m.date, today));
+  const tonight = data.meals.find((m) => sameDay(m.date, today));
   const cook = getMember(tonight?.cookId);
-  const toBuy = shopping.filter((s) => s.listId === "groceries" && !s.done);
+  const toBuy = shopping.filter((s) => s.listId === shoppingLists[0]?.id && !s.done);
 
   return (
     <div className="flex h-dvh gap-5 overflow-hidden p-6 max-lg:h-auto max-lg:flex-col">
       <aside className="flex w-[400px] shrink-0 flex-col gap-5 max-lg:w-full">
         <div className="px-1">
-          <p className="mb-3 text-xl text-soft">{greeting}, {FAMILY_NAME}s</p>
+          <p className="mb-3 text-xl text-soft">{greeting}, {data.household.name}</p>
           <BigClock size="xl" />
         </div>
-        <div className="rounded-panel bg-surface p-6"><WeatherNow large /></div>
+        {data.weather && <div className="rounded-panel bg-surface p-6"><WeatherNow large /></div>}
         {tonight && (
           <Link href="/meals" className="rounded-panel bg-surface p-6">
             <p className="text-lg font-bold text-soft">{t("meals.tonight")}</p>

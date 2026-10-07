@@ -1,17 +1,17 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
-import { buildPool } from "@/lib/services/photos";
-import { PhotoPlaceholder } from "../ui/PhotoPlaceholder";
+import { usePhotoPlaylist } from "@/lib/state/photos";
+import { Photo } from "../ui/PhotoPlaceholder";
 
 /** Full-screen photo frame. Any touch calls onWake. */
 export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; interval?: number }) {
-  const { albums } = useStore();
+  const { albums, showPhotoMeta } = useStore();
   const { t, fmt } = useI18n();
   const now = useNow(10_000);
-  const pool = useMemo(() => buildPool(albums), [albums]);
+  const pool = usePhotoPlaylist();
   const [i, setI] = useState(0);
   useEffect(() => {
     if (pool.length < 2) return;
@@ -29,7 +29,7 @@ export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; i
       {photo && (
         <div key={photo.id} className="absolute inset-0 animate-fade">
           <div className="absolute inset-0 animate-[kenburns_20s_ease-out_both]">
-            <PhotoPlaceholder seed={photo.seed} className="h-full w-full" />
+            <Photo photo={photo} className="h-full w-full" />
           </div>
         </div>
       )}
@@ -38,10 +38,10 @@ export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; i
           <p className="num font-display text-7xl font-semibold leading-none tracking-tight">{fmt.clock(now)}</p>
           <p className="mt-2 text-xl opacity-90">{fmt.dateLong(now)}</p>
         </div>
-        {photo && (
+        {photo && showPhotoMeta && (
           <div className="text-right text-lg">
-            <p className="font-bold">{photo.place}</p>
-            <p className="opacity-85">{fmt.dateMedium(photo.takenAt)} {photo.takenAt.getFullYear()}, {album?.name}</p>
+            {photo.place && <p className="font-bold">{photo.place}</p>}
+            <p className="opacity-85">{photo.takenAt && `${fmt.dateMedium(photo.takenAt)} ${photo.takenAt.getFullYear()}, `}{album?.name}</p>
           </div>
         )}
       </div>

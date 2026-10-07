@@ -1,13 +1,15 @@
 "use client";
 import type { CSSProperties } from "react";
 import { useState } from "react";
-import { Coins, Euro, PowerOff, Star } from "lucide-react";
-import type { RewardMode } from "@/lib/types";
+import { Coins, Euro, Pencil, Plus, PowerOff, Star, Trash2 } from "lucide-react";
+import type { Reward, RewardMode } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { REWARDS, POINT_VALUE_EUR } from "@/lib/data/rewards";
-import { children, getMember } from "@/lib/services/household";
+import { deleteReward, saveReward, setRewardMode as saveRewardMode } from "@/lib/services/actions";
 import { PageHeader, Panel } from "../ui/Panel";
+import { Dialog } from "../ui/Dialog";
+import { Field, inputCls } from "../ui/Segmented";
+import { ErrorText } from "../ui/ErrorText";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Pictogram } from "../ui/Pictogram";
@@ -20,7 +22,8 @@ const MODES: { id: RewardMode; Icon: typeof Star }[] = [
 
 export function RewardModePicker() {
   const { t, fmt } = useI18n();
-  const { rewardMode, setRewardMode } = useStore();
+  const { rewardMode, setRewardMode, pointValue, run } = useStore();
+  const [rate, setRate] = useState(String(pointValue));
   return (
     <div>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -33,15 +36,24 @@ export function RewardModePicker() {
           </button>
         ))}
       </div>
-      {rewardMode === "money" && <p className="mt-2 text-sm text-soft">{t("rewards.rate", { value: fmt.money(POINT_VALUE_EUR) })}</p>}
+      {rewardMode === "money" && (
+        <label className="mt-3 flex flex-wrap items-center gap-3 text-sm text-soft">
+          {t("rewards.rate", { value: fmt.money(pointValue) })}
+          <input type="number" min={0} step={0.01} value={rate} aria-label={t("rewards.rateLabel")} className={cn(inputCls, "h-9 w-24")}
+            onChange={(e) => setRate(e.target.value)}
+            onBlur={() => { const v = Number(rate); if (Number.isFinite(v) && v >= 0) void run(() => saveRewardMode({ mode: "money", pointValue: v })); }} />
+        </label>
+      )}
     </div>
   );
 }
 
 export function RewardsScreen() {
   const { t, tx, fmt } = useI18n();
-  const { rewardMode, balances, redeem, approvals, resolveApproval } = useStore();
+  const { rewardMode, balances, redeem, approvals, resolveApproval, children, getMember, data } = useStore();
   const [flash, setFlash] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Reward | "new" | null>(null);
+  const REWARDS = data.rewards;
 
   return (
     <div>
@@ -83,7 +95,7 @@ export function RewardsScreen() {
                               </span>
                             )}
                           </span>
-                          {can ? <Button size="sm" variant="primary" onClick={() => { redeem(m.id, r); setFlash(t("rewards.redeemed", { reward: tx(r.title) })); }}>{t("rewards.redeem")}</Button>
+                          {can ? <Button size="sm" variant="primary" onClick={async () => { if ((await redeem(m.id, r)).ok) setFlash(t("rewards.redeemed", { reward: tx(r.title) })); }}>{t("rewards.redeem")}</Button>
                             : <span className="num text-sm text-soft">{t("rewards.needMore", { n: fmt.num(r.cost - bal) })}</span>}
                         </li>
                       );
@@ -99,7 +111,8 @@ export function RewardsScreen() {
               {approvals.length === 0 ? <p className="text-soft">{t("rewards.noApprovals")}</p> : (
                 <ul className="flex flex-col gap-3">
                   {approvals.map((a) => {
-                    const m = getMember(a.memberId)!;
+                    const m = getMember(a.memberId);
+                    if (!m) return null;
                     return (
                       <li key={a.id} style={{ "--m": m.color } as CSSProperties} className="rounded-card bg-sunken p-3">
                         <div className="flex items-center gap-3">
@@ -120,6 +133,21 @@ export function RewardsScreen() {
                 </ul>
               )}
             </Panel>
+            <Panel title={t("rewards.catalogue")} action={<Button size="sm" variant="ghost" onClick={() => setEditing("new")}><Plus size={16} />{t("rewards.add")}</Button>}>
+              <ul className="flex flex-col gap-1">
+                {REWARDS.length === 0 && <li className="text-soft">{t("rewards.noRewards")}</li>}
+                {REWARDS.map((r) => (
+                  <li key={r.id}>
+                    <button onClick={() => setEditing(r)} className="flex w-full items-center gap-3 rounded-tile p-2 text-left hover:bg-sunken">
+                      <span className="text-xl" aria-hidden>{r.emoji}</span>
+                      <span className="flex-1 font-bold">{tx(r.title)}</span>
+                      <RewardAmount points={r.cost} className="text-sm text-soft" iconSize={14} />
+                      <Pencil size={14} className="text-soft" aria-hidden />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
             <Panel title={t("rewards.howTitle")} tone="sunken">
               <p className="font-bold">{t("rewards.expectedTitle")}</p>
               <p className="mb-3 text-soft">{t("rewards.expectedBody")}</p>
@@ -129,10 +157,36 @@ export function RewardsScreen() {
           </div>
         </div>
       )}
+      {editing && <RewardEditor reward={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
       {flash && (
         <div role="status" onAnimationEnd={() => setTimeout(() => setFlash(null), 1800)}
           className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 animate-rise rounded-full bg-ink px-5 py-3 font-bold text-surface md:bottom-8">{flash}</div>
       )}
     </div>
+  );
+}
+
+function RewardEditor({ reward, onClose }: { reward: Reward | null; onClose: () => void }) {
+  const { t, tx } = useI18n();
+  const { run } = useStore();
+  const [emoji, setEmoji] = useState(reward?.emoji ?? "🎁");
+  const [title, setTitle] = useState(reward ? tx(reward.title) : "");
+  const [cost, setCost] = useState(reward?.cost ?? 50);
+  const [error, setError] = useState<string | null>(null);
+  const done = (r: { ok: boolean; error?: string }) => (r.ok ? onClose() : setError(r.error ?? "server"));
+  return (
+    <Dialog open onClose={onClose} title={reward ? t("rewards.edit") : t("rewards.add")}
+      footer={<>
+        {reward && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => deleteReward({ id: reward.id })))}><Trash2 size={16} />{t("common.delete")}</Button>}
+        <ErrorText code={error} className="self-center" />
+        <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" disabled={!title.trim()} onClick={async () => done(await run(() => saveReward({ id: reward?.id, emoji, title, cost })))}>{t("common.save")}</Button>
+      </>}>
+      <div className="grid grid-cols-[88px_1fr] gap-4">
+        <Field label={t("rewards.emoji")}><input className={cn(inputCls, "text-center text-2xl")} value={emoji} maxLength={8} onChange={(e) => setEmoji(e.target.value)} /></Field>
+        <Field label={t("routines.label")}><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label={t("rewards.cost")}><input type="number" min={1} className={inputCls} value={cost} onChange={(e) => setCost(Math.max(1, Math.round(Number(e.target.value) || 1)))} /></Field>
+      </div>
+    </Dialog>
   );
 }

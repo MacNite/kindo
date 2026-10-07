@@ -8,7 +8,7 @@ People → Today → Routines & Tasks → Calendar → Rewards
 
 Kindo puts one screen on the wall that the whole family can read at a glance: what's happening today, and what each person still has to do. Young children who can't read yet follow their morning and evening routines through large picture cards. Parents get the same data on their phones.
 
-> **Status: v0.1 UX prototype.** Every screen is clickable and uses realistic mock data. There is **no database, no login and no real integration yet**. Ticking things off is kept in memory until reload. This release validates the UX before the backend is built (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*).
+> **Status: v0.2.** Everything is stored in PostgreSQL and every screen stays in sync live (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*). A new install starts empty; the Müller demo family can be loaded on the first-run screen.
 
 | Wall display | Child view |
 |---|---|
@@ -36,23 +36,19 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 Requirements: Docker with Compose v2.
 
 ```sh
-cp .env.example .env      # optional: port, image tag, time zone
+cp .env.example .env      # set POSTGRES_PASSWORD; optional: port, image tags, time zone
 docker compose up -d
 ```
 
-Open <http://localhost:3000>. For the wall display open <http://localhost:3000/wall> in full-screen/kiosk mode on the tablet.
+Open <http://localhost:3000> and set up your household, or tick *Start with the demo family*. For the wall display open <http://localhost:3000/wall> in full-screen/kiosk mode on the tablet.
 
 | Service | What it does |
 |---|---|
-| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Healthcheck at `/api/health`. |
+| `db` | PostgreSQL 17. Data in `./data/postgres` (`POSTGRES_DATA_PATH`). Not published outside the compose network. |
+| `migrate` | One-shot: applies database migrations (`ghcr.io/macnite/kindo-migrate`), then exits. With `KINDO_DEMO=true` it loads the demo family into an empty database. |
+| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Waits for `migrate`. Healthcheck at `/api/health` (includes a database round-trip). |
 
-There is no database yet. PostgreSQL and a one-shot `migrate` service will join the stack once persistence lands, following the BrewCore pattern.
-
-### Without Compose
-
-```sh
-docker run -d --name kindo -p 3000:3000 ghcr.io/macnite/kindo:latest
-```
+Back up `./data/postgres` (or run `docker compose exec db pg_dump -U kindo kindo > kindo.sql`).
 
 ### Building locally
 
@@ -71,10 +67,11 @@ The **Publish image** workflow ([`.github/workflows/publish.yml`](.github/workfl
 | Tag `v0.x.y` | as above, without the bare major tag | `linux/amd64`, `linux/arm64` |
 | Manual run | as for the ref | selectable |
 
-Images carry provenance attestations and an SBOM. For a reproducible deployment, pin a version in `.env`:
+Images carry provenance attestations and an SBOM. The migration image `ghcr.io/macnite/kindo-migrate` is published alongside with the same tags. For a reproducible deployment, pin the same version on both in `.env`:
 
 ```sh
-APP_IMAGE=ghcr.io/macnite/kindo:0.1.0
+APP_IMAGE=ghcr.io/macnite/kindo:0.2.0
+MIGRATE_IMAGE=ghcr.io/macnite/kindo-migrate:0.2.0
 ```
 
 To release, tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
@@ -83,10 +80,13 @@ To release, tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
 
 ## Development
 
-Requirements: Node.js 22.
+Requirements: Node.js 22 and a PostgreSQL you can create databases in.
 
 ```sh
 npm install
+cp .env.example .env      # then set DATABASE_URL, e.g. postgresql://kindo:kindo@localhost:5432/kindo
+npm run db:migrate        # apply migrations
+npm run db:seed:demo      # optional: the Müller demo family
 npm run dev               # http://localhost:3000
 ```
 
@@ -96,11 +96,14 @@ npm run dev               # http://localhost:3000
 | `npm run build` / `npm start` | Production build, served from the standalone output exactly as in the image |
 | `npm run lint` | ESLint (`next/core-web-vitals`, `next/typescript`) |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest unit tests (recurrence, dates, translation parity, photo pool) |
-| `npm run test:e2e` | Playwright: every route renders, plus the key flows on desktop and phone |
-| `npm run check` | lint + typecheck + unit tests |
+| `npm test` | Vitest: unit tests, plus integration tests against `TEST_DATABASE_URL` when it is set (skipped otherwise) |
+| `npm run test:e2e` | Playwright. Creates, migrates and seeds its own database (`<name>_e2e` next to `DATABASE_URL`), then starts the production server |
+| `npm run check` | lint + typecheck + tests |
+| `npm run db:migrate` / `db:migrate:dev` | Apply migrations / create a new one after changing `prisma/schema.prisma` |
+| `npm run db:drift` | Fails when the schema and the committed migrations disagree (needs `SHADOW_DATABASE_URL`) |
+| `npm run db:seed:demo` | Load the demo family into an empty database |
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above on every push. It also builds the Docker image and checks that the image starts, becomes healthy and runs as a non-root user.
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above against PostgreSQL on every push. It also builds both images, migrates a fresh database with the migrate image, and checks that the app starts, becomes healthy, carries no Prisma CLI and runs as a non-root user.
 
 ### Screens
 
@@ -119,7 +122,9 @@ src/
   app/
     (app)/            Management screens inside the AppShell (rail on desktop, bottom nav on phones)
     (kiosk)/          Full-screen surfaces: wall, kids, screensaver
-    api/health/       Liveness endpoint for Docker
+    setup/            First-run setup
+    api/health/       Liveness endpoint for Docker (with a database round-trip)
+    api/stream/       Server-Sent Events: tells every screen when something changed
     layout.tsx, providers.tsx
   components/
     ui/               Design-system primitives (Avatar, Button, Panel, Dialog, Pictogram, …)
@@ -128,15 +133,23 @@ src/
     routines/         ChildRoutine, RoutinesScreen, RecurrenceEditor, PictogramPicker
     calendar/ shopping/ rewards/ photos/ settings/
   lib/
-    types.ts          Domain model: the contract between UI and data
-    services/         Data seams (calendar, photos, household). The UI reads only from here
-    state/            Device prefs and in-memory household state
-    data/             Mock household, generated relative to today
+    types.ts          Domain model: the contract between UI and server
+    services/         Selectors over the household snapshot, and the Server Action seam (actions.ts)
+    state/            Device prefs and the household store (snapshot, optimistic updates, live refresh)
     recurrence.ts     Recurrence model, matcher, RRULE mapping
+    ledger.ts         The reward rule (§9)
+  server/
+    household.ts      The household's rules and writes (plain functions over Prisma)
+    actions/          Server Actions: thin wrappers that parse input and announce changes
+    snapshot.ts       Loads everything a screen needs in one round-trip
+    realtime.ts       PostgreSQL LISTEN/NOTIFY → SSE
+    demo/             The Müller demo family and the seed
     pictograms.tsx    Pictogram library
   i18n/               messages/en.ts + de.ts (parity enforced by types and tests), formats
-e2e/                  Playwright specs
-docker/               entrypoint.sh, healthcheck.sh
+prisma/               schema.prisma, migrations, seed-demo.ts
+tests/                Integration tests against PostgreSQL
+e2e/                  Playwright specs, and prepare-db.ts for the suite's own database
+docker/               entrypoint.sh, migrate.sh, healthcheck.sh
 docs/                 SPEC.md (product + decisions), screenshots
 ```
 

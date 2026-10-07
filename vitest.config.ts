@@ -11,5 +11,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     // Playwright specs run through `npm run test:e2e`, not Vitest.
     exclude: ["**/node_modules/**", "e2e/**"],
+    // The integration tests share one PostgreSQL database (TEST_DATABASE_URL).
+    fileParallelism: false,
   },
 });

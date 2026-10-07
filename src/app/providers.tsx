@@ -2,12 +2,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PrefsProvider } from "@/lib/state/prefs";
 import { I18nProvider } from "@/i18n";
-import { StoreProvider } from "@/lib/state/store";
 
 /**
- * The prototype renders client-side only: theme, language and "now" all come
- * from the device, so skipping SSR avoids hydration mismatches. A real build
- * can move language to the URL/cookie and re-enable SSR.
+ * Screens render on the device (§20 D7): theme, language and "now" all come
+ * from it, so skipping SSR avoids hydration mismatches. Household data is
+ * loaded on the server by the route-group layouts and handed to the store.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -15,9 +14,7 @@ export function Providers({ children }: { children: ReactNode }) {
   if (!mounted) return <div className="min-h-dvh bg-bg" />;
   return (
     <PrefsProvider>
-      <I18nProvider>
-        <StoreProvider>{children}</StoreProvider>
-      </I18nProvider>
+      <I18nProvider>{children}</I18nProvider>
     </PrefsProvider>
   );
 }

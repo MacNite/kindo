@@ -3,19 +3,20 @@ import Link from "next/link";
 import { ArrowRight, Check, Play, Plus, Server, Radar } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { getServers } from "@/lib/services/photos";
-import { PHOTOS } from "@/lib/data/photos";
+import { usePhotoPlaylist } from "@/lib/state/photos";
 import { PageHeader, Panel } from "../ui/Panel";
 import { Button } from "../ui/Button";
 import { Switch } from "../ui/Segmented";
-import { PhotoPlaceholder } from "../ui/PhotoPlaceholder";
+import { Photo, PhotoPlaceholder } from "../ui/PhotoPlaceholder";
 import { cn } from "../ui/cn";
 
 const WEIGHT_COLORS = ["#3B78C2", "#8A5CD1", "#E39A1B", "#2E8B6E", "#C2477A", "#5B6A6D"];
 
 export function PhotosScreen() {
   const { t, fmt } = useI18n();
-  const { albums, updateAlbum, idleMinutes, setIdleMinutes } = useStore();
+  const { albums, updateAlbum, idleMinutes, setIdleMinutes, showPhotoMeta, setShowPhotoMeta } = useStore();
+  const photos = usePhotoPlaylist();
+  const servers = [...new Set(albums.map((a) => a.server))];
   const pool = albums.filter((a) => a.selected);
   const totalW = pool.reduce((s, a) => s + Math.max(1, a.weight), 0);
 
@@ -25,30 +26,29 @@ export function PhotosScreen() {
         actions={<Link href="/screensaver"><Button variant="primary"><Play size={18} fill="currentColor" />{t("photos.start")}</Button></Link>} />
 
       <div className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {PHOTOS.slice(0, 6).map((p) => (
+        {photos.slice(0, 6).map((p) => (
           <div key={p.id} className="relative aspect-[4/3] overflow-hidden rounded-tile">
-            <PhotoPlaceholder seed={p.seed} className="h-full w-full" />
-            <span className="absolute bottom-1 left-1.5 text-[11px] font-bold text-white drop-shadow">{fmt.dateMedium(p.takenAt)}</span>
+            <Photo photo={p} size="thumbnail" className="h-full w-full" />
+            {p.takenAt && <span className="absolute bottom-1 left-1.5 text-[11px] font-bold text-white drop-shadow">{fmt.dateMedium(p.takenAt)}</span>}
           </div>
         ))}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
-        <Panel title={t("photos.servers")} action={<Button size="sm" variant="ghost"><Plus size={16} />{t("photos.addServer")}</Button>}>
+        <Panel title={t("photos.servers")} action={<Link href="/settings?section=integrations"><Button size="sm" variant="ghost"><Plus size={16} />{t("photos.addServer")}</Button></Link>}>
           <p className="mb-4 text-sm text-soft">{t("photos.poolHint")}</p>
           <div className="flex flex-col gap-5">
-            {getServers().map((s) => (
-              <section key={s.id}>
+            {servers.length === 0 && <p className="text-soft">{t("photos.noServers")}</p>}
+            {servers.map((s) => (
+              <section key={s}>
                 <header className="mb-2 flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken"><Server size={18} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold">Immich, {s.name}</p>
-                    <p className="truncate text-sm text-soft">{s.url}</p>
+                    <p className="font-bold">Immich, {s}</p>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-ok/15 px-2.5 py-1 text-xs font-bold text-ok"><span className="h-2 w-2 rounded-full bg-ok" />{t("common.connected")}</span>
                 </header>
                 <ul className="grid gap-2 sm:grid-cols-2">
-                  {albums.filter((a) => a.serverId === s.id).map((a) => (
+                  {albums.filter((a) => a.server === s).map((a) => (
                     <li key={a.id}>
                       <button onClick={() => updateAlbum(a.id, { selected: !a.selected, weight: a.selected ? 0 : 20 })} aria-pressed={a.selected}
                         className={cn("flex w-full items-center gap-3 rounded-card border-2 p-3 text-left", a.selected ? "border-ink" : "border-line")}>
@@ -105,7 +105,7 @@ export function PhotosScreen() {
             </div>
             <div className="mt-4 flex items-center justify-between gap-3">
               <span className="font-bold">{t("photos.showMeta")}</span>
-              <Switch label={t("photos.showMeta")} checked onChange={() => {}} />
+              <Switch label={t("photos.showMeta")} checked={showPhotoMeta} onChange={setShowPhotoMeta} />
             </div>
             <p className="mt-4 flex items-center gap-2 text-sm text-soft"><Radar size={16} />{t("photos.presence")}</p>
           </Panel>

@@ -1,11 +1,14 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { Check, ChevronDown, Plus, WifiOff } from "lucide-react";
+import { saveShoppingList } from "@/lib/services/actions";
+import { Dialog } from "../ui/Dialog";
+import { Button } from "../ui/Button";
+import { Field, inputCls } from "../ui/Segmented";
+import { ErrorText } from "../ui/ErrorText";
 import type { ShoppingCategory } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { LISTS } from "@/lib/data/shopping";
-import { getMember, getMembers } from "@/lib/services/household";
 import { PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
 import { cn } from "../ui/cn";
@@ -14,19 +17,21 @@ const ORDER: ShoppingCategory[] = ["produce", "bakery", "dairy", "pantry", "froz
 
 export function ShoppingScreen() {
   const { t, tx } = useI18n();
-  const { shopping, toggleShopping, addShopping, clearDone } = useStore();
-  const [listId, setListId] = useState(LISTS[0].id);
+  const { shopping, toggleShopping, addShopping, clearDone, shoppingLists: LISTS, getMember, getMembers } = useStore();
+  const [chosen, setListId] = useState<string | undefined>();
+  const listId = LISTS.find((l) => l.id === chosen)?.id ?? LISTS[0]?.id;
   const [text, setText] = useState("");
   const [forWho, setForWho] = useState<string | undefined>();
   const [showDone, setShowDone] = useState(false);
-  const list = LISTS.find((l) => l.id === listId)!;
+  const [newList, setNewList] = useState(false);
+  const list = LISTS.find((l) => l.id === listId);
   const items = shopping.filter((s) => s.listId === listId);
   const open = items.filter((s) => !s.done);
   const done = items.filter((s) => s.done);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!text.trim()) return;
+    if (!text.trim() || !listId) return;
     addShopping(listId, text.trim(), forWho);
     setText("");
   };
@@ -44,12 +49,15 @@ export function ShoppingScreen() {
             </button>
           );
         })}
+        <button onClick={() => setNewList(true)} aria-label={t("shopping.newList")} title={t("shopping.newList")}
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-surface text-soft hover:text-ink"><Plus size={20} /></button>
       </div>
+      {newList && <ListEditor onClose={() => setNewList(false)} />}
 
       {/* Quick add sits at the top: the most common action */}
       <form onSubmit={submit} className="sticky top-[60px] z-20 mb-5 flex flex-col gap-2 rounded-panel bg-surface p-3 md:top-4">
         <div className="flex gap-2">
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("shopping.add", { list: tx(list.name) })}
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("shopping.add", { list: list ? tx(list.name) : "" })}
             className="h-12 min-w-0 flex-1 rounded-full bg-sunken px-5 text-lg placeholder:text-soft focus:outline-none" />
           <button type="submit" aria-label={t("common.add")} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-ink text-surface"><Plus /></button>
         </div>
@@ -93,7 +101,7 @@ export function ShoppingScreen() {
               <button onClick={() => setShowDone((v) => !v)} className="flex items-center gap-1.5 text-sm font-bold text-soft">
                 <ChevronDown size={16} className={cn("transition-transform", !showDone && "-rotate-90")} />{t("shopping.inTrolley", { n: done.length })}
               </button>
-              <button onClick={() => clearDone(listId)} className="text-sm font-bold text-soft hover:text-ink">{t("shopping.clearDone")}</button>
+              <button onClick={() => listId && clearDone(listId)} className="text-sm font-bold text-soft hover:text-ink">{t("shopping.clearDone")}</button>
             </div>
             {showDone && (
               <ul className="mt-1.5 overflow-hidden rounded-panel bg-surface/60">
@@ -112,5 +120,27 @@ export function ShoppingScreen() {
         <p className="flex items-center gap-2 px-2 text-sm text-soft"><WifiOff size={16} />{t("shopping.offline")}</p>
       </div>
     </div>
+  );
+}
+
+function ListEditor({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const { run } = useStore();
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState("🛒");
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    const r = await run(() => saveShoppingList({ name, icon }));
+    if (r.ok) onClose();
+    else setError(r.error);
+  };
+  return (
+    <Dialog open onClose={onClose} title={t("shopping.newList")}
+      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" disabled={!name.trim()} onClick={save}>{t("common.save")}</Button></>}>
+      <div className="grid grid-cols-[88px_1fr] gap-4">
+        <Field label={t("rewards.emoji")}><input className={cn(inputCls, "text-center text-2xl")} value={icon} maxLength={8} onChange={(e) => setIcon(e.target.value)} /></Field>
+        <Field label={t("routines.label")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+      </div>
+    </Dialog>
   );
 }

@@ -8,6 +8,7 @@ const de: Messages = {
     wall: "Wandanzeige", kids: "Kinder",
   },
   common: {
+    delete: "Löschen", saved: "Gespeichert",
     today: "Heute", tomorrow: "Morgen", yesterday: "Gestern", allDay: "Ganztägig", done: "Erledigt",
     edit: "Bearbeiten", save: "Speichern", cancel: "Abbrechen", add: "Hinzufügen", close: "Schließen", everyone: "Alle",
     anyone: "Irgendwer", inDays: "in {n} Tagen", now: "Jetzt", seeAll: "Alle anzeigen", ofTotal: "{done} von {total}",
@@ -21,7 +22,7 @@ const de: Messages = {
   roles: { admin: "Haushaltsverwaltung", adult: "Erwachsen", child: "Kind" },
   period: { morning: "Morgens", afternoon: "Nachmittags", evening: "Abends" },
   sky: { sun: "Sonnig", partly: "Teils bewölkt", cloud: "Bewölkt", rain: "Regen", snow: "Schnee" },
-  weather: { range: "{high}° / {low}°", rain: "{p} % Regen" },
+  weather: { none: "Noch keine Wetterquelle.", range: "{high}° / {low}°", rain: "{p} % Regen" },
   home: {
     familyToday: "Heute bei uns",
     customize: "Anpassen", doneCustomizing: "Fertig",
@@ -37,12 +38,14 @@ const de: Messages = {
     chores: "Haushalt", meals: "Essen", shopping: "Einkauf", dates: "Wichtige Tage", photos: "Fotos",
   },
   calendar: {
+    editEvent: "Termin bearbeiten", eventTitle: "Titel", titlePlaceholder: "z. B. Schwimmkurs", startTime: "Von", endTime: "Bis",
     month: "Monat", week: "Woche", agenda: "Liste", sources: "Kalender", newEvent: "Neuer Termin",
     readOnly: "Nur lesen", from: "Aus {source}", who: "Wer", where: "Wo", when: "Wann",
     today: "Heute", previous: "Zurück", next: "Weiter", more: "+{n} weitere", source: "Kalender",
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Abo", local: "Lokal" },
   routines: {
+    noChildren: "Lege unter Einstellungen → Personen ein Kind an, um ihm Routinen zu geben.", noChores: "Noch nichts da.", period: "Tageszeit", routineWide: "Gilt für die ganze Routine.",
     title: "Routinen & Haushalt",
     subtitle: "Wer macht was, und wann. Routinen gehören zum Tag, Extras sind freiwillige Hilfe.",
     tabRoutines: "Routinen", tabChores: "Haushalt", tabExtras: "Extras",
@@ -74,6 +77,7 @@ const de: Messages = {
     open: "Offen", done: "Erledigt", overdue: "Überfällig", due: "Fällig {date}", noDue: "Ohne Datum", unassigned: "Irgendwer",
   },
   shopping: {
+    newList: "Neue Liste",
     title: "Einkauf", add: "Zu {list} hinzufügen", items: "{n} offen", clearDone: "Abgehakte entfernen",
     inTrolley: "Im Wagen ({n})", whoAdds: "Für",
     cat_produce: "Obst & Gemüse", cat_dairy: "Milchprodukte", cat_bakery: "Backwaren", cat_pantry: "Vorrat", cat_frozen: "Tiefkühl",
@@ -81,11 +85,13 @@ const de: Messages = {
     offline: "Listen funktionieren offline, sobald die App auf dem Handy installiert ist.",
   },
   meals: {
+    clearHint: "Leer lassen, um den Tag zu leeren.", note: "Notiz", cook: "Wer kocht", nobody: "Noch offen",
     title: "Essen", subtitle: "Abendessen diese Woche.", dinner: "Abendessen", cooks: "{name} kocht",
     toShopping: "Zutaten auf die Einkaufsliste", recipesLater: "Rezepte und Zutatenlisten kommen in einer späteren Version.",
     empty: "Noch nichts geplant", tonight: "Heute Abend",
   },
   rewards: {
+    rateLabel: "Wert eines Punkts", catalogue: "Belohnungen", add: "Belohnung hinzufügen", edit: "Belohnung bearbeiten", noRewards: "Noch keine Belohnungen.", emoji: "Bild", cost: "Kosten in Punkten",
     title: "Belohnungen",
     mode: "Belohnungssystem", off: "Keine Belohnungen", stars: "Sterne", tokens: "Taler", money: "Taschengeld",
     offHint: "Routinen und Aufgaben ohne Punkte.", starsHint: "Kinder sammeln Sterne für Extras.",
@@ -99,10 +105,12 @@ const de: Messages = {
     redeemed: "{reward} ausgesucht", rate: "1 Punkt = {value}",
   },
   dates: {
+    none: "Noch keine Termine.",
     title: "Wichtige Tage", turns: "wird {n}", years: "{n} Jahre",
     birthday: "Geburtstag", anniversary: "Jahrestag", school: "Schule", other: "Termin",
   },
   photos: {
+    none: "Noch keine Fotos in der Rotation.", noServers: "Noch kein Fotoserver verbunden.",
     title: "Fotos", subtitle: "Die Wandanzeige wird zum Bilderrahmen, wenn niemand sie benutzt.",
     servers: "Fotoquellen", addServer: "Immich-Server hinzufügen", albums: "{n} Alben", photos: "{n} Fotos",
     pool: "Bilderrahmen-Auswahl", poolHint: "Angehakte Alben werden zusammen gemischt.",
@@ -115,15 +123,19 @@ const de: Messages = {
     choose: "Wer bist du?", back: "Familienansicht", allDone: "Alles geschafft",
     nextUp: "Als Nächstes", parentHint: "Gedrückt halten zum Verlassen",
   },
+  errors: { notFound: "Das gibt es nicht mehr. Die Anzeige wurde aktualisiert.", invalid: "Bitte prüfe deine Eingaben.", forbidden: "Das darfst du nicht.", unauthenticated: "Bitte melde dich erneut an.", conflict: "Das ist schon erledigt.", notEnoughPoints: "Noch nicht genug Punkte.", readOnly: "Dieser Kalender ist schreibgeschützt.", remote: "Der verbundene Dienst hat nicht geantwortet. Bitte später noch einmal versuchen.", server: "Da ist etwas schiefgegangen. Bitte noch einmal versuchen.", network: "Keine Verbindung. Bitte noch einmal versuchen." },
+  setup: { title: "Willkommen bei Kindo", intro: "Richte deinen Haushalt ein. Weitere Personen, Kalender und Fotos kannst du später in den Einstellungen hinzufügen.", household: "Name des Haushalts", householdPlaceholder: "z. B. Familie Müller", you: "Dein Name", youHint: "Du verwaltest den Haushalt.", demo: "Mit der Demo-Familie starten", demoHint: "Lädt Familie Müller mit Routinen, Terminen und Fotos, um alles auszuprobieren.", timezone: "Zeitzone: {zone}. Lässt sich später ändern.", start: "Los geht's" },
   settings: {
     title: "Einstellungen",
     sections: {
+      dates: "Termine",
       family: "Familie", members: "Personen", calendar: "Kalender", routines: "Routinen & Haushalt",
       rewards: "Belohnungen", photos: "Fotos", dashboard: "Übersicht", appearance: "Darstellung",
       language: "Sprache & Region", integrations: "Integrationen",
     },
     family: { name: "Familienname", location: "Ort für das Wetter", timezone: "Zeitzone", hint: "Erscheint in der Begrüßung auf der Wandanzeige." },
     members: {
+      edit: "Person bearbeiten", name: "Name", role: "Rolle", avatar: "Bild",
       add: "Person hinzufügen", login: "Anmeldung", noLogin: "Keine Anmeldung. Nutzt die Familienansicht.", birthday: "Geburtstag",
       color: "Farbe", hint: "Personen und Logins sind getrennt. Kinder brauchen kein Konto.",
     },
@@ -144,13 +156,14 @@ const de: Messages = {
       hint: "Sprache und Formate sind getrennt einstellbar, z. B. englischer Text mit deutschem Datum.",
     },
     integrations: {
-      hint: "Die Verbindungen zeigen nur das Konzept. In diesem Prototyp ist nichts wirklich verbunden.",
+      hint: "Kindo spricht vom Server aus mit diesen Diensten, Passwörter und Schlüssel erreichen nie ein Gerät.",
       nextcloud: "Nextcloud (CalDAV)", nextcloudBody: "Zwei-Wege-Abgleich von Kalendern und später Aufgaben. Die wichtigste Kalenderquelle.",
       immich: "Immich", immichBody: "Alben für Bilderrahmen und Fotokarte. Mehrere Server sind möglich.",
       google: "Google Kalender", googleBody: "Kalender aus Google-Konten.",
       ics: "Kalender-Abos (ICS)", icsBody: "Nur-Lese-Feeds wie Schulferien oder Abfallkalender.",
       homeassistant: "Home Assistant", homeassistantBody: "Ein paar nützliche Zustände im Haus auf der Familienansicht. Kein Smart-Home-Panel.",
     },
+    dates: { hint: "Geburtstage, Jahrestage und Schultermine, mit Countdown auf dem Familienbildschirm.", add: "Termin hinzufügen", edit: "Termin bearbeiten", kind: "Art", date: "Datum", yearly: "Jedes Jahr", yearlyHint: "Bei Geburts- und Jahrestagen das ursprüngliche Datum, damit das Alter gezählt werden kann.", who: "Wessen Termin" },
   },
 };
 

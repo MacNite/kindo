@@ -11,6 +11,7 @@ const en = {
     wall: "Wall display", kids: "Kids",
   },
   common: {
+    delete: "Delete", saved: "Saved",
     today: "Today", tomorrow: "Tomorrow", yesterday: "Yesterday", allDay: "All day", done: "Done",
     edit: "Edit", save: "Save", cancel: "Cancel", add: "Add", close: "Close", everyone: "Everyone",
     anyone: "Anyone", inDays: "in {n} days", now: "Now", seeAll: "See all", ofTotal: "{done} of {total}",
@@ -24,7 +25,7 @@ const en = {
   roles: { admin: "Household admin", adult: "Adult", child: "Child" },
   period: { morning: "Morning", afternoon: "Afternoon", evening: "Evening" },
   sky: { sun: "Sunny", partly: "Partly cloudy", cloud: "Cloudy", rain: "Rain", snow: "Snow" },
-  weather: { range: "{high}° / {low}°", rain: "{p}% rain" },
+  weather: { none: "No weather source yet.", range: "{high}° / {low}°", rain: "{p}% rain" },
   home: {
     familyToday: "Today in the family",
     customize: "Customize", doneCustomizing: "Done",
@@ -40,12 +41,14 @@ const en = {
     chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
   },
   calendar: {
+    editEvent: "Edit event", eventTitle: "Title", titlePlaceholder: "e.g. Swimming lesson", startTime: "From", endTime: "Until",
     month: "Month", week: "Week", agenda: "Agenda", sources: "Calendars", newEvent: "New event",
     readOnly: "Read only", from: "From {source}", who: "Who", where: "Where", when: "When",
     today: "Today", previous: "Previous", next: "Next", more: "+{n} more", source: "Calendar",
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Subscription", local: "Local" },
   routines: {
+    noChildren: "Add a child in Settings → Members to give them routines.", noChores: "Nothing here yet.", period: "Time of day", routineWide: "Applies to the whole routine.",
     title: "Routines & chores",
     subtitle: "What each person does, and when. Routines are part of the day; extras are optional help.",
     tabRoutines: "Routines", tabChores: "Chores", tabExtras: "Extras",
@@ -77,6 +80,7 @@ const en = {
     open: "Open", done: "Done", overdue: "Overdue", due: "Due {date}", noDue: "No date", unassigned: "Anyone",
   },
   shopping: {
+    newList: "New list",
     title: "Shopping", add: "Add to {list}", items: "{n} to buy", clearDone: "Clear ticked items",
     inTrolley: "In the trolley ({n})", whoAdds: "For",
     cat_produce: "Fruit & veg", cat_dairy: "Dairy", cat_bakery: "Bakery", cat_pantry: "Pantry", cat_frozen: "Frozen",
@@ -84,11 +88,13 @@ const en = {
     offline: "Lists will work offline once the app is installed on a phone.",
   },
   meals: {
+    clearHint: "Leave empty to clear the day.", note: "Note", cook: "Who cooks", nobody: "Not decided",
     title: "Meals", subtitle: "Dinner this week.", dinner: "Dinner", cooks: "{name} cooks",
     toShopping: "Add ingredients to shopping", recipesLater: "Recipes and ingredient lists come in a later version.",
     empty: "Nothing planned", tonight: "Tonight",
   },
   rewards: {
+    rateLabel: "Value of one point", catalogue: "Reward catalogue", add: "Add reward", edit: "Edit reward", noRewards: "No rewards yet.", emoji: "Picture", cost: "Cost in points",
     title: "Rewards",
     mode: "Reward system", off: "No rewards", stars: "Stars", tokens: "Tokens", money: "Pocket money",
     offHint: "Routines and chores without points.", starsHint: "Children collect stars for extras.",
@@ -102,10 +108,12 @@ const en = {
     redeemed: "{reward} chosen", rate: "1 point = {value}",
   },
   dates: {
+    none: "No dates yet.",
     title: "Dates to remember", turns: "turns {n}", years: "{n} years",
     birthday: "Birthday", anniversary: "Anniversary", school: "School", other: "Date",
   },
   photos: {
+    none: "No photos in the rotation yet.", noServers: "No photo server connected yet.",
     title: "Photos", subtitle: "The wall display becomes a photo frame when nobody is using it.",
     servers: "Photo sources", addServer: "Add Immich server", albums: "{n} albums", photos: "{n} photos",
     pool: "Screensaver pool", poolHint: "Albums ticked here are shuffled together.",
@@ -118,15 +126,19 @@ const en = {
     choose: "Who are you?", back: "Family screen", allDone: "All done",
     nextUp: "Next", parentHint: "Hold to leave",
   },
+  errors: { notFound: "That no longer exists. The screen has been refreshed.", invalid: "Please check your entries.", forbidden: "You aren't allowed to do that.", unauthenticated: "Please sign in again.", conflict: "That has already been done.", notEnoughPoints: "Not enough points yet.", readOnly: "This calendar is read only.", remote: "The connected service didn't answer. Please try again later.", server: "Something went wrong. Please try again.", network: "No connection. Please try again." },
+  setup: { title: "Welcome to Kindo", intro: "Set up your household. You can add more people, calendars and photos later in Settings.", household: "Household name", householdPlaceholder: "e.g. The Müllers", you: "Your name", youHint: "You become the household admin.", demo: "Start with the demo family", demoHint: "Loads the Müller family with routines, events and photos, to try everything out.", timezone: "Time zone: {zone}. You can change it later.", start: "Get started" },
   settings: {
     title: "Settings",
     sections: {
+      dates: "Dates",
       family: "Family", members: "Members", calendar: "Calendar", routines: "Routines & chores",
       rewards: "Rewards", photos: "Photos", dashboard: "Dashboard", appearance: "Appearance",
       language: "Language & region", integrations: "Integrations",
     },
     family: { name: "Family name", location: "Location for weather", timezone: "Time zone", hint: "Shown on the wall display greeting." },
     members: {
+      edit: "Edit person", name: "Name", role: "Role", avatar: "Picture",
       add: "Add person", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
       color: "Colour", hint: "People and logins are separate. Children don't need an account.",
     },
@@ -147,13 +159,14 @@ const en = {
       hint: "Language and formats are set separately, e.g. English text with German dates.",
     },
     integrations: {
-      hint: "Connections are shown for the concept only. Nothing is connected in this prototype.",
+      hint: "Kindo talks to these services from the server, so passwords and keys never reach a device.",
       nextcloud: "Nextcloud (CalDAV)", nextcloudBody: "Two-way sync of calendars and, later, tasks. The main calendar source.",
       immich: "Immich", immichBody: "Albums for the screensaver and photo card. Several servers can be added.",
       google: "Google Calendar", googleBody: "Calendars from Google accounts.",
       ics: "Calendar subscriptions (ICS)", icsBody: "Read-only feeds like school holidays or waste collection.",
       homeassistant: "Home Assistant", homeassistantBody: "A few useful home states on the family screen. Not a smart-home panel.",
     },
+    dates: { hint: "Birthdays, anniversaries and school dates, with a countdown on the family screen.", add: "Add date", edit: "Edit date", kind: "Kind", date: "Date", yearly: "Every year", yearlyHint: "For birthdays and anniversaries, the original date, so ages can be counted.", who: "Whose date" },
   },
 };
 

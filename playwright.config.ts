@@ -1,6 +1,24 @@
 import { existsSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
+// Prisma reads .env on its own; the suite needs DATABASE_URL to derive its own database.
+try {
+  process.loadEnvFile?.(".env");
+} catch {}
+
+/**
+ * The suite's own database: `<name>_e2e` next to DATABASE_URL, unless
+ * E2E_DATABASE_URL names one. A developer's data is never touched.
+ */
+function e2eDatabaseUrl(base = process.env.DATABASE_URL): string {
+  if (process.env.E2E_DATABASE_URL) return process.env.E2E_DATABASE_URL;
+  if (!base) throw new Error("Set DATABASE_URL (or E2E_DATABASE_URL) to run the end-to-end suite.");
+  const u = new URL(base);
+  const name = u.pathname.replace(/^\//, "") || "kindo";
+  u.pathname = `/${name.endsWith("_e2e") ? name : `${name}_e2e`}`;
+  return u.toString();
+}
+
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 
@@ -33,10 +51,11 @@ export default defineConfig({
   webServer: process.env.E2E_NO_SERVER
     ? undefined
     : {
-        command: "npm run start",
+        // A fresh demo household in the suite's own database (e2e/prepare-db.ts), then the production server.
+        command: "npx tsx e2e/prepare-db.ts && npm run start",
         url: `${baseURL}/api/health`,
         reuseExistingServer: !process.env.CI,
-        timeout: 120_000,
-        env: { PORT: String(PORT), HOSTNAME: "127.0.0.1" },
+        timeout: 180_000,
+        env: { PORT: String(PORT), HOSTNAME: "127.0.0.1", DATABASE_URL: e2eDatabaseUrl() },
       },
 });

@@ -1,19 +1,19 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  CalendarDays, ChevronRight, Cloud, Gift, Globe, House, ImageIcon, Languages, LayoutGrid, Palette, Plug, Plus, Rss, Sparkles, Users,
+  CalendarDays, CalendarHeart, ChevronRight, Cloud, Gift, Globe, House, ImageIcon, Languages, LayoutGrid, Palette, Pencil, Plug, Plus, Rss, Sparkles, Users,
 } from "lucide-react";
 import type { Integration } from "@/lib/types";
 import { useI18n, type MessageKey } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
+import { useStore } from "@/lib/state/store";
+import { updateHousehold } from "@/lib/services/actions";
 import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
-import { FAMILY_NAME } from "@/lib/data/members";
-import { WEATHER } from "@/lib/data/weather";
-import { INTEGRATIONS } from "@/lib/data/integrations";
-import { getMembers, getMember } from "@/lib/services/household";
-import { getSources } from "@/lib/services/calendar";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
+import { MemberEditor, DatesSection } from "./Editors";
+import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
 import { PageHeader } from "../ui/Panel";
 import { Avatar, AvatarStack } from "../ui/Avatar";
@@ -22,7 +22,7 @@ import { Field, Segmented, Switch, inputCls } from "../ui/Segmented";
 import { cn } from "../ui/cn";
 
 const SECTIONS = [
-  { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "calendar", Icon: CalendarDays },
+  { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "dates", Icon: CalendarHeart }, { id: "calendar", Icon: CalendarDays },
   { id: "routines", Icon: Sparkles }, { id: "rewards", Icon: Gift }, { id: "photos", Icon: ImageIcon },
   { id: "dashboard", Icon: LayoutGrid }, { id: "appearance", Icon: Palette }, { id: "language", Icon: Languages },
   { id: "integrations", Icon: Plug },
@@ -31,9 +31,10 @@ type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function SettingsScreen() {
   const { t } = useI18n();
-  const [section, setSection] = useState<SectionId | null>(null);
+  const asked = useSearchParams().get("section");
+  const [section, setSection] = useState<SectionId | null>(() => SECTIONS.find((s) => s.id === asked)?.id ?? null);
   // Desktop always shows a section; phones show the list first.
-  const active = section ?? "integrations";
+  const active = section ?? "family";
 
   return (
     <div>
@@ -68,16 +69,15 @@ function Hint({ children }: { children: ReactNode }) {
 function Section({ id }: { id: SectionId }) {
   const { t, tx, fmt, language, weekdayName, region } = useI18n();
   const { prefs, setPrefs } = usePrefs();
+  const { getMembers, getMember, getSources, data } = useStore();
+  const [editingMember, setEditingMember] = useState<string | "new" | null>(null);
 
   switch (id) {
     case "family":
-      return (
-        <Card className="flex max-w-xl flex-col gap-4">
-          <Field label={t("settings.family.name")} hint={t("settings.family.hint")}><input className={inputCls} defaultValue={FAMILY_NAME} /></Field>
-          <Field label={t("settings.family.location")}><input className={inputCls} defaultValue={WEATHER.place} /></Field>
-          <Field label={t("settings.family.timezone")}><input className={inputCls} defaultValue="Europe/Berlin" /></Field>
-        </Card>
-      );
+      return <FamilyForm />;
+
+    case "dates":
+      return <DatesSection />;
 
     case "members":
       return (
@@ -85,7 +85,8 @@ function Section({ id }: { id: SectionId }) {
           <Hint>{t("settings.members.hint")}</Hint>
           <div className="grid gap-3 lg:grid-cols-2">
             {getMembers().map((m) => (
-              <Card key={m.id} className="flex items-start gap-4">
+              <Card key={m.id} className="relative flex items-start gap-4">
+                <button onClick={() => setEditingMember(m.id)} aria-label={`${t("common.edit")}: ${m.name}`} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-soft hover:bg-sunken"><Pencil size={16} /></button>
                 <Avatar member={m} size="lg" />
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-xl font-bold">{m.name}</p>
@@ -101,7 +102,8 @@ function Section({ id }: { id: SectionId }) {
               </Card>
             ))}
           </div>
-          <Button className="mt-4" variant="outline"><Plus size={18} />{t("settings.members.add")}</Button>
+          <Button className="mt-4" variant="outline" onClick={() => setEditingMember("new")}><Plus size={18} />{t("settings.members.add")}</Button>
+          {editingMember && <MemberEditor member={editingMember === "new" ? null : getMember(editingMember) ?? null} onClose={() => setEditingMember(null)} />}
         </>
       );
 
@@ -121,12 +123,12 @@ function Section({ id }: { id: SectionId }) {
                       <span className="block truncate text-sm text-soft">{t(`providers.${s.provider}`)}{s.account && `, ${s.account}`}</span>
                     </span>
                     <span className="text-sm text-soft max-sm:hidden">{t("settings.calendar.belongsTo")}</span>
-                    {s.defaultMemberIds.length ? <AvatarStack size="sm" members={s.defaultMemberIds.map((x) => getMember(x)!)} /> : <span className="text-sm font-bold">{t("common.everyone")}</span>}
+                    {s.defaultMemberIds.length ? <AvatarStack size="sm" members={s.defaultMemberIds.flatMap((x) => getMember(x) ?? [])} /> : <span className="text-sm font-bold">{t("common.everyone")}</span>}
                   </li>
                 );
               })}
             </ul>
-            <Button variant="ghost" className="m-2"><Plus size={18} />{t("settings.calendar.add")}</Button>
+            <Link href="/settings?section=integrations" className="m-2 inline-block"><Button variant="ghost"><Plus size={18} />{t("settings.calendar.add")}</Button></Link>
           </Card>
         </>
       );
@@ -232,7 +234,7 @@ function Section({ id }: { id: SectionId }) {
         <>
           <Hint>{t("settings.integrations.hint")}</Hint>
           <div className="grid gap-3 lg:grid-cols-2">
-            {INTEGRATIONS.map((i) => <IntegrationCard key={i.id} integration={i} />)}
+            {data.integrations.map((i) => <IntegrationCard key={i.id} integration={i} />)}
           </div>
         </>
       );
@@ -261,13 +263,38 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
         </div>
       </div>
       {i.detail && <p className="text-sm">{tx(i.detail)}</p>}
-      {primary && (
-        <div className="grid gap-3 rounded-card bg-sunken p-4 sm:grid-cols-2">
-          <Field label="Server"><input className={inputCls} defaultValue="https://cloud.mueller.home" readOnly /></Field>
-          <Field label={t("settings.members.login")}><input className={inputCls} defaultValue="anna" readOnly /></Field>
-        </div>
-      )}
-      <div><Button size="sm" variant={i.status === "off" ? "primary" : "outline"}>{i.status === "off" ? t("common.configure") : t("common.edit")}</Button></div>
+      <div><Button size="sm" variant="outline" disabled title={t("common.planned")}>{t("common.configure")}</Button></div>
+    </Card>
+  );
+}
+
+function FamilyForm() {
+  const { t } = useI18n();
+  const { data, run } = useStore();
+  const h = data.household;
+  const [name, setName] = useState(h.name);
+  const [location, setLocation] = useState(h.location ?? "");
+  const [timezone, setTimezone] = useState(h.timezone);
+  const [state, setState] = useState<{ error?: string; saved?: boolean }>({});
+  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [h.timezone];
+  const save = async () => {
+    const r = await run(() => updateHousehold({ name, location, timezone }));
+    setState(r.ok ? { saved: true } : { error: r.error });
+  };
+  return (
+    <Card className="flex max-w-xl flex-col gap-4">
+      <Field label={t("settings.family.name")} hint={t("settings.family.hint")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+      <Field label={t("settings.family.location")}><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
+      <Field label={t("settings.family.timezone")}>
+        <select className={inputCls} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+          {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => <option key={z} value={z}>{z}</option>)}
+        </select>
+      </Field>
+      <div className="flex items-center gap-3">
+        <Button variant="primary" onClick={save} disabled={!name.trim()}>{t("common.save")}</Button>
+        {state.saved && <span role="status" className="text-sm font-bold text-ok">{t("common.saved")}</span>}
+        <ErrorText code={state.error} />
+      </div>
     </Card>
   );
 }

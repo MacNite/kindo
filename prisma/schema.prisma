@@ -1,0 +1,303 @@
+// Kindo database schema (§17, §19.2).
+//
+// One installation is one household (§20 D10), so there is no householdId on
+// every row: the singleton `Household` holds the family-wide settings.
+// User-entered text is stored as JSON (`Text` in src/lib/types.ts): a plain
+// string, or `{ de, en }` for the bundled demo family.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  adult
+  child
+}
+
+enum RewardMode {
+  off
+  stars
+  tokens
+  money
+}
+
+enum Period {
+  morning
+  afternoon
+  evening
+}
+
+enum CompletionStatus {
+  /// Ticked off and counted.
+  done
+  /// An extra waiting for a parent's OK (§9).
+  pending
+}
+
+enum PointsReason {
+  earn
+  redeem
+  adjust
+}
+
+enum CalendarProvider {
+  caldav
+  google
+  ics
+  local
+}
+
+enum ImportantDateKind {
+  birthday
+  anniversary
+  school
+  other
+}
+
+model Household {
+  id             Int        @id @default(1)
+  name           String
+  timezone       String     @default("Europe/Berlin")
+  location       String?
+  rewardMode     RewardMode @default(stars)
+  /// Pocket-money mode: what one point is worth, in the region's currency.
+  pointValue     Float      @default(0.05)
+  /// Minutes without touch before the wall becomes a photo frame.
+  idleMinutes    Float      @default(2)
+  showPhotoMeta  Boolean    @default(true)
+  /// `WidgetConfig[]`: which home cards show, their order and size.
+  widgets        Json
+  /// Loaded from the bundled demo family (§20 D11).
+  demo           Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Member {
+  id        String   @id @default(cuid())
+  name      String
+  role      Role
+  color     String
+  /// `Member["avatar"]`: emoji, initial or photo.
+  avatar    Json
+  /// YYYY-MM-DD
+  birthday  String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  routines    Routine[]
+  chores      Chore[]
+  completions Completion[]
+  points      PointsEntry[]
+  tasks       Task[]
+  shopping    ShoppingItem[]
+  meals       Meal[]
+  dates       ImportantDate[]
+}
+
+model Routine {
+  id         String        @id @default(cuid())
+  memberId   String
+  member     Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  period     Period
+  /// `Recurrence` (§7)
+  recurrence Json
+  sortOrder  Int           @default(0)
+  steps      RoutineStep[]
+  createdAt  DateTime      @default(now())
+}
+
+model RoutineStep {
+  id        String  @id @default(cuid())
+  routineId String
+  routine   Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  position  Int
+  pictogram String
+  label     Json
+  /// `TaskValue`: expected, or an extra with points (§9)
+  value     Json
+
+  @@index([routineId, position])
+}
+
+model Chore {
+  id         String   @id @default(cuid())
+  /// null = anyone
+  memberId   String?
+  member     Member?  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  pictogram  String
+  label      Json
+  value      Json
+  recurrence Json
+  createdAt  DateTime @default(now())
+}
+
+/// One routine step or chore, ticked off for one household day. Kept when the
+/// step is edited or deleted, so it doubles as the completion history (§19.3).
+model Completion {
+  id         String           @id @default(cuid())
+  /// RoutineStep.id or Chore.id. Deliberately no foreign key: history outlives edits.
+  itemId     String
+  /// Who did it. null for an "anyone" chore ticked on a shared screen.
+  memberId   String?
+  member     Member?          @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  /// Household day, YYYY-MM-DD.
+  day        String
+  status     CompletionStatus
+  /// Snapshot of the item when it was ticked, for history and approvals.
+  pictogram  String
+  label      Json
+  value      Json
+  at         DateTime         @default(now())
+  resolvedAt DateTime?
+
+  points PointsEntry?
+
+  @@unique([itemId, day])
+  @@index([day])
+}
+
+/// The points ledger. A member's balance is the sum of their entries.
+model PointsEntry {
+  id           String       @id @default(cuid())
+  memberId     String
+  member       Member       @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  delta        Int
+  reason       PointsReason
+  /// The extra that earned these points. Unticking it removes the entry.
+  completionId String?      @unique
+  completion   Completion?  @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  rewardId     String?
+  at           DateTime     @default(now())
+
+  @@index([memberId])
+}
+
+model Reward {
+  id        String  @id @default(cuid())
+  emoji     String
+  title     Json
+  cost      Int
+  sortOrder Int     @default(0)
+  archived  Boolean @default(false)
+}
+
+model Task {
+  id        String    @id @default(cuid())
+  title     Json
+  memberId  String?
+  member    Member?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  due       DateTime?
+  done      Boolean   @default(false)
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model ShoppingList {
+  id        String         @id @default(cuid())
+  name      Json
+  icon      String
+  sortOrder Int            @default(0)
+  items     ShoppingItem[]
+}
+
+model ShoppingItem {
+  id        String       @id @default(cuid())
+  listId    String
+  list      ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  name      Json
+  qty       String?
+  category  String
+  memberId  String?
+  member    Member?      @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  done      Boolean      @default(false)
+  doneAt    DateTime?
+  createdAt DateTime     @default(now())
+
+  @@index([listId])
+}
+
+model Meal {
+  /// YYYY-MM-DD
+  day    String  @id
+  dinner Json
+  cookId String?
+  cook   Member? @relation(fields: [cookId], references: [id], onDelete: SetNull)
+  note   Json?
+}
+
+model ImportantDate {
+  id       String            @id @default(cuid())
+  kind     ImportantDateKind
+  title    Json
+  /// YYYY-MM-DD. For yearly dates the original date (a birth or wedding), so
+  /// the age can be counted.
+  date     String
+  yearly   Boolean           @default(true)
+  memberId String?
+  member   Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
+}
+
+model CalendarSource {
+  id               String           @id @default(cuid())
+  provider         CalendarProvider
+  name             Json
+  /// Shown under the name, e.g. the server's host.
+  account          String?
+  /// Members whose colour the source's events take (§5).
+  defaultMemberIds String[]
+  readOnly         Boolean          @default(false)
+  /// Every event of this source is daily attendance (school, Kita): shown quietly.
+  background       Boolean          @default(false)
+  sortOrder        Int              @default(0)
+  events           Event[]
+}
+
+model Event {
+  id         String         @id @default(cuid())
+  sourceId   String
+  source     CalendarSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  title      Json
+  start      DateTime
+  end        DateTime
+  /// All-day events store the date at UTC midnight.
+  allDay     Boolean        @default(false)
+  /// Empty = whole family.
+  memberIds  String[]
+  location   String?
+  icon       String?
+  background Boolean        @default(false)
+
+  @@index([start])
+  @@index([sourceId])
+}
+
+model PhotoAlbum {
+  id       String       @id @default(cuid())
+  /// Which photo server the album lives on, shown as its group heading.
+  server   String
+  name     String
+  count    Int          @default(0)
+  selected Boolean      @default(false)
+  /// Share of the rotation, relative to the other selected albums.
+  weight   Int          @default(0)
+  photos   PhotoAsset[]
+}
+
+model PhotoAsset {
+  id      String     @id @default(cuid())
+  albumId String
+  album   PhotoAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  takenAt DateTime?
+  place   String?
+  /// Demo photos are drawn, not fetched: the seed picks the picture.
+  seed    Int?
+
+  @@index([albumId])
+}

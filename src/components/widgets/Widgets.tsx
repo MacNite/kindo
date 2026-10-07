@@ -7,19 +7,15 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
-import { WEATHER } from "@/lib/data/weather";
-import { MEALS } from "@/lib/data/meals";
-import { LISTS } from "@/lib/data/shopping";
-import { IMPORTANT_DATES } from "@/lib/data/dates";
-import { PHOTOS, ALBUMS } from "@/lib/data/photos";
-import { eventsOn, upcoming } from "@/lib/services/calendar";
-import { choresOn, children, currentPeriod, getMember, routineFor } from "@/lib/services/household";
+import { usePhotoPlaylist } from "@/lib/state/photos";
+import { currentPeriod } from "@/lib/services/household";
+import { upcomingDates } from "@/lib/dates-important";
 import { sameDay, daysUntil } from "@/lib/dates";
 import { Panel } from "../ui/Panel";
 import { Avatar, AvatarStack, ColorRail } from "../ui/Avatar";
 import { WeatherIcon } from "../ui/WeatherIcon";
 import { Pictogram } from "../ui/Pictogram";
-import { PhotoPlaceholder } from "../ui/PhotoPlaceholder";
+import { Photo } from "../ui/PhotoPlaceholder";
 import { RewardAmount } from "../ui/RewardAmount";
 import { cn } from "../ui/cn";
 
@@ -44,7 +40,8 @@ function ClockWidget() {
 export function WeatherNow({ large }: { large?: boolean }) {
   const today = useToday();
   const { t, fmt } = useI18n();
-  const w = WEATHER;
+  const w = useStore().data.weather;
+  if (!w) return null;
   return (
     <div className="flex items-center gap-4">
       <WeatherIcon sky={w.sky} className={large ? "h-16 w-16" : "h-12 w-12"} strokeWidth={1.5} />
@@ -58,11 +55,13 @@ export function WeatherNow({ large }: { large?: boolean }) {
 }
 function WeatherWidget() {
   const { t, fmt } = useI18n();
+  const weather = useStore().data.weather;
+  if (!weather) return <Panel title={t("widgets.weather")}><p className="text-soft">{t("weather.none")}</p></Panel>;
   return (
-    <Panel title={t("widgets.weather")} action={<span className="text-sm text-soft">{WEATHER.place}</span>}>
+    <Panel title={t("widgets.weather")} action={<span className="text-sm text-soft">{weather.place}</span>}>
       <WeatherNow />
       <div className="mt-4 grid grid-cols-4 gap-1.5">
-        {WEATHER.days.map((d) => (
+        {weather.days.map((d) => (
           <div key={d.date.toISOString()} className="flex flex-col items-center gap-1 rounded-tile bg-sunken py-2 text-sm">
             <span className="font-bold">{fmt.weekday(d.date)}</span>
             <WeatherIcon sky={d.sky} className="h-5 w-5" strokeWidth={2} />
@@ -79,6 +78,7 @@ function AgendaWidget() {
   const today = useToday();
   const { t, tx, fmt } = useI18n();
   const now = useNow();
+  const { eventsOn, getMember } = useStore();
   const events = eventsOn(today).filter((e) => !e.background);
   const rest = events.filter((e) => e.allDay || e.end > now);
   return (
@@ -86,7 +86,7 @@ function AgendaWidget() {
       {rest.length === 0 ? <p className="text-soft">{t("home.nothingLeft")}</p> : (
         <ol className="flex flex-col gap-2.5">
           {rest.map((e) => {
-            const ms = e.memberIds.map((id) => getMember(id)!).filter(Boolean);
+            const ms = e.memberIds.flatMap((id) => getMember(id) ?? []);
             return (
               <li key={e.id} className="flex items-stretch gap-3">
                 <span className="num w-14 shrink-0 pt-0.5 text-sm text-soft">{e.allDay ? t("common.allDay") : fmt.time(e.start)}</span>
@@ -109,6 +109,7 @@ function AgendaWidget() {
 export function UpcomingList({ limit = 6 }: { limit?: number }) {
   const today = useToday();
   const { tx, fmt } = useI18n();
+  const { upcoming, getMember } = useStore();
   const items = upcoming(today, 14, limit, { afterToday: true });
   let last = "";
   return (
@@ -116,7 +117,7 @@ export function UpcomingList({ limit = 6 }: { limit?: number }) {
       {items.map((e) => {
         const day = fmt.relDay(e.start);
         const head = day !== last ? (last = day) : null;
-        const ms = e.memberIds.map((id) => getMember(id)!).filter(Boolean);
+        const ms = e.memberIds.flatMap((id) => getMember(id) ?? []);
         return (
           <li key={e.id}>
             {head && <p className="mb-1 mt-2 text-sm font-bold text-soft first:mt-0">{head}, {fmt.dateMedium(e.start)}</p>}
@@ -140,7 +141,7 @@ function UpcomingWidget() {
 function ChoresWidget() {
   const today = useToday();
   const { t, tx } = useI18n();
-  const { isDone, toggleTaskItem } = useStore();
+  const { isDone, toggleTaskItem, choresOn, getMember } = useStore();
   const chores = choresOn(today);
   return (
     <Panel title={t("widgets.chores")} href="/routines">
@@ -150,7 +151,7 @@ function ChoresWidget() {
           const done = isDone(c.item.id);
           return (
             <li key={c.id} style={{ "--m": m?.color ?? "rgb(var(--soft))" } as CSSProperties}>
-              <button onClick={() => toggleTaskItem(c.memberId ?? "anna", c.item)} className="flex w-full items-center gap-3 rounded-tile py-1 text-left">
+              <button onClick={() => toggleTaskItem(c.memberId, c.item)} className="flex w-full items-center gap-3 rounded-tile py-1 text-left">
                 <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-tile", done ? "m-bg text-white" : "tint m-text")}>
                   {done ? <Check size={20} strokeWidth={3} /> : <Pictogram id={c.item.pictogram} className="h-5 w-5" strokeWidth={2} />}
                 </span>
@@ -172,7 +173,7 @@ function ChoresWidget() {
 function RoutinesWidget() {
   const today = useToday();
   const { t } = useI18n();
-  const { isDone } = useStore();
+  const { isDone, children, routineFor } = useStore();
   const period = currentPeriod();
   return (
     <Panel title={t("widgets.routines")} href="/routines">
@@ -200,12 +201,13 @@ function RoutinesWidget() {
 function MealsWidget() {
   const today = useToday();
   const { t, tx, fmt } = useI18n();
-  const i = MEALS.findIndex((m) => sameDay(m.date, today));
-  const tonight = MEALS[i];
-  const next = MEALS.slice(i + 1, i + 3);
+  const { data, getMember } = useStore();
+  const tonight = data.meals.find((m) => sameDay(m.date, today));
+  const next = data.meals.filter((m) => m.date > today).slice(0, 2);
   const cook = getMember(tonight?.cookId);
   return (
     <Panel title={t("widgets.meals")} href="/meals">
+      {!tonight && <p className="text-soft">{t("meals.empty")}</p>}
       {tonight && (
         <div>
           <p className="text-sm font-bold text-soft">{t("meals.tonight")}</p>
@@ -213,11 +215,11 @@ function MealsWidget() {
           {cook && <p className="mt-1 flex items-center gap-2 text-sm text-soft"><Avatar member={cook} size="xs" />{t("meals.cooks", { name: cook.name })}</p>}
         </div>
       )}
-      <ul className="mt-4 flex flex-col gap-1.5 border-t border-line pt-3 text-[15px]">
+      {next.length > 0 && <ul className="mt-4 flex flex-col gap-1.5 border-t border-line pt-3 text-[15px]">
         {next.map((m) => (
-          <li key={m.date.toISOString()} className="flex gap-3"><span className="w-10 font-bold text-soft">{fmt.weekday(m.date)}</span>{tx(m.dinner)}</li>
+          <li key={m.day} className="flex gap-3"><span className="w-10 font-bold text-soft">{fmt.weekday(m.date)}</span>{tx(m.dinner)}</li>
         ))}
-      </ul>
+      </ul>}
     </Panel>
   );
 }
@@ -225,9 +227,9 @@ function MealsWidget() {
 // ── Shopping ────────────────────────────────────────────────────────────────
 function ShoppingWidget() {
   const { t, tx } = useI18n();
-  const { shopping, toggleShopping } = useStore();
-  const list = LISTS[0];
-  const open = shopping.filter((s) => s.listId === list.id && !s.done);
+  const { shopping, toggleShopping, shoppingLists } = useStore();
+  const list = shoppingLists[0];
+  const open = shopping.filter((s) => s.listId === list?.id && !s.done);
   return (
     <Panel title={t("widgets.shopping")} href="/shopping" action={<span className="num text-sm text-soft">{t("shopping.items", { n: open.length })}</span>}>
       <ul className="flex flex-col gap-1">
@@ -250,22 +252,25 @@ const DATE_ICON = { birthday: Cake, anniversary: Heart, school: GraduationCap, o
 export function DatesList({ limit = 4, large }: { limit?: number; large?: boolean }) {
   const today = useToday();
   const { t, tx, fmt } = useI18n();
+  const { data, getMember } = useStore();
+  const dates = upcomingDates(data.dates, today);
+  if (!dates.length) return <p className="text-soft">{t("dates.none")}</p>;
   return (
     <ul className={cn("flex flex-col", large ? "gap-3" : "gap-2.5")}>
-      {IMPORTANT_DATES.slice(0, limit).map((d) => {
+      {dates.slice(0, limit).map((d) => {
         const I = DATE_ICON[d.kind];
         const m = getMember(d.memberId);
-        const n = daysUntil(today, d.date);
+        const n = daysUntil(today, d.next);
         return (
           <li key={d.id} className="flex items-center gap-3" style={{ "--m": m?.color ?? "rgb(var(--soft))" } as CSSProperties}>
             <span className={cn("grid shrink-0 place-items-center rounded-full tint m-text", large ? "h-12 w-12" : "h-9 w-9")}><I size={large ? 22 : 17} strokeWidth={2} /></span>
             <span className="min-w-0 flex-1">
               <span className={cn("block font-bold leading-tight", large && "text-lg")}>{tx(d.title)}</span>
               <span className="text-sm text-soft">
-                {d.turns ? (d.kind === "anniversary" ? t("dates.years", { n: d.turns }) : t("dates.turns", { n: d.turns })) : t(`dates.${d.kind}`)}, {fmt.dateMedium(d.date)}
+                {d.turns ? (d.kind === "anniversary" ? t("dates.years", { n: d.turns }) : t("dates.turns", { n: d.turns })) : t(`dates.${d.kind}`)}, {fmt.dateMedium(d.next)}
               </span>
             </span>
-            <span className={cn("num shrink-0 whitespace-nowrap rounded-full bg-sunken px-2.5 py-1 text-sm font-bold", n <= 7 && "tint-strong")}>{fmt.relDay(d.date, today)}</span>
+            <span className={cn("num shrink-0 whitespace-nowrap rounded-full bg-sunken px-2.5 py-1 text-sm font-bold", n <= 7 && "tint-strong")}>{fmt.relDay(d.next, today)}</span>
           </li>
         );
       })}
@@ -281,13 +286,15 @@ function DatesWidget() {
 function PhotosWidget() {
   const { t, fmt } = useI18n();
   const now = useNow(20_000);
-  const p = PHOTOS[Math.floor(now.getTime() / 20_000) % PHOTOS.length];
-  const album = ALBUMS.find((a) => a.id === p.albumId);
+  const photos = usePhotoPlaylist();
+  const { albums } = useStore();
+  const p = photos.length ? photos[Math.floor(now.getTime() / 20_000) % photos.length] : undefined;
+  const album = p && albums.find((a) => a.id === p.albumId);
   return (
     <section className="relative min-h-[220px] overflow-hidden rounded-panel bg-sunken">
-      <PhotoPlaceholder seed={p.seed} className="absolute inset-0 h-full w-full" />
+      {p ? <Photo photo={p} className="absolute inset-0 h-full w-full" /> : <p className="p-5 text-soft">{t("photos.none")}</p>}
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/45 to-transparent p-4 text-white">
-        <div className="text-sm"><p className="font-bold">{p.place}</p><p className="opacity-85">{fmt.dateMedium(p.takenAt)}, {album?.name}</p></div>
+        <div className="text-sm">{p && <><p className="font-bold">{p.place}</p><p className="opacity-85">{p.takenAt && `${fmt.dateMedium(p.takenAt)}, `}{album?.name}</p></>}</div>
         <Link href="/screensaver" aria-label={t("photos.start")} className="grid h-10 w-10 place-items-center rounded-full bg-white/25 backdrop-blur"><Play size={18} fill="currentColor" /></Link>
       </div>
     </section>

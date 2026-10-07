@@ -4,7 +4,6 @@ import { Check, Plus } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
-import { getMember, getMembers } from "@/lib/services/household";
 import { PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
 import { MemberFilter } from "../ui/MemberFilter";
@@ -14,7 +13,7 @@ import { toggled } from "@/lib/sets";
 export function TasksScreen() {
   const today = useToday();
   const { t, tx, fmt } = useI18n();
-  const { tasks, toggleTask, addTask } = useStore();
+  const { tasks, toggleTask, addTask, getMember, getMembers } = useStore();
   const [text, setText] = useState("");
   const [filter, setFilter] = useState(() => new Set(getMembers().filter((m) => m.role !== "child").map((m) => m.id)));
   const visible = tasks.filter((x) => !x.memberId || filter.has(x.memberId));

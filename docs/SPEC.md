@@ -94,7 +94,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
 ## §15 Settings
 
-Sections: Family, Members, Calendar, Routines & chores, Rewards, Photos, Dashboard, Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant).
+Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, Dashboard, Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant).
 
 ## §16 Appearance
 
@@ -107,19 +107,20 @@ Sections: Family, Members, Calendar, Routines & chores, Rewards, Photos, Dashboa
 
 - Next.js App Router, React 19, TypeScript and Tailwind CSS 3, with a custom i18n layer (no next-intl, see §20 D3).
 - Layering: `src/app` for routing, `src/components` for UI, `src/lib/services` for data seams, `src/lib` for pure domain logic. **Components never import mock data directly.**
-- Persistence (planned) follows BrewCore and NutriCore: Server Actions, Prisma and PostgreSQL in a modular monolith, with a one-shot `migrate` image. No separate REST backend, microservices or event bus unless justified.
+- Persistence follows BrewCore and NutriCore: Server Actions, Prisma and PostgreSQL in a modular monolith, with a one-shot `migrate` image. No separate REST backend, microservices or event bus unless justified. Server code lives in `src/server` (`household.ts` holds the rules, `actions/*.ts` wraps them as Server Actions); UI reaches it only through `src/lib/services/actions.ts` and the store.
 - Integrations run server-side. Secrets never reach the browser.
 
 ## §18 Deployment
 
-- One image, `ghcr.io/macnite/kindo`, multi-stage from `node:22-alpine`, using Next.js `standalone` output. It runs as non-root user `kindo` (uid 1001) with a healthcheck on `/api/health`.
+- Two images from one multi-stage Dockerfile on `node:22-alpine`: `ghcr.io/macnite/kindo` (Next.js `standalone` output, no Prisma CLI) and `ghcr.io/macnite/kindo-migrate` (one-shot `prisma migrate deploy`). Both run as non-root user `kindo` (uid 1001). The app has a healthcheck on `/api/health`, which includes a database round-trip.
+- Compose runs `db` (PostgreSQL 17), `migrate` and `app`; the app waits for `migrate` to complete.
 - `docker-compose.yml` uses `APP_IMAGE` and keeps `build:` so `--build` works from source.
 - Publishing: see README *Images*. arm64 builds only on release tags and manual runs, because emulated builds are slow.
 
 ## §19 Roadmap
 
-1. **v0.1, UX prototype (this release):** all screens on mock data, Docker image, CI.
-2. **Persistence:** PostgreSQL and Prisma, a `migrate` image and service, household state moved from `store.tsx` to Server Actions. Realtime sync between wall and phones (SSE).
+1. **v0.1, UX prototype:** all screens on mock data, Docker image, CI. *(done)*
+2. **Persistence:** *(done)* PostgreSQL and Prisma, a `migrate` image and service, household state moved from `store.tsx` to Server Actions. Realtime sync between wall and phones (SSE).
 3. **Recurrence engine:** occurrences per date, daily reset, completion history.
 4. **Accounts:** local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar.
@@ -136,7 +137,16 @@ Sections: Family, Members, Calendar, Routines & chores, Rewards, Photos, Dashboa
 | D3 | Keep the custom i18n layer instead of next-intl | Type-checked German parity, separate language and region, and no locale routing needed while rendering is client-side. Revisit with SSR. |
 | D4 | ESLint (`next/core-web-vitals`, `next/typescript`), Vitest and Playwright | Same tooling as BrewCore. |
 | D5 | License **AGPL-3.0-only** | Same as BrewCore. A self-hosted network service should keep modifications open. |
-| D6 | No database or `migrate` stage in v0.1 | Nothing to persist yet. Both are added together with Prisma (§19.2). |
+| D6 | No database or `migrate` stage in v0.1 | Nothing to persist yet. Both are added together with Prisma (§19.2). *Superseded by D10–D18.* |
 | D7 | Client-only rendering in v0.1 | Theme, language and "now" come from the device. SSR returns with server-side persistence and a language cookie. |
 | D8 | amd64 on `main`, amd64 + arm64 on `v*` tags | Same as BrewCore. Raspberry Pi hosts are covered by releases. |
 | D9 | GitHub Pages demo site not set up yet | Possible later via a static export, like BrewCore's `site/`. |
+| D10 | One household per installation | A family runs its own instance. The singleton `Household` row holds family-wide settings; no `householdId` on every table. |
+| D11 | A new install starts empty, with first-run setup at `/setup`; the Müller demo family is optional | Real families must not start with fake data. The demo loads from the setup screen, `npm run db:seed:demo`, or `KINDO_DEMO=true` in the migrate service, and only into an empty database. The e2e suite runs on the demo. |
+| D12 | Realtime sync: Server-Sent Events fed by PostgreSQL `LISTEN/NOTIFY` | Works with more than one app container and needs no extra service. Messages carry only a topic, never data; each device refetches what it may see. |
+| D13 | Screens keep rendering on the device (D7 stays); the route-group layouts load a household snapshot on the server and hand it to the store | Smallest change from v0.1, no hydration mismatches for time and theme, and the first paint has data. SSR can still come later. |
+| D14 | One household snapshot per round-trip: everything a screen needs, events from 90 days back to 400 days ahead, completions of the last 35 days | Family-sized data is small. One shape keeps the store simple and the optimistic updates honest. |
+| D15 | The server decides rewards: routine steps are always stored as expected, and an item's points come from the database, not the device | §9 must hold whatever a device sends. |
+| D16 | Important dates are stored as the original date plus a yearly flag, managed in a new Settings section, *Dates* | Ages and anniversaries count themselves; §15 gains one section. |
+| D17 | All-day events are stored at UTC midnight with an exclusive end, as in iCalendar | "Tuesday" stays Tuesday on every device and round-trips through CalDAV. |
+| D18 | Mutations are idempotent "set" operations; offline-capable creates use ids from the device | Retries, double taps and the later offline queue (§19.7) cannot create duplicates or flip state twice. |

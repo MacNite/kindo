@@ -1,9 +1,11 @@
 {
   "name": "kindo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "AGPL-3.0-only",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,25 +15,46 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run typecheck && npm test"
+    "check": "npm run lint && npm run typecheck && npm test",
+    "db:generate": "prisma generate",
+    "db:validate": "prisma validate",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:drift": "node scripts/check-migration-drift.mjs",
+    "db:seed:demo": "tsx prisma/seed-demo.ts",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@prisma/client": "6.19.3",
+    "@serwist/next": "9.5.13",
+    "better-auth": "1.7.7",
     "clsx": "2.1.1",
+    "ical.js": "2.2.1",
     "lucide-react": "0.544.0",
     "next": "15.5.27",
+    "pg": "8.23.1",
+    "prisma": "6.19.3",
+    "qrcode": "1.5.4",
     "react": "19.1.1",
-    "react-dom": "19.1.1"
+    "react-dom": "19.1.1",
+    "tsdav": "2.4.0",
+    "tsx": "4.20.5",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
     "@playwright/test": "1.56.1",
     "@types/node": "22.18.0",
+    "@types/pg": "8.23.1",
+    "@types/qrcode": "1.5.6",
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "autoprefixer": "10.4.21",
     "eslint": "9.35.0",
     "eslint-config-next": "15.5.27",
+    "fake-indexeddb": "6.2.5",
     "postcss": "8.5.6",
+    "serwist": "9.5.13",
     "tailwindcss": "3.4.17",
     "typescript": "5.9.2",
     "vitest": "3.2.4"

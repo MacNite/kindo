@@ -7,7 +7,7 @@ import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
-import { choresOn, currentPeriod, getMember, children, routineFor } from "@/lib/services/household";
+import { currentPeriod } from "@/lib/services/household";
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
 import { cn } from "../ui/cn";
@@ -26,9 +26,9 @@ const GRID: Record<number, string> = {
  */
 export function ChildRoutine({ memberId }: { memberId: string }) {
   const today = useToday();
+  const { isDone, toggleTaskItem, rewardMode, getMember, routineFor, choresOn } = useStore();
   const member = getMember(memberId);
   const [period, setPeriod] = useState<Period>(() => currentPeriod());
-  const { isDone, toggleTaskItem, rewardMode } = useStore();
   const { t } = useI18n();
   if (!member) return null;
 
@@ -163,7 +163,7 @@ function HoldToLeave() {
 export function ChildPicker() {
   const today = useToday();
   const { t } = useI18n();
-  const { isDone } = useStore();
+  const { isDone, children, routineFor } = useStore();
   const period = currentPeriod();
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-10 p-8">

@@ -8,7 +8,7 @@ import { NAV, isActive } from "./nav";
 import { QuickPrefs } from "./QuickPrefs";
 import { Dialog } from "../ui/Dialog";
 import { cn } from "../ui/cn";
-import { getMembers } from "@/lib/services/household";
+import { useStore } from "@/lib/state/store";
 import { Avatar } from "../ui/Avatar";
 
 /**
@@ -19,6 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { t } = useI18n();
   const [more, setMore] = useState(false);
+  const { getMembers } = useStore();
 
   return (
     <div className="min-h-dvh md:flex">
@@ -87,7 +88,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 /** Neutral placeholder mark: four overlapping dots in the family colours. */
 export function Logo({ size = 30 }: { size?: number }) {
-  const c = getMembers().map((m) => m.color);
+  const { getMembers } = useStore();
+  // Family colours, topped up with calm defaults for small or new households.
+  const c = [...getMembers().map((m) => m.color), "#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B"];
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       <circle cx="11" cy="11" r="8" fill={c[0]} /><circle cx="21" cy="11" r="8" fill={c[1]} opacity=".9" />

@@ -1,7 +1,7 @@
 /**
- * Domain model. These types are the contract between the UI and whatever
- * eventually supplies data (local DB, CalDAV, Immich…). Components only ever
- * import from here and from the service layer — never from mock files directly.
+ * Domain model. These types are the contract between the UI and the server
+ * (PostgreSQL, CalDAV, Immich…). Components only ever import from here and
+ * from the service and state layers, never from the server or seed data.
  */
 
 /** User-entered text is a plain string. Mock data ships both languages so the
@@ -113,6 +113,19 @@ export interface ApprovalRequest {
   at: Date;
 }
 
+/** One ticked-off routine step or chore on one household day (§19.3). */
+export interface Completion {
+  id: string;
+  itemId: string;
+  memberId: string | null;
+  /** Household day, YYYY-MM-DD. */
+  day: string;
+  status: "done" | "pending";
+  pictogram: string;
+  label: Text;
+  at: Date;
+}
+
 // ── Shopping & meals ────────────────────────────────────────────────────────
 export type ShoppingCategory = "produce" | "dairy" | "bakery" | "pantry" | "frozen" | "household" | "hardware" | "care" | "other";
 
@@ -128,6 +141,9 @@ export interface ShoppingItem {
 }
 
 export interface Meal {
+  /** YYYY-MM-DD */
+  day: string;
+  /** `day` as a local date, filled in on the device. */
   date: Date;
   dinner: Text;
   cookId?: string;
@@ -140,15 +156,23 @@ export interface ImportantDate {
   id: string;
   kind: ImportantDateKind;
   title: Text;
-  date: Date; // next occurrence
+  /** YYYY-MM-DD. For yearly dates the original date, so ages can be counted. */
+  date: string;
+  yearly: boolean;
   memberId?: string;
+}
+
+/** An important date's next occurrence, computed for "today". */
+export interface UpcomingDate extends ImportantDate {
+  next: Date;
+  /** Age or years, for yearly birthdays and anniversaries. */
   turns?: number;
 }
 
 // ── Photos ──────────────────────────────────────────────────────────────────
-export interface PhotoServer { id: string; kind: "immich"; name: string; url: string; status: "connected" | "error" }
-export interface PhotoAlbum { id: string; serverId: string; name: string; count: number; selected: boolean; weight: number }
-export interface Photo { id: string; albumId: string; seed: number; takenAt: Date; place?: string }
+export interface PhotoAlbum { id: string; server: string; name: string; count: number; selected: boolean; weight: number }
+/** A photo in the rotation. `src` is a proxied image; demo photos are drawn from `seed` instead. */
+export interface Photo { id: string; albumId: string; seed?: number; src?: string; takenAt?: Date; place?: string }
 
 // ── Weather & dashboard ─────────────────────────────────────────────────────
 export type Sky = "sun" | "partly" | "cloud" | "rain" | "snow";
@@ -171,3 +195,49 @@ export interface Integration {
   status: "connected" | "partial" | "off";
   detail?: Text;
 }
+
+// ── Household snapshot ──────────────────────────────────────────────────────
+export interface HouseholdSettings {
+  name: string;
+  timezone: string;
+  location?: string;
+  rewardMode: RewardMode;
+  /** Pocket-money mode: what one point is worth. */
+  pointValue: number;
+  idleMinutes: number;
+  showPhotoMeta: boolean;
+  widgets: WidgetConfig[];
+  demo: boolean;
+}
+
+/**
+ * Everything a screen needs, loaded in one round-trip and refreshed when the
+ * server announces a change (§19.2). Family-sized, so it stays small.
+ */
+export interface HouseholdData {
+  household: HouseholdSettings;
+  members: Member[];
+  routines: Routine[];
+  chores: Chore[];
+  tasks: OneOffTask[];
+  rewards: Reward[];
+  balances: Record<string, number>;
+  approvals: ApprovalRequest[];
+  /** Recent completions, for "done" state and history. */
+  completions: Completion[];
+  shoppingLists: ShoppingList[];
+  shoppingItems: ShoppingItem[];
+  meals: Meal[];
+  dates: ImportantDate[];
+  sources: CalendarSource[];
+  events: CalendarEvent[];
+  albums: PhotoAlbum[];
+  weather: Weather | null;
+  integrations: Integration[];
+}
+
+/** The snapshot as it crosses the wire: dates of days are filled in on the device. */
+export type HouseholdWire = Omit<HouseholdData, "meals"> & { meals: Omit<Meal, "date">[] };
+
+/** What every Server Action returns: production builds hide thrown messages, so errors travel as codes. */
+export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
