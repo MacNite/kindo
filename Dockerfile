@@ -1,13 +1,13 @@
 # Kindo image, following the BrewCore/NutriCore multi-stage layout:
 #   deps → build → prod-deps → migrate (one-shot, carries the Prisma CLI)
 #                            → runner  (long-running app, no Prisma CLI)
-FROM node:22.19.0-alpine AS deps
+FROM node:26.10.0-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
-FROM node:22.19.0-alpine AS build
+FROM node:26.10.0-alpine AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
@@ -16,7 +16,7 @@ COPY . .
 RUN npx prisma generate && npm run build
 
 # Production dependencies only, so the runtime image carries no build tooling.
-FROM node:22.19.0-alpine AS prod-deps
+FROM node:26.10.0-alpine AS prod-deps
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json .npmrc ./
@@ -25,7 +25,7 @@ RUN npm ci --omit=dev && npx prisma generate
 
 # The migration runner: applies migrations, loads the demo family into an
 # empty database when KINDO_DEMO=true, and exits. The only image with the Prisma CLI.
-FROM node:22.19.0-alpine AS migrate
+FROM node:26.10.0-alpine AS migrate
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache libc6-compat \
@@ -43,7 +43,7 @@ RUN chmod +x ./migrate.sh
 USER kindo
 ENTRYPOINT ["./migrate.sh"]
 
-FROM node:22.19.0-alpine AS runner
+FROM node:26.10.0-alpine AS runner
 WORKDIR /app
 ARG KINDO_VERSION=dev
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 KINDO_VERSION=${KINDO_VERSION} \
