@@ -11,7 +11,8 @@ import { useStore } from "./store";
 export function usePhotoPlaylist(): Photo[] {
   const { albums } = useStore();
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const key = albums.map((a) => `${a.id}:${a.selected ? a.weight : "-"}`).join(",");
+  // The count changes when a newly selected album's photos arrive: draw again then too.
+  const key = albums.map((a) => `${a.id}:${a.selected ? `${a.weight}:${a.count}` : "-"}`).join(",");
   useEffect(() => {
     let live = true;
     getPhotoPlaylist().then((p) => live && setPhotos(p)).catch(() => {});

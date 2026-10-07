@@ -23,6 +23,7 @@ function e2eDatabaseUrl(base = process.env.DATABASE_URL): string {
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 const OIDC_MOCK_PORT = Number(process.env.OIDC_MOCK_PORT ?? 3199);
+const IMMICH_MOCK_PORT = Number(process.env.IMMICH_MOCK_PORT ?? 3198);
 
 /** Prefer a Chromium the environment already provides (as in BrewCore). */
 function providedChromium(): string | undefined {
@@ -63,6 +64,13 @@ export default defineConfig({
           url: `http://127.0.0.1:${OIDC_MOCK_PORT}/health`,
           reuseExistingServer: !process.env.CI,
           env: { OIDC_MOCK_PORT: String(OIDC_MOCK_PORT), OIDC_CLIENT_ID: "kindo-e2e", OIDC_CLIENT_SECRET: "e2e-client-secret" },
+        },
+        {
+          // A stand-in Immich server (e2e/immich-mock.mjs).
+          command: "node e2e/immich-mock.mjs",
+          url: `http://127.0.0.1:${IMMICH_MOCK_PORT}/health`,
+          reuseExistingServer: !process.env.CI,
+          env: { IMMICH_MOCK_PORT: String(IMMICH_MOCK_PORT) },
         },
         {
           // A fresh demo household in the suite's own database (e2e/prepare-db.ts), then the production server.

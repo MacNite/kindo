@@ -52,7 +52,7 @@ Open <http://localhost:3000> and set up your household and your admin login, or 
 |---|---|
 | `db` | PostgreSQL 17. Data in `./data/postgres` (`POSTGRES_DATA_PATH`). Not published outside the compose network. |
 | `migrate` | One-shot: applies database migrations (`ghcr.io/macnite/kindo-migrate`), then exits. With `KINDO_DEMO=true` it loads the demo family into an empty database. |
-| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Waits for `migrate`. Healthcheck at `/api/health` (includes a database round-trip). |
+| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Waits for `migrate`. Healthcheck at `/api/health` (includes a database round-trip). Photo cache in the `kindo-cache` volume. |
 
 Back up `./data/postgres` (or run `docker compose exec db pg_dump -U kindo kindo > kindo.sql`).
 
@@ -168,7 +168,7 @@ UI strings live in `src/i18n/messages/`. `de.ts` is typed against `en.ts`, so a 
 Everything below runs on the server. Passwords, API keys and tokens are entered in Settings → Integrations, stored encrypted with `KINDO_SECRET_KEY`, and never sent to a device.
 
 - **Nextcloud / CalDAV** (the main calendar source): add the server address (`https://cloud.example.com/remote.php/dav`), username and an app password. Kindo discovers the calendars, and in Settings → Calendar you choose whose each one is (its events take their colours), whether it is read-only, and whether it is daily attendance like school. Calendars are synced every few minutes (`KINDO_SYNC_MINUTES`) into Kindo's database, so the wall stays fast when Nextcloud is down. New events and changes to single events are written to Nextcloud first; the people Kindo assigns travel along in `X-KINDO-MEMBERS`. Repeating series are shown, and edited in the calendar app they come from.
-- **Immich** (several servers): `PhotoAdapter` and `buildPool()` in [`src/lib/services/photos.ts`](src/lib/services/photos.ts). Thumbnails will be proxied by Kindo so API keys stay on the server.
+- **Immich** (several servers): add each server's address and an API key in Settings → Integrations. Its albums appear on the Photos screen; tick the ones for the photo frame and set how often each appears. Album lists refresh every half hour. Images reach devices only through Kindo (`/api/photos/…`), cached on disk in the `kindo-cache` volume (`KINDO_PHOTO_CACHE_MB`, default 500 MB, least recently shown go first).
 - **Google Calendar, ICS subscriptions, Home Assistant:** shown in Settings → Integrations.
 
 ## License

@@ -6,6 +6,8 @@ import { UserError, notFound } from "./errors";
 import { id } from "./validation";
 import { providerFor, syncConnection } from "./calendar/sync";
 import { listCalendars } from "./calendar/caldav";
+import { listAlbums } from "./photos/immich";
+import { syncPhotos } from "./photos/sync";
 
 /**
  * Connections to outside services and the calendars they bring (§5, §15,
@@ -14,6 +16,7 @@ import { listCalendars } from "./calendar/caldav";
  */
 const httpUrl = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "http(s) only");
 export const C = {
+  addImmich: z.object({ name: z.string().trim().min(1).max(60), url: httpUrl, apiKey: z.string().trim().min(10).max(500) }),
   addCalDav: z.object({ name: z.string().trim().max(60).optional(), url: httpUrl, username: z.string().trim().min(1).max(200), password: z.string().min(1).max(500) }),
   source: z.object({
     id,
@@ -63,6 +66,16 @@ export async function addCalDav(db: Tx, input: In<"addCalDav">) {
   return conn.id;
 }
 
+/** Connects an Immich server: checks the API key by listing its albums first (§19.6). */
+export async function addImmich(db: Tx, input: In<"addImmich">) {
+  await listAlbums({ url: input.url, apiKey: input.apiKey });
+  const conn = await db.connection.create({
+    data: { kind: "immich", name: input.name, url: input.url, secret: encryptSecret(input.apiKey), status: "pending" },
+  });
+  await syncPhotos(db, conn);
+  return conn.id;
+}
+
 export async function updateSource(db: Tx, input: In<"source">) {
   const s = await db.calendarSource.findUnique({ where: { id: input.id } });
   if (!s) throw notFound("calendar");
@@ -100,6 +113,7 @@ export async function removeConnection(db: Tx, input: In<"byId">) {
 export async function syncNow(db: Tx, input: In<"byId">) {
   const conn = await db.connection.findUnique({ where: { id: input.id } });
   if (!conn) throw notFound("connection");
+  if (conn.kind === "immich") return syncPhotos(db, conn);
   await discoverCalendars(db, conn);
   await syncConnection(db, conn, { force: true });
 }

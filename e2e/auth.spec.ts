@@ -65,7 +65,8 @@ test("a wall display is paired with a code, ticks routines, and needs the PIN fo
 
   // The QR code opens Settings → Devices with the code filled in.
   await admin.goto(`/settings?section=devices&code=${code}`);
-  await admin.getByLabel("Name").fill("Hallway");
+  const name = `Hallway ${Date.now()}`;
+  await admin.getByLabel("Name").fill(name);
   await admin.getByRole("button", { name: "Pair", exact: true }).click();
   await expect(admin.getByRole("status")).toBeVisible();
 
@@ -90,7 +91,9 @@ test("a wall display is paired with a code, ticks routines, and needs the PIN fo
 
   // Unpairing ends it.
   await admin.reload();
-  await admin.getByRole("listitem").filter({ hasText: "Hallway" }).getByRole("button", { name: "Unpair" }).click();
+  const row = admin.getByRole("listitem").filter({ hasText: name });
+  await row.getByRole("button", { name: "Unpair" }).click();
+  await expect(row).toHaveCount(0);
   await wall.goto("/wall");
   await expect(wall).toHaveURL(/\/login/);
 });

@@ -4,7 +4,7 @@ import { Cloud, Globe, House, ImageIcon, Lock, Pencil, Plus, RefreshCw, Rss, Tra
 import type { ActionResult, CalendarSource, ConnectionInfo, Integration } from "@/lib/types";
 import { useI18n, type MessageKey } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { addCalDav, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
+import { addCalDav, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
@@ -22,6 +22,7 @@ const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: 
 /** Extra integration-specific pieces (forms, details) registered by later steps. */
 export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode>> = {
   caldav: ({ onClose }) => <CalDavForm onClose={onClose} />,
+  immich: ({ onClose }) => <ImmichForm onClose={onClose} />,
 };
 
 /** Settings → Integrations (§15): connect services; passwords go to the server and stay there (§17). */
@@ -57,7 +58,7 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
   };
 
   return (
-    <div className={cn("flex flex-col gap-3 rounded-panel bg-surface p-5", i.id === "nextcloud" && "lg:col-span-2 ring-2 ring-ink/10")}>
+    <div data-testid={`integration-${i.id}`} className={cn("flex flex-col gap-3 rounded-panel bg-surface p-5", i.id === "nextcloud" && "lg:col-span-2 ring-2 ring-ink/10")}>
       <div className="flex items-start gap-4">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-tile bg-sunken"><I size={22} /></span>
         <div className="min-w-0 flex-1">
@@ -127,6 +128,38 @@ function CalDavForm({ onClose }: { onClose: () => void }) {
         <Field label={t("integrations.username")}><input className={inputCls} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></Field>
         <Field label={t("integrations.appPassword")} hint={t("integrations.appPasswordHint")}>
           <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        </Field>
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
+}
+
+function ImmichForm({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const { run } = useStore();
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const r = await run(() => addImmich({ name, url, apiKey }));
+    setBusy(false);
+    if (r.ok) onClose();
+    else setError(r.error);
+  };
+  return (
+    <Dialog open onClose={onClose} title={t("settings.integrations.immich")}
+      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" disabled={busy || !name || !url || apiKey.length < 10} onClick={submit}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <Field label={t("routines.label")} hint={t("integrations.immichNameHint")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("integrations.immichNamePlaceholder")} /></Field>
+        <Field label={t("integrations.serverUrl")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://photos.example.com" /></Field>
+        <Field label={t("integrations.apiKey")} hint={t("integrations.immichKeyHint")}>
+          <input className={inputCls} type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
         </Field>
         <button type="submit" hidden />
       </form>

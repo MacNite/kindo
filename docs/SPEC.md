@@ -126,7 +126,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 3. **Recurrence engine:** *(done)* occurrences per date, daily reset, completion history.
 4. **Accounts:** *(done)* local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar. *(done)*
-6. **Immich adapter** with a thumbnail proxy and cache.
+6. **Immich adapter** with a thumbnail proxy and cache. *(done)*
 7. **PWA:** installable, offline shopping list, wake lock on the wall.
 8. Google Calendar, ICS, Home Assistant (presence for the photo frame).
 
@@ -166,3 +166,5 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D30 | CalDAV writes cover single events only: create, edit and delete go to the server first and the calendar is pulled back. Occurrences of recurring series are read-only in Kindo. Kindo's member assignment travels in `X-KINDO-MEMBERS` (space-separated ids) | Kindo never shows an event its calendar doesn't have, and editing one occurrence of a series is the calendar app's job. Some servers keep only the first comma-separated value of unknown properties. |
 | D31 | A calendar removed in Settings stays removed when the connection is rediscovered (`Connection.config.ignored`) | Removing a calendar must not be undone by the next sync. |
 | D32 | `Field` is a `<label>` only around a native input; around chips and pickers it is a labelled group | A label around buttons turns its whole area into a click on the first button. |
+| D33 | Immich: each server is a connection with its own API key; albums appear unselected, and an album joining the rotation fetches its photo list at once (otherwise every 30 minutes). Videos stay out of the photo frame. The playlist is drawn on the server, weighted per album | Several servers form one pool (§13) without sending thousands of asset ids to the wall. |
+| D34 | Photos reach devices only through `/api/photos/<id>`, which checks the viewer and caches images on disk (`KINDO_CACHE_DIR`, default `/data/cache` in the image, a named compose volume) with least-recently-used eviction at `KINDO_PHOTO_CACHE_MB` | The API key never leaves the server, and the wall doesn't fetch every picture again after a restart. |

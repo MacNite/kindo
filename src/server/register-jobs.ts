@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { registerJob } from "./jobs";
 import { holidaysDue, syncHolidays } from "./holidays";
 import { dueConnections, syncConnection } from "./calendar/sync";
+import { duePhotoConnections, syncPhotos } from "./photos/sync";
 import { errorMessage, log } from "./log";
 
 /** Every background job Kindo runs, in one place. */
@@ -17,5 +18,16 @@ export function registerAllJobs() {
       }
     },
     topic: "events",
+  });
+  // Every half hour: Immich albums and their photo lists (§19.6).
+  registerJob({
+    name: "photos",
+    due: async (now) => (await duePhotoConnections(prisma, now)).length > 0,
+    run: async (now) => {
+      for (const c of await duePhotoConnections(prisma, now)) {
+        await syncPhotos(prisma, c, now).catch((e) => log.warn("photo server skipped", { id: c.id, error: errorMessage(e) }));
+      }
+    },
+    topic: "household",
   });
 }

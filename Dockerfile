@@ -46,10 +46,14 @@ ENTRYPOINT ["./migrate.sh"]
 FROM node:22.19.0-alpine AS runner
 WORKDIR /app
 ARG KINDO_VERSION=dev
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 KINDO_VERSION=${KINDO_VERSION}
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 KINDO_VERSION=${KINDO_VERSION} \
+    KINDO_CACHE_DIR=/data/cache
 RUN apk add --no-cache libc6-compat wget \
  && addgroup -S kindo -g 1001 \
- && adduser -S kindo -u 1001 -G kindo
+ && adduser -S kindo -u 1001 -G kindo \
+ && mkdir -p /data/cache && chown -R kindo:kindo /data
+# Proxied Immich photos (§19.6). A named volume keeps them across restarts.
+VOLUME /data/cache
 
 # The standalone output carries the server bundle; nothing else from the build
 # stage reaches the runtime image.

@@ -1,6 +1,6 @@
 import type { Photo, PhotoAlbum } from "@/lib/types";
 import { weightedPlaylist } from "@/lib/services/photos";
-import type { Tx } from "./db";
+import type { Tx } from "../db";
 
 /** How many photos one album may contribute to a playlist draw. */
 const PER_ALBUM = 200;

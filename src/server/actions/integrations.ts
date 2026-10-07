@@ -9,7 +9,8 @@ export const addCalDav = act(C.C.addCalDav, async (db, input) => {
   await C.syncNow(db, { id }).catch(() => {});
   return id;
 }, { level: "admin", topic: "events" });
+export const addImmich = act(C.C.addImmich, async (db, input) => C.addImmich(db, input), { level: "admin", topic: "household" });
 export const updateSource = act(C.C.source, C.updateSource, { level: "admin", topic: "events" });
 export const removeSource = act(C.C.byId, C.removeSource, { level: "admin", topic: "events" });
-export const removeConnection = act(C.C.byId, C.removeConnection, { level: "admin", topic: "events" });
-export const syncConnectionNow = act(C.C.byId, C.syncNow, { level: "admin", topic: "events" });
+export const removeConnection = act(C.C.byId, C.removeConnection, { level: "admin", topic: "household" });
+export const syncConnectionNow = act(C.C.byId, C.syncNow, { level: "admin", topic: "household" });

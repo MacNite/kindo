@@ -2,7 +2,8 @@
 import type { HouseholdWire } from "@/lib/types";
 import { prisma } from "../db";
 import { loadSnapshot } from "../snapshot";
-import { photoPlaylist } from "../photos";
+import { photoPlaylist } from "../photos/playlist";
+import { albumSelected } from "../photos/sync";
 import { syncHolidays } from "../holidays";
 import { z } from "zod";
 import * as H from "../household";
@@ -44,7 +45,11 @@ export const addTask = act(S.taskAdd, H.addTask);
 export const deleteTask = act(S.byId, H.deleteTask);
 
 export const saveWidgets = act(S.widgets, H.saveWidgets);
-export const updateAlbum = act(S.album, H.updateAlbum);
+export const updateAlbum = act(S.album, async (db, input) => {
+  await H.updateAlbum(db, input);
+  // An album that just joined the rotation gets its photo list now (§19.6).
+  if (input.selected) await albumSelected(db, input.id);
+});
 export const setPhotoPrefs = act(S.photoPrefs, H.setPhotoPrefs);
 export const updateHousehold = act(S.household, H.updateHousehold, { level: "admin" });
 

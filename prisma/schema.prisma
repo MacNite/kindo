@@ -321,26 +321,37 @@ model Event {
 }
 
 model PhotoAlbum {
-  id       String       @id @default(cuid())
+  id           String       @id @default(cuid())
   /// Which photo server the album lives on, shown as its group heading.
-  server   String
-  name     String
-  count    Int          @default(0)
-  selected Boolean      @default(false)
+  server       String
+  name         String
+  count        Int          @default(0)
+  selected     Boolean      @default(false)
   /// Share of the rotation, relative to the other selected albums.
-  weight   Int          @default(0)
-  photos   PhotoAsset[]
+  weight       Int          @default(0)
+  photos       PhotoAsset[]
+  /// The Immich server the album lives on; null for the demo's drawn albums.
+  connectionId String?
+  connection   Connection?  @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  /// The album's id on its server.
+  remoteId     String?
+  syncedAt     DateTime?
+
+  @@unique([connectionId, remoteId])
 }
 
 model PhotoAsset {
-  id      String     @id @default(cuid())
-  albumId String
-  album   PhotoAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  takenAt DateTime?
-  place   String?
+  id       String     @id @default(cuid())
+  albumId  String
+  album    PhotoAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  takenAt  DateTime?
+  place    String?
   /// Demo photos are drawn, not fetched: the seed picks the picture.
-  seed    Int?
+  seed     Int?
+  /// The asset's id on its Immich server; the image itself is proxied (§13).
+  remoteId String?
 
+  @@unique([albumId, remoteId])
   @@index([albumId])
 }
 
@@ -468,4 +479,5 @@ model Connection {
   lastSyncAt DateTime?
   createdAt  DateTime         @default(now())
   sources    CalendarSource[]
+  albums     PhotoAlbum[]
 }
