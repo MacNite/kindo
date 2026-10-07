@@ -19,10 +19,10 @@ export interface PhotoAdapter {
 
 export const getServers = () => PHOTO_SERVERS;
 
-/** Weighted shuffle across selected albums – the screensaver's playlist. */
+/** Weighted shuffle across selected albums – the screensaver's playlist. Empty when nothing is selected. */
 export function buildPool(albums: PhotoAlbum[]): Photo[] {
   const selected = albums.filter((a) => a.selected);
-  if (!selected.length) return PHOTOS;
+  if (!selected.length) return [];
   const total = selected.reduce((s, a) => s + Math.max(a.weight, 1), 0);
   const out: Photo[] = [];
   for (const a of selected) {

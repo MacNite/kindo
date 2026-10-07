@@ -108,6 +108,8 @@ export interface ApprovalRequest {
   id: string;
   memberId: string;
   item: TaskItem;
+  /** Day the item was ticked for (YYYY-MM-DD). */
+  day: string;
   at: Date;
 }
 

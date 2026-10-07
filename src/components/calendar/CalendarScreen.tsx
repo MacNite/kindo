@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Plus, Rss, Smart
 import type { CalendarEvent, CalendarProvider } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useNow } from "@/lib/useNow";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { getMember, getMembers } from "@/lib/services/household";
 import { eventsOn, getSource, getSources } from "@/lib/services/calendar";
 import { addDays, monthGrid, sameDay, startOfWeek, startOfDay } from "@/lib/dates";
@@ -25,9 +25,10 @@ const evStyle = (e: CalendarEvent) => ({ "--m": e.memberIds.length ? getMember(e
 const colors = (e: CalendarEvent) => e.memberIds.map((id) => getMember(id)!.color);
 
 export function CalendarScreen() {
+  const today = useToday();
   const { t, fmt, region } = useI18n();
   const [view, setView] = useState<View>("week");
-  const [cursor, setCursor] = useState(TODAY);
+  const [cursor, setCursor] = useState(today);
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState(() => new Set(getMembers().map((m) => m.id)));
@@ -46,7 +47,7 @@ export function CalendarScreen() {
           <h1 className="mr-auto font-display text-3xl font-bold tracking-tight md:text-4xl">{title}</h1>
           <div className="flex items-center gap-1">
             <IconButton label={t("calendar.previous")} onClick={() => step(-1)}><ChevronLeft /></IconButton>
-            <Button size="sm" variant="outline" onClick={() => setCursor(TODAY)}>{t("calendar.today")}</Button>
+            <Button size="sm" variant="outline" onClick={() => setCursor(today)}>{t("calendar.today")}</Button>
             <IconButton label={t("calendar.next")} onClick={() => step(1)}><ChevronRight /></IconButton>
           </div>
           <Segmented value={view} onChange={setView} label="View" options={[
@@ -58,7 +59,7 @@ export function CalendarScreen() {
 
         {view === "month" && <MonthView cursor={cursor} filter={filter} onSelect={setSelected} />}
         {view === "week" && <WeekView cursor={cursor} filter={filter} onSelect={setSelected} />}
-        {view === "agenda" && <AgendaView from={view === "agenda" && sameDay(cursor, TODAY) ? new Date() : cursor} filter={filter} onSelect={setSelected} />}
+        {view === "agenda" && <AgendaView from={view === "agenda" && sameDay(cursor, today) ? new Date() : cursor} filter={filter} onSelect={setSelected} />}
       </div>
 
       <aside className="hidden w-[280px] shrink-0 flex-col gap-6 lg:flex">
@@ -102,9 +103,10 @@ function SourceList() {
 
 // ── Month ───────────────────────────────────────────────────────────────────
 function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void }) {
+  const today = useToday();
   const { t, tx, fmt, region, weekOrder, weekdayName } = useI18n();
   const days = monthGrid(cursor, region.weekStartsOn);
-  const [picked, setPicked] = useState<Date>(TODAY);
+  const [picked, setPicked] = useState<Date>(today);
   return (
     <>
       <div className="overflow-hidden rounded-panel bg-surface">
@@ -115,7 +117,7 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
           {days.map((d) => {
             const evs = eventsOn(d, filter).filter((e) => !e.background);
             const inMonth = d.getMonth() === cursor.getMonth();
-            const isToday = sameDay(d, TODAY);
+            const isToday = sameDay(d, today);
             return (
               <button key={d.toISOString()} onClick={() => setPicked(d)}
                 className={cn("flex min-h-[64px] flex-col gap-1 border-b border-r border-line p-1.5 text-left md:min-h-[118px]",
@@ -150,6 +152,7 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
 const H0 = 7, H1 = 22, HOUR = 56;
 
 function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void }) {
+  const today = useToday();
   const { tx, fmt, region } = useI18n();
   const now = useNow(60_000);
   const start = startOfWeek(cursor, region.weekStartsOn);
@@ -161,7 +164,7 @@ function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<stri
       <div className="flex flex-col gap-4 md:hidden">
         {days.map((d) => (
           <section key={d.toISOString()}>
-            <p className={cn("mb-1.5 font-bold", sameDay(d, TODAY) ? "text-ink" : "text-soft")}>{fmt.dateLong(d)}</p>
+            <p className={cn("mb-1.5 font-bold", sameDay(d, today) ? "text-ink" : "text-soft")}>{fmt.dateLong(d)}</p>
             <DayList day={d} filter={filter} onSelect={onSelect} />
           </section>
         ))}
@@ -176,7 +179,7 @@ function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<stri
               <div key={d.toISOString()} className="min-w-0 border-l border-line p-2">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-sm font-bold text-soft">{fmt.weekday(d)}</span>
-                  <span className={cn("num grid h-8 min-w-8 place-items-center rounded-full px-1 font-display text-xl font-semibold", sameDay(d, TODAY) && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
+                  <span className={cn("num grid h-8 min-w-8 place-items-center rounded-full px-1 font-display text-xl font-semibold", sameDay(d, today) && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
                 </div>
                 <div className="mt-1 flex flex-col gap-1">
                   {allDay.map((e) => (
@@ -246,6 +249,7 @@ function DayColumn({ day, filter, onSelect, now }: { day: Date; filter: Set<stri
 
 // ── Agenda ──────────────────────────────────────────────────────────────────
 function AgendaView({ from, filter, onSelect }: { from: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void }) {
+  const today = useToday();
   const { fmt } = useI18n();
   const days = useMemo(() => Array.from({ length: 21 }, (_, i) => addDays(startOfDay(from), i)), [from]);
   return (
@@ -256,7 +260,7 @@ function AgendaView({ from, filter, onSelect }: { from: Date; filter: Set<string
         return (
           <section key={d.toISOString()} className="grid gap-3 md:grid-cols-[180px_1fr]">
             <div className="md:pt-3">
-              <p className="font-display text-xl font-semibold">{fmt.relDay(d, TODAY)}</p>
+              <p className="font-display text-xl font-semibold">{fmt.relDay(d, today)}</p>
               <p className="text-sm text-soft">{fmt.dateLong(d)}</p>
             </div>
             <DayList day={d} filter={filter} onSelect={onSelect} />

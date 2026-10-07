@@ -6,7 +6,7 @@ import type { WidgetSize } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { FAMILY_NAME } from "@/lib/data/members";
 import { MEALS } from "@/lib/data/meals";
 import { eventsOn } from "@/lib/services/calendar";
@@ -118,13 +118,14 @@ function EditBtn({ label, children, ...p }: React.ButtonHTMLAttributes<HTMLButto
 
 // ── Phone ───────────────────────────────────────────────────────────────────
 function MobileHome() {
+  const today = useToday();
   const { t, tx, fmt } = useI18n();
   const greeting = useGreeting();
   const now = useNow();
   const { isDone, approvals, resolveApproval } = useStore();
   const period = currentPeriod(now);
-  const rest = eventsOn(TODAY).filter((e) => !e.background && (e.allDay || e.end > now));
-  const tonight = MEALS.find((m) => sameDay(m.date, TODAY));
+  const rest = eventsOn(today).filter((e) => !e.background && (e.allDay || e.end > now));
+  const tonight = MEALS.find((m) => sameDay(m.date, today));
 
   return (
     <div className="flex flex-col gap-5">
@@ -137,9 +138,9 @@ function MobileHome() {
       {/* Who's doing what: one swipeable row of people */}
       <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 no-scrollbar">
         {getMembers().map((m) => {
-          const r = routineFor(m.id, period, TODAY);
+          const r = routineFor(m.id, period, today);
           const left = r ? r.items.filter((i) => !isDone(i.id)).length : 0;
-          const next = eventsOn(TODAY).find((e) => e.memberIds.includes(m.id) && !e.background && e.end > now);
+          const next = eventsOn(today).find((e) => e.memberIds.includes(m.id) && !e.background && e.end > now);
           return (
             <Link key={m.id} href={m.role === "child" ? `/kids/${m.id}` : "/calendar"} style={{ "--m": m.color } as CSSProperties}
               className="tint flex w-[136px] shrink-0 flex-col gap-2 rounded-card p-3">

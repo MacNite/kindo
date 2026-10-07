@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { Check, Plus } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { getMember, getMembers } from "@/lib/services/household";
 import { PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
@@ -12,6 +12,7 @@ import { cn } from "../ui/cn";
 import { toggled } from "@/lib/sets";
 
 export function TasksScreen() {
+  const today = useToday();
   const { t, tx, fmt } = useI18n();
   const { tasks, toggleTask, addTask } = useStore();
   const [text, setText] = useState("");
@@ -33,7 +34,7 @@ export function TasksScreen() {
       <ul className="mb-6 overflow-hidden rounded-panel bg-surface">
         {open.map((x) => {
           const m = getMember(x.memberId);
-          const overdue = x.due && x.due < TODAY;
+          const overdue = x.due && x.due < today;
           return (
             <li key={x.id} className="border-b border-line last:border-0">
               <button onClick={() => toggleTask(x.id)} className="flex min-h-[64px] w-full items-center gap-4 px-4 py-2 text-left">
@@ -41,7 +42,7 @@ export function TasksScreen() {
                 <span className="flex-1">
                   <span className="block text-lg leading-snug">{tx(x.title)}</span>
                   <span className={cn("text-sm", overdue ? "font-bold text-[#B4443C] dark:text-[#E98A80]" : "text-soft")}>
-                    {x.due ? (overdue ? t("tasks.overdue") : t("tasks.due", { date: fmt.relDay(x.due, TODAY) })) : t("tasks.noDue")}
+                    {x.due ? (overdue ? t("tasks.overdue") : t("tasks.due", { date: fmt.relDay(x.due, today) })) : t("tasks.noDue")}
                   </span>
                 </span>
                 {m ? <Avatar member={m} size="sm" /> : <span className="text-sm text-soft">{t("tasks.unassigned")}</span>}

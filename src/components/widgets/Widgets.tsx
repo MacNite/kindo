@@ -6,7 +6,7 @@ import type { WidgetId } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { WEATHER } from "@/lib/data/weather";
 import { MEALS } from "@/lib/data/meals";
 import { LISTS } from "@/lib/data/shopping";
@@ -42,6 +42,7 @@ function ClockWidget() {
 
 // ── Weather ─────────────────────────────────────────────────────────────────
 export function WeatherNow({ large }: { large?: boolean }) {
+  const today = useToday();
   const { t, fmt } = useI18n();
   const w = WEATHER;
   return (
@@ -51,7 +52,7 @@ export function WeatherNow({ large }: { large?: boolean }) {
         <p className={cn("num font-display font-semibold leading-none", large ? "text-5xl" : "text-4xl")}>{w.now}°</p>
         <p className={cn("text-soft", large ? "text-lg" : "text-sm")}>{t(`sky.${w.sky}`)}, {t("weather.range", { high: w.high, low: w.low })}</p>
       </div>
-      <span className="sr-only">{fmt.dateLong(TODAY)}</span>
+      <span className="sr-only">{fmt.dateLong(today)}</span>
     </div>
   );
 }
@@ -75,9 +76,10 @@ function WeatherWidget() {
 
 // ── Today agenda ────────────────────────────────────────────────────────────
 function AgendaWidget() {
+  const today = useToday();
   const { t, tx, fmt } = useI18n();
   const now = useNow();
-  const events = eventsOn(TODAY).filter((e) => !e.background);
+  const events = eventsOn(today).filter((e) => !e.background);
   const rest = events.filter((e) => e.allDay || e.end > now);
   return (
     <Panel title={t("widgets.agenda")} href="/calendar">
@@ -105,8 +107,9 @@ function AgendaWidget() {
 
 // ── Upcoming ────────────────────────────────────────────────────────────────
 export function UpcomingList({ limit = 6 }: { limit?: number }) {
+  const today = useToday();
   const { tx, fmt } = useI18n();
-  const items = upcoming(new Date(), 14, limit).filter((e) => !sameDay(e.start, TODAY));
+  const items = upcoming(today, 14, limit, { afterToday: true });
   let last = "";
   return (
     <ol className="flex flex-col gap-2">
@@ -135,9 +138,10 @@ function UpcomingWidget() {
 
 // ── Chores ──────────────────────────────────────────────────────────────────
 function ChoresWidget() {
+  const today = useToday();
   const { t, tx } = useI18n();
   const { isDone, toggleTaskItem } = useStore();
-  const chores = choresOn(TODAY);
+  const chores = choresOn(today);
   return (
     <Panel title={t("widgets.chores")} href="/routines">
       <ul className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
@@ -166,6 +170,7 @@ function ChoresWidget() {
 
 // ── Routines summary (kids) ─────────────────────────────────────────────────
 function RoutinesWidget() {
+  const today = useToday();
   const { t } = useI18n();
   const { isDone } = useStore();
   const period = currentPeriod();
@@ -173,7 +178,7 @@ function RoutinesWidget() {
     <Panel title={t("widgets.routines")} href="/routines">
       <div className="flex flex-col gap-3">
         {children().map((m) => {
-          const r = routineFor(m.id, period, TODAY);
+          const r = routineFor(m.id, period, today);
           const done = r ? r.items.filter((i) => isDone(i.id)).length : 0;
           return (
             <Link key={m.id} href={`/kids/${m.id}`} style={{ "--m": m.color } as CSSProperties} className="flex items-center gap-3 rounded-card tint p-3">
@@ -193,8 +198,9 @@ function RoutinesWidget() {
 
 // ── Meals ───────────────────────────────────────────────────────────────────
 function MealsWidget() {
+  const today = useToday();
   const { t, tx, fmt } = useI18n();
-  const i = MEALS.findIndex((m) => sameDay(m.date, TODAY));
+  const i = MEALS.findIndex((m) => sameDay(m.date, today));
   const tonight = MEALS[i];
   const next = MEALS.slice(i + 1, i + 3);
   const cook = getMember(tonight?.cookId);
@@ -242,13 +248,14 @@ function ShoppingWidget() {
 // ── Dates ───────────────────────────────────────────────────────────────────
 const DATE_ICON = { birthday: Cake, anniversary: Heart, school: GraduationCap, other: CalendarHeart };
 export function DatesList({ limit = 4, large }: { limit?: number; large?: boolean }) {
+  const today = useToday();
   const { t, tx, fmt } = useI18n();
   return (
     <ul className={cn("flex flex-col", large ? "gap-3" : "gap-2.5")}>
       {IMPORTANT_DATES.slice(0, limit).map((d) => {
         const I = DATE_ICON[d.kind];
         const m = getMember(d.memberId);
-        const n = daysUntil(TODAY, d.date);
+        const n = daysUntil(today, d.date);
         return (
           <li key={d.id} className="flex items-center gap-3" style={{ "--m": m?.color ?? "rgb(var(--soft))" } as CSSProperties}>
             <span className={cn("grid shrink-0 place-items-center rounded-full tint m-text", large ? "h-12 w-12" : "h-9 w-9")}><I size={large ? 22 : 17} strokeWidth={2} /></span>
@@ -258,7 +265,7 @@ export function DatesList({ limit = 4, large }: { limit?: number; large?: boolea
                 {d.turns ? (d.kind === "anniversary" ? t("dates.years", { n: d.turns }) : t("dates.turns", { n: d.turns })) : t(`dates.${d.kind}`)}, {fmt.dateMedium(d.date)}
               </span>
             </span>
-            <span className={cn("num shrink-0 whitespace-nowrap rounded-full bg-sunken px-2.5 py-1 text-sm font-bold", n <= 7 && "tint-strong")}>{fmt.relDay(d.date, TODAY)}</span>
+            <span className={cn("num shrink-0 whitespace-nowrap rounded-full bg-sunken px-2.5 py-1 text-sm font-bold", n <= 7 && "tint-strong")}>{fmt.relDay(d.date, today)}</span>
           </li>
         );
       })}

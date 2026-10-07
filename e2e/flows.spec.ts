@@ -52,3 +52,14 @@ test("shopping quick-add puts the item on the list", async ({ page }) => {
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("Oat milk")).toBeVisible();
 });
+
+test("the wall rolls over to the new day at midnight", async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 7, 23, 59, 0) });
+  await prepare(page);
+  await page.goto("/wall");
+  await expect(page.getByText("Wednesday, 7 October").first()).toBeAttached();
+  await page.clock.runFor(120_000);
+  await expect(page.getByText("Thursday, 8 October").first()).toBeAttached();
+  // Not just the clock: nothing on the wall may still be showing yesterday.
+  await expect(page.getByText("Wednesday, 7 October")).toHaveCount(0);
+});

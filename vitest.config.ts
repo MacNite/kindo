@@ -1,6 +1,9 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+// Run date logic in a DST-observing zone so daylight-saving bugs show up in CI.
+process.env.TZ = "Europe/Berlin";
+
 export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {

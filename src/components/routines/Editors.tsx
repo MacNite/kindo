@@ -5,7 +5,7 @@ import type { Recurrence, Weekday } from "@/lib/types";
 import { useI18n, type I18n } from "@/i18n";
 import { occursOn, toRRule } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { EMOJI_CHOICES, PICTOGRAMS, PICTO_CATEGORIES, type PictoCategory } from "@/lib/pictograms";
 import { Pictogram } from "../ui/Pictogram";
 import { Segmented, inputCls } from "../ui/Segmented";
@@ -17,8 +17,8 @@ const KINDS: Kind[] = ["daily", "schoolDays", "weekdays", "weekly", "everyN", "m
 
 const kindOf = (r: Recurrence): Kind => (r.kind === "weekly" && r.interval > 1 ? "everyN" : r.kind);
 
-function fromKind(k: Kind, prev: Recurrence): Recurrence {
-  const day = (prev.kind === "weekly" ? prev.day : prev.kind === "weekdays" ? prev.days[0] ?? 1 : TODAY.getDay()) as Weekday;
+function fromKind(k: Kind, prev: Recurrence, today: Date): Recurrence {
+  const day = (prev.kind === "weekly" ? prev.day : prev.kind === "weekdays" ? prev.days[0] ?? 1 : today.getDay()) as Weekday;
   switch (k) {
     case "daily": return { kind: "daily" };
     case "schoolDays": return { kind: "schoolDays" };
@@ -26,7 +26,7 @@ function fromKind(k: Kind, prev: Recurrence): Recurrence {
     case "weekly": return { kind: "weekly", day, interval: 1 };
     case "everyN": return { kind: "weekly", day, interval: prev.kind === "weekly" && prev.interval > 1 ? prev.interval : 2 };
     case "monthly": return { kind: "monthly", dayOfMonth: 1 };
-    case "once": return { kind: "once", date: dateKey(addDays(TODAY, 1)) };
+    case "once": return { kind: "once", date: dateKey(addDays(today, 1)) };
   }
 }
 
@@ -46,20 +46,21 @@ export function describeRecurrence(r: Recurrence, { t, weekdayName, weekOrder, f
 }
 
 export function RecurrenceEditor({ value, onChange }: { value: Recurrence; onChange: (r: Recurrence) => void }) {
+  const today = useToday();
   const i18n = useI18n();
   const { t, weekOrder, weekdayName, fmt } = i18n;
   const kind = kindOf(value);
   const next = useMemo(() => {
     const out: Date[] = [];
-    for (let i = 0; i < 400 && out.length < 4; i++) { const d = addDays(TODAY, i); if (occursOn(value, d)) out.push(d); }
+    for (let i = 0; i < 400 && out.length < 4; i++) { const d = addDays(today, i); if (occursOn(value, d)) out.push(d); }
     return out;
-  }, [value]);
+  }, [value, today]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         {KINDS.map((k) => (
-          <button key={k} onClick={() => onChange(fromKind(k, value))} aria-pressed={kind === k}
+          <button key={k} onClick={() => onChange(fromKind(k, value, today))} aria-pressed={kind === k}
             className={cn("h-10 rounded-full border-2 px-4 text-sm font-bold", kind === k ? "border-ink bg-ink text-surface" : "border-line text-soft hover:text-ink")}>
             {t(`recurrence.${k}`)}
           </button>

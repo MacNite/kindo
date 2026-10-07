@@ -15,4 +15,8 @@ describe("buildPool", () => {
     const count = (id: string) => pool.filter((p) => p.albumId === id).length;
     expect(count("al-2026")).toBeGreaterThan(count("al-kids"));
   });
+
+  it("is empty when no album is selected", () => {
+    expect(buildPool([album("al-2026", false, 50), album("al-kids", false, 50)])).toEqual([]);
+  });
 });

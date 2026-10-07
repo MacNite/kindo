@@ -56,3 +56,12 @@ describe("toRRule", () => {
     expect(toRRule({ kind: "monthly", dayOfMonth: 15 })).toBe("FREQ=MONTHLY;BYMONTHDAY=15");
   });
 });
+
+describe("occursOn across daylight-saving changes", () => {
+  it("every two weeks keeps alternating through a whole year", () => {
+    const r: Recurrence = { kind: "weekly", day: 1, interval: 2 };
+    // 2026-01-05 is a Monday; 52 Mondays span both DST switches in DST-observing zones.
+    const hits = Array.from({ length: 52 }, (_, w) => occursOn(r, new Date(2026, 0, 5 + w * 7)));
+    hits.forEach((h, w) => expect(h, `week ${w}`).toBe(hits[0] === (w % 2 === 0)));
+  });
+});
