@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ImageIcon, LayoutGrid, Smile } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { MEALS } from "@/lib/data/meals";
 import { FAMILY_NAME } from "@/lib/data/members";
 import { sameDay } from "@/lib/dates";
@@ -21,6 +21,7 @@ import { useGreeting } from "./HomeScreen";
  * Idle → photo frame; touch → back. Presence sensing can later call setSaver.
  */
 export function WallDashboard() {
+  const today = useToday();
   const { t, tx } = useI18n();
   const { idleMinutes, shopping } = useStore();
   const greeting = useGreeting();
@@ -39,7 +40,7 @@ export function WallDashboard() {
     return () => { clearTimeout(timer.current); evs.forEach((e) => window.removeEventListener(e, poke)); };
   }, [poke]);
 
-  const tonight = MEALS.find((m) => sameDay(m.date, TODAY));
+  const tonight = MEALS.find((m) => sameDay(m.date, today));
   const cook = getMember(tonight?.cookId);
   const toBuy = shopping.filter((s) => s.listId === "groceries" && !s.done);
 

@@ -38,8 +38,12 @@ export const eventsForMember = (memberId: string, day: Date) =>
   eventsOn(day).filter((e) => e.memberIds.includes(memberId));
 export const familyEvents = (day: Date) => eventsOn(day).filter((e) => e.memberIds.length === 0);
 
-export function upcoming(from: Date, days = 14, limit = 8) {
-  return eventsBetween(from, addDays(startOfDay(from), days)).filter((e) => !e.background && e.end > from).slice(0, limit);
+/** Next events within `days`. `afterToday` skips events starting on `from`'s day (before the limit is applied). */
+export function upcoming(from: Date, days = 14, limit = 8, { afterToday = false } = {}) {
+  const start = afterToday ? addDays(startOfDay(from), 1) : from;
+  return eventsBetween(start, addDays(startOfDay(from), days))
+    .filter((e) => !e.background && e.end > start && !(afterToday && e.start < start))
+    .slice(0, limit);
 }
 
 function matches(e: CalendarEvent, filter?: Set<string>) {

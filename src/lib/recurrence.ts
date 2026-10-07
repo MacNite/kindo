@@ -1,5 +1,5 @@
 import type { Recurrence, Weekday } from "./types";
-import { startOfDay, DAY, dateKey } from "./dates";
+import { DAY, dateKey } from "./dates";
 
 /**
  * Minimal matcher so the prototype can show "what's due today".
@@ -8,6 +8,10 @@ import { startOfDay, DAY, dateKey } from "./dates";
  */
 const EPOCH_MONDAY = new Date(2024, 0, 1); // used for "every N weeks" phase
 
+/** Whole calendar days between two dates, immune to DST (23h/25h days). */
+const calendarDays = (from: Date, to: Date) =>
+  Math.round((Date.UTC(to.getFullYear(), to.getMonth(), to.getDate()) - Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())) / DAY);
+
 export function occursOn(r: Recurrence, date: Date, isSchoolDay: (d: Date) => boolean = defaultSchoolDay): boolean {
   const dow = date.getDay() as Weekday;
   switch (r.kind) {
@@ -15,7 +19,7 @@ export function occursOn(r: Recurrence, date: Date, isSchoolDay: (d: Date) => bo
     case "weekdays": return r.days.includes(dow);
     case "weekly": {
       if (dow !== r.day) return false;
-      const weeks = Math.floor((startOfDay(date).getTime() - EPOCH_MONDAY.getTime()) / (7 * DAY));
+      const weeks = Math.floor(calendarDays(EPOCH_MONDAY, date) / 7);
       return weeks % Math.max(1, r.interval) === 0;
     }
     case "monthly": return date.getDate() === r.dayOfMonth;

@@ -1,5 +1,5 @@
 import type { ApprovalRequest, Reward } from "../types";
-import { at } from "../dates";
+import { at, dateKey } from "../dates";
 import { TODAY } from "./anchor";
 import { CHORES } from "./routines";
 
@@ -15,8 +15,8 @@ export const REWARDS: Reward[] = [
 
 const chore = (id: string) => CHORES.find((c) => c.id === id)!.item;
 export const APPROVALS: ApprovalRequest[] = [
-  { id: "a1", memberId: "lena", item: chore("x-car"), at: at(TODAY, 10, 12) },
-  { id: "a2", memberId: "paul", item: chore("x-garden"), at: at(TODAY, 11, 40) },
+  { id: "a1", memberId: "lena", item: chore("x-car"), day: dateKey(TODAY), at: at(TODAY, 10, 12) },
+  { id: "a2", memberId: "paul", item: chore("x-garden"), day: dateKey(TODAY), at: at(TODAY, 11, 40) },
 ];
 
 /** Pocket-money mode: what one point is worth. */

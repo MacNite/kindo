@@ -6,7 +6,7 @@ import { Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
 import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { choresOn, currentPeriod, getMember, children, routineFor } from "@/lib/services/household";
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
@@ -25,15 +25,16 @@ const GRID: Record<number, string> = {
  * Pictures carry the meaning; words are small helpers for parents/older kids.
  */
 export function ChildRoutine({ memberId }: { memberId: string }) {
+  const today = useToday();
   const member = getMember(memberId);
   const [period, setPeriod] = useState<Period>(() => currentPeriod());
   const { isDone, toggleTaskItem, rewardMode } = useStore();
   const { t } = useI18n();
   if (!member) return null;
 
-  const routine = routineFor(member.id, period, TODAY);
+  const routine = routineFor(member.id, period, today);
   const items = routine?.items ?? [];
-  const helping = choresOn(TODAY).filter((c) => c.memberId === member.id).map((c) => c.item);
+  const helping = choresOn(today).filter((c) => c.memberId === member.id).map((c) => c.item);
   const doneCount = items.filter((i) => isDone(i.id)).length;
   const allDone = items.length > 0 && doneCount === items.length;
 
@@ -160,6 +161,7 @@ function HoldToLeave() {
 }
 
 export function ChildPicker() {
+  const today = useToday();
   const { t } = useI18n();
   const { isDone } = useStore();
   const period = currentPeriod();
@@ -169,7 +171,7 @@ export function ChildPicker() {
       <h1 className="sr-only">{t("kids.choose")}</h1>
       <div className="grid w-full max-w-4xl grid-cols-1 gap-6 sm:grid-cols-2">
         {children().map((m: Member) => {
-          const r = routineFor(m.id, period, TODAY);
+          const r = routineFor(m.id, period, today);
           return (
             <Link key={m.id} href={`/kids/${m.id}`} style={{ "--m": m.color } as CSSProperties}
               className="tint flex flex-col items-center gap-5 rounded-panel p-10">

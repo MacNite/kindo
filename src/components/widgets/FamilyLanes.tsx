@@ -6,7 +6,7 @@ import type { CalendarEvent, Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
-import { TODAY } from "@/lib/data/anchor";
+import { useToday } from "@/lib/useToday";
 import { addDays } from "@/lib/dates";
 import { getMembers, currentPeriod, routineFor, choresOn } from "@/lib/services/household";
 import { eventsForMember, familyEvents } from "@/lib/services/calendar";
@@ -19,9 +19,10 @@ import { cn } from "../ui/cn";
  * "what is happening today and what does each person need to do?"
  */
 export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" }) {
+  const today = useToday();
   const members = getMembers();
   const { t, tx, fmt } = useI18n();
-  const fam = familyEvents(TODAY);
+  const fam = familyEvents(today);
   const wall = variant === "wall";
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
@@ -45,16 +46,17 @@ export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" })
 }
 
 function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
+  const today = useToday();
   const { t, tx, fmt } = useI18n();
   const now = useNow();
   const { isDone, toggleTaskItem } = useStore();
   const period = currentPeriod(now);
-  const routine = routineFor(member.id, period, TODAY);
-  const events = eventsForMember(member.id, TODAY);
-  const chores = choresOn(TODAY).filter((c) => c.memberId === member.id && c.item.value.kind === "expected");
+  const routine = routineFor(member.id, period, today);
+  const events = eventsForMember(member.id, today);
+  const chores = choresOn(today).filter((c) => c.memberId === member.id && c.item.value.kind === "expected");
   const left = routine ? routine.items.filter((i) => !isDone(i.id)).length : 0;
   const isChild = member.role === "child";
-  const tomorrow = eventsForMember(member.id, addDays(TODAY, 1)).filter((e) => !e.background);
+  const tomorrow = eventsForMember(member.id, addDays(today, 1)).filter((e) => !e.background);
 
   return (
     <section style={{ "--m": member.color } as CSSProperties}

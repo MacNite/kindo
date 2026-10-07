@@ -1,9 +1,11 @@
 "use client";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import type {
-  ApprovalRequest, OneOffTask, PhotoAlbum, Reward, RewardMode, ShoppingItem, TaskItem, WidgetConfig, WidgetId,
+  OneOffTask, PhotoAlbum, Reward, RewardMode, ShoppingItem, TaskItem, WidgetConfig, WidgetId,
 } from "../types";
 import { dateKey } from "../dates";
+import { doneKey, resolveApproval as resolveRequest, toggleItem, type Ledger } from "../ledger";
+import { useToday } from "../useToday";
 import { TODAY } from "../data/anchor";
 import { ROUTINES, TASKS } from "../data/routines";
 import { APPROVALS, BALANCES } from "../data/rewards";
@@ -15,9 +17,16 @@ import { ALBUMS } from "../data/photos";
  * Everything here maps 1:1 onto a future API (see README "Next steps");
  * components call these actions and never mutate data themselves.
  */
-const today = dateKey(TODAY);
+const seedDay = dateKey(TODAY);
 const seedDone = (routineId: string, count: number) =>
-  ROUTINES.find((r) => r.id === routineId)!.items.slice(0, count).map((i) => `${i.id}@${today}`);
+  ROUTINES.find((r) => r.id === routineId)!.items.slice(0, count).map((i) => doneKey(i.id, seedDay));
+const SEED_LEDGER: Ledger = {
+  // Pending approval requests mean the child already ticked the item.
+  done: new Set([...seedDone("lena-morning", 3), ...seedDone("paul-morning", 2), ...APPROVALS.map((a) => doneKey(a.item.id, a.day))]),
+  approvals: APPROVALS,
+  balances: BALANCES,
+  awarded: {},
+};
 
 const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: "agenda", enabled: true, size: "m" },
@@ -33,49 +42,25 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
 ];
 
 function useHousehold() {
-  const [done, setDone] = useState<Set<string>>(() => new Set([...seedDone("lena-morning", 3), ...seedDone("paul-morning", 2)]));
+  const today = useToday();
+  const [ledger, setLedger] = useState<Ledger>(SEED_LEDGER);
+  const { done, approvals, balances } = ledger;
   const [shopping, setShopping] = useState<ShoppingItem[]>(ITEMS);
   const [tasks, setTasks] = useState<OneOffTask[]>(TASKS);
-  const [balances, setBalances] = useState<Record<string, number>>(BALANCES);
-  const [approvals, setApprovals] = useState<ApprovalRequest[]>(APPROVALS);
   const [rewardMode, setRewardMode] = useState<RewardMode>("stars");
   const [widgets, setWidgets] = useState<WidgetConfig[]>(DEFAULT_WIDGETS);
   const [albums, setAlbums] = useState<PhotoAlbum[]>(ALBUMS);
   const [idleMinutes, setIdleMinutes] = useState(2);
 
-  const isDone = useCallback((itemId: string, date = TODAY) => done.has(`${itemId}@${dateKey(date)}`), [done]);
+  const isDone = useCallback((itemId: string, date = today) => done.has(doneKey(itemId, dateKey(date))), [done, today]);
 
-  const toggleTaskItem = useCallback((memberId: string, item: TaskItem, date = TODAY) => {
-    const key = `${item.id}@${dateKey(date)}`;
-    setDone((s) => {
-      const next = new Set(s);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-    if (item.value.kind === "extra") {
-      const extra = item.value;
-      if (extra.needsApproval) {
-        setApprovals((a) => a.some((r) => r.item.id === item.id) ? a.filter((r) => r.item.id !== item.id)
-          : [...a, { id: `a-${key}`, memberId, item, at: new Date() }]);
-      } else {
-        setBalances((b) => ({ ...b, [memberId]: (b[memberId] ?? 0) + (done.has(key) ? -extra.points : extra.points) }));
-      }
-    }
-  }, [done]);
+  const toggleTaskItem = useCallback((memberId: string, item: TaskItem, date = today) =>
+    setLedger((l) => toggleItem(l, memberId, item, date)), [today]);
 
-  const resolveApproval = (id: string, ok: boolean) => {
-    const req = approvals.find((a) => a.id === id);
-    if (!req) return;
-    if (ok && req.item.value.kind === "extra") {
-      const pts = req.item.value.points;
-      setBalances((b) => ({ ...b, [req.memberId]: (b[req.memberId] ?? 0) + pts }));
-    }
-    if (!ok) setDone((s) => { const n = new Set(s); n.delete(`${req.item.id}@${today}`); return n; });
-    setApprovals((a) => a.filter((r) => r.id !== id));
-  };
+  const resolveApproval = (id: string, ok: boolean) => setLedger((l) => resolveRequest(l, id, ok));
 
   const redeem = (memberId: string, reward: Reward) =>
-    setBalances((b) => ((b[memberId] ?? 0) >= reward.cost ? { ...b, [memberId]: b[memberId] - reward.cost } : b));
+    setLedger((l) => ((l.balances[memberId] ?? 0) >= reward.cost ? { ...l, balances: { ...l.balances, [memberId]: l.balances[memberId] - reward.cost } } : l));
 
   // Shopping
   const toggleShopping = (id: string) => setShopping((l) => l.map((i) => (i.id === id ? { ...i, done: !i.done } : i)));

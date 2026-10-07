@@ -9,3 +9,19 @@ test("phones get the bottom navigation and the More sheet", async ({ page }) => 
   await nav.getByText("More", { exact: true }).click();
   await expect(page.getByRole("dialog").getByText("Rewards")).toBeVisible();
 });
+
+test("the More sheet keeps keyboard focus inside and returns it on close", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/");
+  const more = page.locator("nav").last().getByText("More", { exact: true });
+  await more.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  for (let i = 0; i < 25; i++) {
+    await page.keyboard.press("Tab");
+    expect(await page.evaluate(() => !!document.activeElement?.closest("[role=dialog]") || document.activeElement === document.body)).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(page.locator("nav").last().getByRole("button", { name: "More" })).toBeFocused();
+});
