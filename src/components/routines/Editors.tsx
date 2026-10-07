@@ -3,9 +3,10 @@ import { useMemo, useState } from "react";
 import { Minus, Plus, Upload } from "lucide-react";
 import type { Recurrence, Weekday } from "@/lib/types";
 import { useI18n, type I18n } from "@/i18n";
-import { occursOn, toRRule } from "@/lib/recurrence";
+import { nextOccurrences, toRRule } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
 import { useToday } from "@/lib/useToday";
+import { useStore } from "@/lib/state/store";
 import { EMOJI_CHOICES, PICTOGRAMS, PICTO_CATEGORIES, type PictoCategory } from "@/lib/pictograms";
 import { Pictogram } from "../ui/Pictogram";
 import { Segmented, inputCls } from "../ui/Segmented";
@@ -24,11 +25,17 @@ function fromKind(k: Kind, prev: Recurrence, today: Date): Recurrence {
     case "schoolDays": return { kind: "schoolDays" };
     case "weekdays": return { kind: "weekdays", days: prev.kind === "weekdays" ? prev.days : [1, 2, 3, 4, 5] };
     case "weekly": return { kind: "weekly", day, interval: 1 };
-    case "everyN": return { kind: "weekly", day, interval: prev.kind === "weekly" && prev.interval > 1 ? prev.interval : 2 };
+    case "everyN": {
+      const from = prev.kind === "weekly" && prev.from ? prev.from : dateKey(nextWeekday(today, day));
+      return { kind: "weekly", day, interval: prev.kind === "weekly" && prev.interval > 1 ? prev.interval : 2, from };
+    }
     case "monthly": return { kind: "monthly", dayOfMonth: 1 };
     case "once": return { kind: "once", date: dateKey(addDays(today, 1)) };
   }
 }
+
+/** The first `day` on or after `from`. */
+const nextWeekday = (from: Date, day: Weekday) => addDays(from, (day - from.getDay() + 7) % 7);
 
 export function describeRecurrence(r: Recurrence, { t, weekdayName, weekOrder, fmt, language }: I18n): string {
   switch (r.kind) {
@@ -40,7 +47,7 @@ export function describeRecurrence(r: Recurrence, { t, weekdayName, weekOrder, f
       return t("recurrence.s_weekdays", { days: joined });
     }
     case "weekly": return r.interval > 1 ? t("recurrence.s_everyN", { n: r.interval, day: weekdayName(r.day) }) : t("recurrence.s_weekly", { day: weekdayName(r.day) });
-    case "monthly": return t("recurrence.s_monthly", { n: r.dayOfMonth });
+    case "monthly": return r.dayOfMonth > 28 ? t("recurrence.s_monthlyLate", { n: r.dayOfMonth }) : t("recurrence.s_monthly", { n: r.dayOfMonth });
     case "once": return t("recurrence.s_once", { date: fmt.dateMedium(new Date(r.date + "T00:00")) });
   }
 }
@@ -49,12 +56,9 @@ export function RecurrenceEditor({ value, onChange }: { value: Recurrence; onCha
   const today = useToday();
   const i18n = useI18n();
   const { t, weekOrder, weekdayName, fmt } = i18n;
+  const { isSchoolDay } = useStore();
   const kind = kindOf(value);
-  const next = useMemo(() => {
-    const out: Date[] = [];
-    for (let i = 0; i < 400 && out.length < 4; i++) { const d = addDays(today, i); if (occursOn(value, d)) out.push(d); }
-    return out;
-  }, [value, today]);
+  const next = useMemo(() => nextOccurrences(value, today, 4, isSchoolDay), [value, today, isSchoolDay]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -79,13 +83,19 @@ export function RecurrenceEditor({ value, onChange }: { value: Recurrence; onCha
               {t("recurrence.weeks")}
             </span>
           )}
-          <DayPicker selected={[value.day]} onChange={(d) => onChange({ ...value, day: d[0] })} />
+          <DayPicker selected={[value.day]} onChange={(d) => onChange({ ...value, day: d[0], from: value.from && dateKey(nextWeekday(new Date(value.from + "T00:00"), d[0])) })} />
+          {value.interval > 1 && (
+            <label className="flex items-center gap-3 font-bold">{t("recurrence.starting")}
+              <input type="date" className={cn(inputCls, "w-48")} value={value.from ?? ""}
+                onChange={(e) => e.target.value && onChange({ ...value, from: e.target.value, day: new Date(e.target.value + "T00:00").getDay() as Weekday })} />
+            </label>
+          )}
         </div>
       )}
       {value.kind === "monthly" && (
         <label className="flex items-center gap-3 font-bold">{t("recurrence.day")}
           <select className={cn(inputCls, "w-24")} value={value.dayOfMonth} onChange={(e) => onChange({ kind: "monthly", dayOfMonth: +e.target.value })}>
-            {Array.from({ length: 28 }, (_, i) => <option key={i} value={i + 1}>{i + 1}.</option>)}
+            {Array.from({ length: 31 }, (_, i) => <option key={i} value={i + 1}>{i + 1}.</option>)}
           </select>
         </label>
       )}
@@ -97,7 +107,7 @@ export function RecurrenceEditor({ value, onChange }: { value: Recurrence; onCha
 
       <div className="rounded-card bg-sunken p-4">
         <p className="font-bold">{describeRecurrence(value, i18n)}</p>
-        <p className="mt-1 text-sm text-soft">{t("recurrence.next")}: {next.map((d) => `${weekdayName(d.getDay() as Weekday, "short")} ${fmt.dateMedium(d)}`).join(", ")}</p>
+        <p className="mt-1 text-sm text-soft">{t("recurrence.next")}: {next.length ? next.map((d) => `${weekdayName(d.getDay() as Weekday, "short")} ${fmt.dateMedium(d)}`).join(", ") : t("recurrence.never")}</p>
         <p className="mt-2 text-xs text-soft">{t("recurrence.rrule")}: <code className="rounded bg-surface px-1.5 py-0.5">{toRRule(value)}</code></p>
       </div>
       <span className="sr-only">{weekOrder.map((d) => weekdayName(d)).join(" ")}</span>

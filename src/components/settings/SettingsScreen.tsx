@@ -12,7 +12,7 @@ import { useStore } from "@/lib/state/store";
 import { updateHousehold } from "@/lib/services/actions";
 import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
-import { MemberEditor, DatesSection } from "./Editors";
+import { MemberEditor, DatesSection, RoutineSettings } from "./Editors";
 import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
 import { PageHeader } from "../ui/Panel";
@@ -134,21 +134,7 @@ function Section({ id }: { id: SectionId }) {
       );
 
     case "routines":
-      return (
-        <Card className="flex max-w-xl flex-col gap-4">
-          <p className="font-bold">{t("settings.routines.periods")}</p>
-          <p className="-mt-3 text-sm text-soft">{t("settings.routines.periodsHint")}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("settings.routines.morningUntil")}><input type="time" className={inputCls} defaultValue="11:00" /></Field>
-            <Field label={t("settings.routines.afternoonUntil")}><input type="time" className={inputCls} defaultValue="17:00" /></Field>
-          </div>
-          <Field label={t("settings.routines.resetAt")}><input type="time" className={inputCls} defaultValue="03:00" /></Field>
-          <Field label={t("settings.routines.schoolCal")}>
-            <select className={inputCls}><option>{tx({ en: "Lindenhof Primary (ICS)", de: "Grundschule Lindenhof (ICS)" })}</option></select>
-          </Field>
-          <Link href="/routines"><Button variant="outline">{t("nav.routines")}<ChevronRight size={16} /></Button></Link>
-        </Card>
-      );
+      return <RoutineSettings />;
 
     case "rewards":
       return <RewardModePicker />;

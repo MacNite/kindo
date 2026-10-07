@@ -3,6 +3,8 @@ import type { HouseholdWire } from "@/lib/types";
 import { prisma } from "../db";
 import { loadSnapshot } from "../snapshot";
 import { photoPlaylist } from "../photos";
+import { syncHolidays } from "../holidays";
+import { z } from "zod";
 import * as H from "../household";
 import { S } from "../validation";
 import { act } from "./act";
@@ -56,3 +58,8 @@ export const deleteEvent = act(S.byId, H.deleteEvent, { topic: "events" });
 export async function getPhotoPlaylist() {
   return photoPlaylist(prisma);
 }
+
+export const setDayTimes = act(S.dayTimes, H.setDayTimes);
+export const setHolidayFeeds = act(S.holidayFeeds, H.setHolidayFeeds);
+/** Fetches the holiday feeds now, so the settings screen can show the result at once. */
+export const syncHolidaysNow = act(z.object({}), async () => syncHolidays(prisma));

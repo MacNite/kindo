@@ -52,9 +52,11 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 ## §7 Recurrence
 
-`Recurrence` covers daily, selected weekdays, weekly, every N weeks, monthly, once, and school days (weekdays minus holidays from an ICS feed).
+`Recurrence` covers daily, selected weekdays, weekly, every N weeks (from a start date), monthly (days 29–31 fall on the last day of shorter months), once, and school days (weekdays minus holidays from the household's ICS feeds).
 
-Every kind maps onto an RFC 5545 RRULE (`toRRule`), so recurrence can round-trip through CalDAV later.
+Every kind maps onto an RFC 5545 DTSTART + RRULE (`toICalLines`) and back (`fromRRule`), so recurrence can round-trip through CalDAV. School days travel as weekdays with the holidays as EXDATEs.
+
+The engine (`src/lib/recurrence.ts`) answers "does it occur on this date", "every date in a range" and "the next few dates". Routines and chores belong to a **household day** that starts at a configurable reset time (default 03:00), so a late evening still counts for that evening.
 
 ## §8 Pictograms
 
@@ -121,7 +123,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 
 1. **v0.1, UX prototype:** all screens on mock data, Docker image, CI. *(done)*
 2. **Persistence:** *(done)* PostgreSQL and Prisma, a `migrate` image and service, household state moved from `store.tsx` to Server Actions. Realtime sync between wall and phones (SSE).
-3. **Recurrence engine:** occurrences per date, daily reset, completion history.
+3. **Recurrence engine:** *(done)* occurrences per date, daily reset, completion history.
 4. **Accounts:** local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar.
 6. **Immich adapter** with a thumbnail proxy and cache.
@@ -150,3 +152,8 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D16 | Important dates are stored as the original date plus a yearly flag, managed in a new Settings section, *Dates* | Ages and anniversaries count themselves; §15 gains one section. |
 | D17 | All-day events are stored at UTC midnight with an exclusive end, as in iCalendar | "Tuesday" stays Tuesday on every device and round-trips through CalDAV. |
 | D18 | Mutations are idempotent "set" operations; offline-capable creates use ids from the device | Retries, double taps and the later offline queue (§19.7) cannot create duplicates or flip state twice. |
+| D19 | The household day resets at a configurable time (default 03:00) in the household's time zone; the server accepts completions only for days from a week back to one day ahead | Bedtimes after midnight still count for the evening, and a device with a wrong clock can't scatter ticks across the calendar. |
+| D20 | School days are Monday to Friday minus date ranges from ICS feeds set in Settings → Routines, fetched daily on the server | Every German state publishes its holidays as ICS. A failing feed keeps the last good ranges, so a school website outage never turns holidays into school days. |
+| D21 | Background jobs run inside the app process (`src/instrumentation.ts`); one instance leads by holding a PostgreSQL advisory lock | No separate worker container yet, and still correct with more than one app container. |
+| D22 | "Every N weeks" stores its start date; the RRULE's DTSTART is that date | The family decides which Saturdays, and the rule round-trips through CalDAV unchanged. |
+| D23 | Completions are kept as history rows and survive edits of their routine; the history view measures days against today's routines | History without a second table, and calm by design: dots that fill, no streaks or scores. |

@@ -24,7 +24,7 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 - **Child view:** large pictogram cards, progress shown as dots, morning/afternoon/evening chosen by icon. Leaving the view needs a press-and-hold.
 - **Wall display:** a kiosk layout readable from a few metres. It becomes a photo frame when idle, and a tap returns to the dashboard.
 - **Calendar:** month, week and agenda views, colour-coded by person, with filters and calendar sources (Nextcloud/CalDAV, Google, ICS, local).
-- **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library.
+- **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library. Routines reset at a household reset time (default 03:00), school days skip the holidays from your state's ICS feed, and a two-week history shows how each routine went.
 - **Rewards:** off, stars, tokens or pocket money. Expected routines earn nothing, extras can earn a reward. Includes parent approval.
 - **Everyday lists:** shopping (several lists, quick add), tasks, weekly meal plan, important dates with countdowns.
 - **Photos:** several Immich servers, album pool, weighting.

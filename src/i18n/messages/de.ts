@@ -45,6 +45,7 @@ const de: Messages = {
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Abo", local: "Lokal" },
   routines: {
+    tabHistory: "Verlauf",
     noChildren: "Lege unter Einstellungen → Personen ein Kind an, um ihm Routinen zu geben.", noChores: "Noch nichts da.", period: "Tageszeit", routineWide: "Gilt für die ganze Routine.",
     title: "Routinen & Haushalt",
     subtitle: "Wer macht was, und wann. Routinen gehören zum Tag, Extras sind freiwillige Hilfe.",
@@ -59,6 +60,7 @@ const de: Messages = {
     preview: "So sieht {name} es", earns: "+{n}",
   },
   recurrence: {
+    s_monthlyLate: "Jeden Monat am {n}. (oder am Monatsletzten)", starting: "Ab", never: "Keine kommenden Termine",
     daily: "Täglich", weekdays: "An Wochentagen", weekly: "Wöchentlich", everyN: "Alle paar Wochen",
     monthly: "Monatlich", once: "Einmalig", schoolDays: "Schultage",
     s_daily: "Jeden Tag", s_weekdays: "Jeden {days}", s_weekly: "Jeden {day}",
@@ -125,6 +127,7 @@ const de: Messages = {
   },
   errors: { notFound: "Das gibt es nicht mehr. Die Anzeige wurde aktualisiert.", invalid: "Bitte prüfe deine Eingaben.", forbidden: "Das darfst du nicht.", unauthenticated: "Bitte melde dich erneut an.", conflict: "Das ist schon erledigt.", notEnoughPoints: "Noch nicht genug Punkte.", readOnly: "Dieser Kalender ist schreibgeschützt.", remote: "Der verbundene Dienst hat nicht geantwortet. Bitte später noch einmal versuchen.", server: "Da ist etwas schiefgegangen. Bitte noch einmal versuchen.", network: "Keine Verbindung. Bitte noch einmal versuchen." },
   setup: { title: "Willkommen bei Kindo", intro: "Richte deinen Haushalt ein. Weitere Personen, Kalender und Fotos kannst du später in den Einstellungen hinzufügen.", household: "Name des Haushalts", householdPlaceholder: "z. B. Familie Müller", you: "Dein Name", youHint: "Du verwaltest den Haushalt.", demo: "Mit der Demo-Familie starten", demoHint: "Lädt Familie Müller mit Routinen, Terminen und Fotos, um alles auszuprobieren.", timezone: "Zeitzone: {zone}. Lässt sich später ändern.", start: "Los geht's" },
+  history: { empty: "Noch niemand hat Routinen oder Aufgaben.", hint: "Die letzten zwei Wochen. Ein Kreis füllt sich, wenn eine Routine erledigt ist.", nothingDue: "nichts fällig" },
   settings: {
     title: "Einstellungen",
     sections: {
@@ -141,6 +144,7 @@ const de: Messages = {
     },
     calendar: { hint: "Jeder Kalender gehört zu einer oder mehreren Personen, seine Termine übernehmen deren Farbe.", add: "Kalender hinzufügen", belongsTo: "Gehört zu" },
     routines: {
+      resetHint: "Bis dahin zählt es noch zum Vorabend, spätes Zubettgehen ist also kein Problem.", schoolCalHint: "ICS-Feeds mit Schulferien und Feiertagen, einer pro Zeile. Schultage sind Montag bis Freitag ohne diese Tage.", saveAndSync: "Speichern und abrufen", syncFailed: "Letzter Abruf fehlgeschlagen: {error}", synced: "Abgerufen {when}: {n} Ferienzeiträume.", notSynced: "Noch nicht abgerufen.", noFeeds: "Keine Feeds: Jeder Montag bis Freitag gilt als Schultag.",
       periods: "Tageszeiten", periodsHint: "Bestimmt, welche Routine die Wandanzeige gerade zeigt.",
       morningUntil: "Morgens bis", afternoonUntil: "Nachmittags bis", schoolCal: "Schulferien aus", resetAt: "Routinen zurücksetzen um",
     },

@@ -15,6 +15,7 @@ import { RewardAmount } from "../ui/RewardAmount";
 import { Dialog } from "../ui/Dialog";
 import { PictogramPicker, RecurrenceEditor, Stepper, describeRecurrence } from "./Editors";
 import { TaskCard } from "./ChildRoutine";
+import { History } from "./History";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 
@@ -36,7 +37,7 @@ const PERIODS: Period[] = ["morning", "afternoon", "evening"];
 export function RoutinesScreen() {
   const i18n = useI18n();
   const { t } = i18n;
-  const [tab, setTab] = useState<"routines" | "chores" | "extras">("routines");
+  const [tab, setTab] = useState<"routines" | "chores" | "extras" | "history">("routines");
   const [draft, setDraft] = useState<Draft | null>(null);
   const { getMembers, allRoutines } = useStore();
   const kids = getMembers().filter((m) => m.role === "child");
@@ -58,7 +59,7 @@ export function RoutinesScreen() {
         ))} />
       <Segmented className="mb-6" value={tab} onChange={setTab} options={[
         { value: "routines", label: t("routines.tabRoutines") }, { value: "chores", label: t("routines.tabChores") },
-        { value: "extras", label: t("routines.tabExtras") },
+        { value: "extras", label: t("routines.tabExtras") }, { value: "history", label: t("routines.tabHistory") },
       ]} />
 
       {tab === "routines" && (
@@ -67,6 +68,8 @@ export function RoutinesScreen() {
           {kids.map((m) => <MemberRoutines key={m.id} member={m} onEdit={setDraft} onAdd={() => newRoutine(m)} />)}
         </div>
       )}
+
+      {tab === "history" && <History />}
 
       {tab === "chores" && (
         <ChoreList kind="expected" onEdit={setDraft} onAdd={() => newChore(firstAdult, { kind: "expected" }, { kind: "weekdays", days: [2] })} />

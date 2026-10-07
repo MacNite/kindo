@@ -48,6 +48,7 @@ const en = {
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Subscription", local: "Local" },
   routines: {
+    tabHistory: "History",
     noChildren: "Add a child in Settings → Members to give them routines.", noChores: "Nothing here yet.", period: "Time of day", routineWide: "Applies to the whole routine.",
     title: "Routines & chores",
     subtitle: "What each person does, and when. Routines are part of the day; extras are optional help.",
@@ -62,6 +63,7 @@ const en = {
     preview: "How it looks for {name}", earns: "+{n}",
   },
   recurrence: {
+    s_monthlyLate: "Day {n} of every month (or the month's last day)", starting: "Starting", never: "No upcoming dates",
     daily: "Every day", weekdays: "Some days", weekly: "Weekly", everyN: "Every few weeks",
     monthly: "Monthly", once: "Once", schoolDays: "School days",
     s_daily: "Every day", s_weekdays: "Every {days}", s_weekly: "Every {day}",
@@ -128,6 +130,7 @@ const en = {
   },
   errors: { notFound: "That no longer exists. The screen has been refreshed.", invalid: "Please check your entries.", forbidden: "You aren't allowed to do that.", unauthenticated: "Please sign in again.", conflict: "That has already been done.", notEnoughPoints: "Not enough points yet.", readOnly: "This calendar is read only.", remote: "The connected service didn't answer. Please try again later.", server: "Something went wrong. Please try again.", network: "No connection. Please try again." },
   setup: { title: "Welcome to Kindo", intro: "Set up your household. You can add more people, calendars and photos later in Settings.", household: "Household name", householdPlaceholder: "e.g. The Müllers", you: "Your name", youHint: "You become the household admin.", demo: "Start with the demo family", demoHint: "Loads the Müller family with routines, events and photos, to try everything out.", timezone: "Time zone: {zone}. You can change it later.", start: "Get started" },
+  history: { empty: "Nobody has routines or chores yet.", hint: "The last two weeks. A circle fills as a routine gets done.", nothingDue: "nothing due" },
   settings: {
     title: "Settings",
     sections: {
@@ -144,6 +147,7 @@ const en = {
     },
     calendar: { hint: "Each calendar belongs to one or more people, so its events take their colour.", add: "Add calendar", belongsTo: "Belongs to" },
     routines: {
+      resetHint: "Until then it still counts as the evening before, so late bedtimes are fine.", schoolCalHint: "ICS feeds with school holidays and public holidays, one per line. School days are Monday to Friday minus these dates.", saveAndSync: "Save and fetch", syncFailed: "Last fetch failed: {error}", synced: "Fetched {when}: {n} holiday periods.", notSynced: "Not fetched yet.", noFeeds: "No feeds: every Monday to Friday counts as a school day.",
       periods: "Times of day", periodsHint: "Decides which routine the wall shows right now.",
       morningUntil: "Morning until", afternoonUntil: "Afternoon until", schoolCal: "School holidays from", resetAt: "Routines reset at",
     },

@@ -6,6 +6,7 @@ import type {
 import { dateKey } from "../dates";
 import { hydrateEvent } from "../events";
 import { completionOutcome, doneKey } from "../ledger";
+import { currentPeriod } from "../recurrence";
 import { guessCategory } from "../shopping";
 import { useToday } from "../useToday";
 import { calendarSelectors } from "../services/calendar";
@@ -37,8 +38,13 @@ const uid = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? cry
 export type SyncStatus = "live" | "connecting" | "offline";
 
 function useHousehold(initial: HouseholdWire) {
-  const today = useToday();
   const [data, setData] = useState<HouseholdData>(() => hydrate(initial));
+  const { dayStartsAt, morningUntil, afternoonUntil } = data.household;
+  /** The household day routines and chores belong to: rolls over at the reset time, not midnight (§19.3). */
+  const today = useToday(dayStartsAt);
+  const times = useMemo(() => ({ dayStartsAt, morningUntil, afternoonUntil }), [dayStartsAt, morningUntil, afternoonUntil]);
+  /** Which routine is "now". */
+  const periodAt = useCallback((now: Date = new Date()) => currentPeriod(now, times), [times]);
   const [error, setError] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus>("connecting");
   const pending = useRef(0);
@@ -198,6 +204,7 @@ function useHousehold(initial: HouseholdWire) {
 
   return {
     data, ...selectors, sync, error, clearError: () => setError(null), refresh, run,
+    routineDay: today, times, periodAt,
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,
     rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode,

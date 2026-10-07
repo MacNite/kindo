@@ -53,7 +53,9 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday (JS convention)
 export type Recurrence =
   | { kind: "daily" }
   | { kind: "weekdays"; days: Weekday[] }
-  | { kind: "weekly"; day: Weekday; interval: number } // interval 1 = weekly, 2+ = every N weeks
+  /** interval 1 = weekly, 2+ = every N weeks; `from` (YYYY-MM-DD) fixes which weeks, and nothing happens before it. */
+  | { kind: "weekly"; day: Weekday; interval: number; from?: string }
+  /** 29–31 fall on the last day of shorter months. */
   | { kind: "monthly"; dayOfMonth: number }
   | { kind: "once"; date: string }
   | { kind: "schoolDays" };
@@ -200,6 +202,13 @@ export interface Integration {
 export interface HouseholdSettings {
   name: string;
   timezone: string;
+  /** HH:MM: when the household day (and so every routine) starts again. */
+  dayStartsAt: string;
+  morningUntil: string;
+  afternoonUntil: string;
+  holidayIcsUrls: string[];
+  holidaysSyncedAt?: Date;
+  holidaysError?: string;
   location?: string;
   rewardMode: RewardMode;
   /** Pocket-money mode: what one point is worth. */
@@ -232,6 +241,8 @@ export interface HouseholdData {
   sources: CalendarSource[];
   events: CalendarEvent[];
   albums: PhotoAlbum[];
+  /** School holidays and public holidays from the household's feeds (§7). */
+  holidays: { start: string; end: string; summary: string }[];
   weather: Weather | null;
   integrations: Integration[];
 }

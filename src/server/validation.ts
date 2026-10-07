@@ -13,7 +13,7 @@ export const weekday = z.number().int().min(0).max(6);
 export const recurrence = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("daily") }),
   z.object({ kind: z.literal("weekdays"), days: z.array(weekday).min(1).max(7) }),
-  z.object({ kind: z.literal("weekly"), day: weekday, interval: z.number().int().min(1).max(52) }),
+  z.object({ kind: z.literal("weekly"), day: weekday, interval: z.number().int().min(1).max(52), from: day.optional() }),
   z.object({ kind: z.literal("monthly"), dayOfMonth: z.number().int().min(1).max(31) }),
   z.object({ kind: z.literal("once"), date: day }),
   z.object({ kind: z.literal("schoolDays") }),
@@ -57,6 +57,10 @@ export const S = {
   photoPrefs: z.object({ idleMinutes: z.number().min(0.25).max(240).optional(), showPhotoMeta: z.boolean().optional() }),
 
   household: z.object({ name: z.string().trim().min(1).max(80), timezone: z.string().min(1).max(64), location: z.string().trim().max(80).optional() }),
+  dayTimes: z.object({ dayStartsAt: time, morningUntil: time, afternoonUntil: time })
+    .refine((t) => t.morningUntil < t.afternoonUntil, { message: "morning ends before afternoon", path: ["afternoonUntil"] })
+    .refine((t) => t.dayStartsAt < t.morningUntil, { message: "the day starts before morning ends", path: ["dayStartsAt"] }),
+  holidayFeeds: z.object({ urls: z.array(z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "http(s) only")).max(5) }),
   member: z.object({ id: id.optional(), name: z.string().trim().min(1).max(40), role, color, avatar, birthday: day.optional() }),
 
   routineStep: z.object({

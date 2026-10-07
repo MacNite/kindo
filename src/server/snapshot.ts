@@ -25,7 +25,7 @@ export async function loadSnapshot(db: Tx, now = new Date()): Promise<HouseholdW
   const today = startOfDay(now);
   const sinceDay = dateKey(addDays(today, -HISTORY_DAYS));
 
-  const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, sources, events, albums] = await Promise.all([
+  const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, sources, events, albums, holidays] = await Promise.all([
     db.member.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     db.routine.findMany({ include: { steps: { orderBy: { position: "asc" } } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     db.chore.findMany({ orderBy: { createdAt: "asc" } }),
@@ -44,6 +44,7 @@ export async function loadSnapshot(db: Tx, now = new Date()): Promise<HouseholdW
       orderBy: { start: "asc" },
     }),
     db.photoAlbum.findMany({ orderBy: [{ server: "asc" }, { name: "asc" }] }),
+    db.holidayRange.findMany({ where: { end: { gte: sinceDay } }, orderBy: { start: "asc" } }),
   ]);
 
   const routineItems: Routine[] = routines.map((r) => ({
@@ -63,6 +64,8 @@ export async function loadSnapshot(db: Tx, now = new Date()): Promise<HouseholdW
       name: household.name, timezone: household.timezone, location: household.location ?? undefined, rewardMode: household.rewardMode,
       pointValue: household.pointValue, idleMinutes: household.idleMinutes, showPhotoMeta: household.showPhotoMeta,
       widgets: household.widgets as unknown as WidgetConfig[], demo: household.demo,
+      dayStartsAt: household.dayStartsAt, morningUntil: household.morningUntil, afternoonUntil: household.afternoonUntil,
+      holidayIcsUrls: household.holidayIcsUrls, holidaysSyncedAt: household.holidaysSyncedAt ?? undefined, holidaysError: household.holidaysError ?? undefined,
     },
     members: members.map((m): Member => ({ id: m.id, name: m.name, role: m.role, color: m.color, avatar: m.avatar as Member["avatar"], birthday: m.birthday ?? undefined })),
     routines: routineItems,
@@ -87,6 +90,7 @@ export async function loadSnapshot(db: Tx, now = new Date()): Promise<HouseholdW
     })),
     events: events.map(fromStoredEvent),
     albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight })),
+    holidays: holidays.map((h) => ({ start: h.start, end: h.end, summary: h.summary })),
     weather: household.demo ? demoWeather(today) : null,
     integrations: integrationsFor(household.demo),
   };

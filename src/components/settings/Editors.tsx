@@ -1,12 +1,13 @@
 "use client";
 import { useState, type CSSProperties } from "react";
-import { Cake, CalendarHeart, GraduationCap, Heart, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Cake, CalendarHeart, ChevronRight, GraduationCap, Heart, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { ImportantDate, ImportantDateKind, Member, Role } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
-import { deleteImportantDate, deleteMember, saveImportantDate, saveMember } from "@/lib/services/actions";
+import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
 import { EMOJI_CHOICES } from "@/lib/pictograms";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
@@ -145,5 +146,75 @@ function DateEditor({ date, onClose }: { date: ImportantDate | null; onClose: ()
         <Field label={t("settings.dates.who")}><MemberPicker members={getMembers()} value={memberId} onChange={setMemberId} noneLabel={t("common.everyone")} /></Field>
       </div>
     </Dialog>
+  );
+}
+
+/** Times of day, the daily reset and the school-holiday feeds (§7, §19.3). */
+export function RoutineSettings() {
+  const { t, fmt } = useI18n();
+  const { data, run } = useStore();
+  const h = data.household;
+  const [times, setTimes] = useState({ dayStartsAt: h.dayStartsAt, morningUntil: h.morningUntil, afternoonUntil: h.afternoonUntil });
+  const [feeds, setFeeds] = useState(h.holidayIcsUrls.join("\n"));
+  const [state, setState] = useState<{ error?: string; saved?: "times" | "feeds"; syncing?: boolean }>({});
+  const upcoming = data.holidays.filter((x) => x.end >= new Date().toISOString().slice(0, 10)).slice(0, 4);
+
+  const saveTimes = async () => {
+    const r = await run(() => setDayTimes(times));
+    setState(r.ok ? { saved: "times" } : { error: r.error });
+  };
+  const saveFeeds = async () => {
+    const urls = feeds.split(/\s+/).map((u) => u.trim()).filter(Boolean);
+    const r = await run(() => setHolidayFeeds({ urls }));
+    if (!r.ok) return setState({ error: r.error });
+    setState({ saved: "feeds", syncing: urls.length > 0 });
+    if (urls.length) {
+      const s = await run(() => syncHolidaysNow({}));
+      setState(s.ok ? { saved: "feeds" } : { error: s.error });
+    }
+  };
+  const field = (k: keyof typeof times, label: string) => (
+    <Field label={label}><input type="time" className={inputCls} value={times[k]} onChange={(e) => setTimes((x) => ({ ...x, [k]: e.target.value }))} /></Field>
+  );
+
+  return (
+    <div className="flex max-w-xl flex-col gap-4">
+      <div className="flex flex-col gap-4 rounded-panel bg-surface p-5">
+        <p className="font-bold">{t("settings.routines.periods")}</p>
+        <p className="-mt-3 text-sm text-soft">{t("settings.routines.periodsHint")}</p>
+        <div className="grid grid-cols-2 gap-3">
+          {field("morningUntil", t("settings.routines.morningUntil"))}
+          {field("afternoonUntil", t("settings.routines.afternoonUntil"))}
+        </div>
+        {field("dayStartsAt", t("settings.routines.resetAt"))}
+        <p className="-mt-2 text-sm text-soft">{t("settings.routines.resetHint")}</p>
+        <div className="flex items-center gap-3">
+          <Button variant="primary" onClick={saveTimes}>{t("common.save")}</Button>
+          {state.saved === "times" && <span role="status" className="text-sm font-bold text-ok">{t("common.saved")}</span>}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-panel bg-surface p-5">
+        <Field label={t("settings.routines.schoolCal")} hint={t("settings.routines.schoolCalHint")}>
+          <textarea className={cn(inputCls, "h-24 py-2.5 font-mono text-sm")} value={feeds} onChange={(e) => setFeeds(e.target.value)} placeholder="https://www.schulferien.org/media/ical/deutschland/ferien_baden-wuerttemberg_2026.ics" />
+        </Field>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="primary" onClick={saveFeeds} disabled={state.syncing}><RefreshCw size={16} className={cn(state.syncing && "animate-spin")} />{t("settings.routines.saveAndSync")}</Button>
+          {state.saved === "feeds" && !state.syncing && <span role="status" className="text-sm font-bold text-ok">{t("common.saved")}</span>}
+          <ErrorText code={state.error} />
+        </div>
+        <p className="text-sm text-soft">
+          {h.holidaysError ? <span className="font-bold text-[#B4443C] dark:text-[#E98A80]">{t("settings.routines.syncFailed", { error: h.holidaysError })}</span>
+            : h.holidaysSyncedAt ? t("settings.routines.synced", { when: `${fmt.dateMedium(h.holidaysSyncedAt)} ${fmt.time(h.holidaysSyncedAt)}`, n: data.holidays.length })
+            : h.holidayIcsUrls.length ? t("settings.routines.notSynced") : t("settings.routines.noFeeds")}
+        </p>
+        {upcoming.length > 0 && (
+          <ul className="flex flex-col gap-1 text-sm">
+            {upcoming.map((x) => <li key={x.start + x.summary} className="flex justify-between gap-3"><span className="font-bold">{x.summary}</span><span className="num text-soft">{x.start === x.end ? x.start : `${x.start} – ${x.end}`}</span></li>)}
+          </ul>
+        )}
+      </div>
+      <Link href="/routines"><Button variant="outline">{t("nav.routines")}<ChevronRight size={16} /></Button></Link>
+    </div>
   );
 }

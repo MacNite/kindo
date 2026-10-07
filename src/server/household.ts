@@ -3,6 +3,8 @@ import type { z } from "zod";
 import type { TaskValue, Text } from "@/lib/types";
 import { guessCategory } from "@/lib/shopping";
 import { completionOutcome } from "@/lib/ledger";
+import { householdDayKeyIn } from "@/lib/recurrence";
+import { addDays, dateKey } from "@/lib/dates";
 import { prisma, type Tx } from "./db";
 import { UserError, notFound } from "./errors";
 import { toStoredEvent } from "./events";
@@ -41,7 +43,8 @@ async function findItem(db: Tx, itemId: string): Promise<ItemInfo | null> {
  * parent's OK; unticking withdraws the request and takes back what it earned.
  * The item's value always comes from the database, never from the device.
  */
-export async function setCompletion(db: Tx, input: In<"completion">) {
+export async function setCompletion(db: Tx, input: In<"completion">, now = new Date()) {
+  await assertRecentDay(db, input.day, now);
   return inTx(db, async (tx) => {
     const existing = await tx.completion.findUnique({ where: { itemId_day: { itemId: input.itemId, day: input.day } } });
     if (!input.done) {
@@ -66,6 +69,18 @@ export async function setCompletion(db: Tx, input: In<"completion">) {
       if (!isUnique(e)) throw e; // ticked twice at once: the first one counts
     }
   });
+}
+
+/**
+ * Devices tick off "their" household day. A day far from the household's own
+ * (in its time zone, after its reset time) is a wrong clock or a forged request.
+ */
+async function assertRecentDay(db: Tx, day: string, now: Date) {
+  const h = await db.household.findUnique({ where: { id: 1 }, select: { timezone: true, dayStartsAt: true } });
+  if (!h) throw notFound("household");
+  const [y, m, d] = householdDayKeyIn(now, h.timezone, h.dayStartsAt).split("-").map(Number);
+  const today = new Date(y, m - 1, d);
+  if (day < dateKey(addDays(today, -7)) || day > dateKey(addDays(today, 1))) throw new UserError("invalid", "day out of range");
 }
 
 export async function resolveApproval(db: Tx, input: In<"resolveApproval">) {
@@ -185,6 +200,17 @@ export async function updateAlbum(db: Tx, input: In<"album">) {
 
 export async function setPhotoPrefs(db: Tx, input: In<"photoPrefs">) {
   await db.household.update({ where: { id: 1 }, data: input });
+}
+
+export async function setDayTimes(db: Tx, input: In<"dayTimes">) {
+  await db.household.update({ where: { id: 1 }, data: input });
+}
+
+/** Saves the holiday feeds. Changing them makes the next job tick fetch them again. */
+export async function setHolidayFeeds(db: Tx, input: In<"holidayFeeds">) {
+  const urls = [...new Set(input.urls.map((u) => u.trim()).filter(Boolean))];
+  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null } });
+  if (!urls.length) await db.holidayRange.deleteMany();
 }
 
 export async function updateHousehold(db: Tx, input: In<"household">) {

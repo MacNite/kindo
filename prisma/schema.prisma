@@ -61,22 +61,31 @@ enum ImportantDateKind {
 }
 
 model Household {
-  id             Int        @id @default(1)
-  name           String
-  timezone       String     @default("Europe/Berlin")
-  location       String?
-  rewardMode     RewardMode @default(stars)
+  id               Int        @id @default(1)
+  name             String
+  timezone         String     @default("Europe/Berlin")
+  location         String?
+  rewardMode       RewardMode @default(stars)
   /// Pocket-money mode: what one point is worth, in the region's currency.
-  pointValue     Float      @default(0.05)
+  pointValue       Float      @default(0.05)
   /// Minutes without touch before the wall becomes a photo frame.
-  idleMinutes    Float      @default(2)
-  showPhotoMeta  Boolean    @default(true)
+  idleMinutes      Float      @default(2)
+  showPhotoMeta    Boolean    @default(true)
   /// `WidgetConfig[]`: which home cards show, their order and size.
-  widgets        Json
+  widgets          Json
+  /// HH:MM. The household day starts here, so a late evening tick still counts for that evening (§19.3).
+  dayStartsAt      String     @default("03:00")
+  /// HH:MM. Which routine the wall shows "now".
+  morningUntil     String     @default("11:00")
+  afternoonUntil   String     @default("17:00")
+  /// School-holiday ICS feeds; school days are Monday to Friday minus their dates (§7).
+  holidayIcsUrls   String[]   @default([])
+  holidaysSyncedAt DateTime?
+  holidaysError    String?
   /// Loaded from the bundled demo family (§20 D11).
-  demo           Boolean    @default(false)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  demo             Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 }
 
 model Member {
@@ -300,4 +309,17 @@ model PhotoAsset {
   seed    Int?
 
   @@index([albumId])
+}
+
+/// A school holiday or public holiday from one of the household's holiday feeds (§7).
+model HolidayRange {
+  id      String @id @default(cuid())
+  /// YYYY-MM-DD, inclusive.
+  start   String
+  /// YYYY-MM-DD, inclusive.
+  end     String
+  summary String
+  feed    String
+
+  @@index([end])
 }

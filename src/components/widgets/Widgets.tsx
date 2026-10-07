@@ -8,7 +8,6 @@ import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
 import { usePhotoPlaylist } from "@/lib/state/photos";
-import { currentPeriod } from "@/lib/services/household";
 import { upcomingDates } from "@/lib/dates-important";
 import { sameDay, daysUntil } from "@/lib/dates";
 import { Panel } from "../ui/Panel";
@@ -139,10 +138,9 @@ function UpcomingWidget() {
 
 // ── Chores ──────────────────────────────────────────────────────────────────
 function ChoresWidget() {
-  const today = useToday();
   const { t, tx } = useI18n();
-  const { isDone, toggleTaskItem, choresOn, getMember } = useStore();
-  const chores = choresOn(today);
+  const { isDone, toggleTaskItem, choresOn, getMember, routineDay } = useStore();
+  const chores = choresOn(routineDay);
   return (
     <Panel title={t("widgets.chores")} href="/routines">
       <ul className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
@@ -171,10 +169,9 @@ function ChoresWidget() {
 
 // ── Routines summary (kids) ─────────────────────────────────────────────────
 function RoutinesWidget() {
-  const today = useToday();
   const { t } = useI18n();
-  const { isDone, children, routineFor } = useStore();
-  const period = currentPeriod();
+  const { isDone, children, routineFor, routineDay: today, periodAt } = useStore();
+  const period = periodAt();
   return (
     <Panel title={t("widgets.routines")} href="/routines">
       <div className="flex flex-col gap-3">

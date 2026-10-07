@@ -7,7 +7,6 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
-import { currentPeriod } from "@/lib/services/household";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { WIDGETS, WeatherNow, DatesList } from "./Widgets";
@@ -23,7 +22,8 @@ const SPAN: Record<WidgetSize, string> = { s: "md:col-span-1", m: "md:col-span-2
 export function useGreeting() {
   const now = useNow(60_000);
   const { t } = useI18n();
-  return t(`greeting.${currentPeriod(now)}`);
+  const { periodAt } = useStore();
+  return t(`greeting.${periodAt(now)}`);
 }
 
 export function HomeScreen() {
@@ -119,8 +119,8 @@ function MobileHome() {
   const { t, tx, fmt } = useI18n();
   const greeting = useGreeting();
   const now = useNow();
-  const { isDone, approvals, resolveApproval, eventsOn, getMember, getMembers, routineFor, data } = useStore();
-  const period = currentPeriod(now);
+  const { isDone, approvals, resolveApproval, eventsOn, getMember, getMembers, routineFor, data, routineDay, periodAt } = useStore();
+  const period = periodAt(now);
   const rest = eventsOn(today).filter((e) => !e.background && (e.allDay || e.end > now));
   const tonight = data.meals.find((m) => sameDay(m.date, today));
 
@@ -135,7 +135,7 @@ function MobileHome() {
       {/* Who's doing what: one swipeable row of people */}
       <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 no-scrollbar">
         {getMembers().map((m) => {
-          const r = routineFor(m.id, period, today);
+          const r = routineFor(m.id, period, routineDay);
           const left = r ? r.items.filter((i) => !isDone(i.id)).length : 0;
           const next = eventsOn(today).find((e) => e.memberIds.includes(m.id) && !e.background && e.end > now);
           return (
