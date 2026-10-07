@@ -12,6 +12,15 @@ import { useToday } from "../useToday";
 import { calendarSelectors } from "../services/calendar";
 import { householdSelectors } from "../services/household";
 import * as A from "../services/actions";
+import { applyQueued, dequeue, enqueue, loadSnapshot, readQueue, saveSnapshot, type OfflineOp } from "./offline";
+
+/** What may be done without a connection, and how to send it later (§19.7). */
+const OFFLINE_ACTIONS: { [K in OfflineOp["name"]]: (input: Extract<OfflineOp, { name: K }>["input"]) => Promise<ActionResult<unknown>> } = {
+  addShoppingItem: A.addShoppingItem,
+  setShoppingDone: A.setShoppingDone,
+  clearDoneShopping: A.clearDoneShopping,
+};
+const isOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
 
 /**
  * The device's copy of the household (§19.2). It starts from the snapshot the
@@ -22,7 +31,7 @@ import * as A from "../services/actions";
  * Components call these actions and selectors; they never talk to the server
  * or mutate data themselves.
  */
-export function hydrate(w: HouseholdWire): HouseholdData {
+export function hydrate({ generatedAt: _generatedAt, ...w }: HouseholdWire): HouseholdData {
   return {
     ...w,
     meals: w.meals.map((m) => {
@@ -52,6 +61,10 @@ function useHousehold(initial: HouseholdWire) {
   const pending = useRef(0);
   const stale = useRef(false);
   const fetching = useRef(false);
+  /** Shopping changes made without a connection, waiting to be sent (mirrors IndexedDB). */
+  const queue = useRef<OfflineOp[]>([]);
+  const [queued, setQueued] = useState(0);
+  const flushing = useRef(false);
 
   /** Refetches the snapshot. While the user's own changes are in flight it waits, so they don't flicker back. */
   const refresh = useCallback(async () => {
@@ -67,8 +80,9 @@ function useHousehold(initial: HouseholdWire) {
         window.location.assign("/login");
         return;
       }
-      if (pending.current === 0) setData(hydrate(w));
+      if (pending.current === 0) setData(applyQueued(hydrate(w), queue.current));
       else stale.current = true;
+      void saveSnapshot(w);
     } catch {
       setSync("offline");
     } finally {
@@ -81,8 +95,19 @@ function useHousehold(initial: HouseholdWire) {
    * Applies `optimistic` at once, then runs the action. On failure the
    * server's truth comes back and the error is shown.
    */
-  const mutate = useCallback(async <T,>(optimistic: ((d: HouseholdData) => HouseholdData) | null, call: () => Promise<ActionResult<T>>): Promise<ActionResult<T>> => {
+  const keepForLater = useCallback(async (op: OfflineOp) => {
+    queue.current = [...queue.current, op];
+    setQueued(queue.current.length);
+    await enqueue(op);
+  }, []);
+
+  const mutate = useCallback(async <T,>(optimistic: ((d: HouseholdData) => HouseholdData) | null, call: () => Promise<ActionResult<T>>, offline?: OfflineOp): Promise<ActionResult<T>> => {
     if (optimistic) setData(optimistic);
+    // No connection: shopping changes wait on the device; everything else says so.
+    if (offline && isOffline()) {
+      await keepForLater(offline);
+      return { ok: true, data: undefined as T };
+    }
     pending.current++;
     let result: ActionResult<T>;
     try {
@@ -91,6 +116,10 @@ function useHousehold(initial: HouseholdWire) {
       result = { ok: false, error: "network" };
     }
     pending.current--;
+    if (!result.ok && result.error === "network" && offline) {
+      await keepForLater(offline);
+      return { ok: true, data: undefined as T };
+    }
     if (!result.ok) {
       stale.current = true;
       if (result.error === "unauthenticated") window.location.assign("/login");
@@ -100,7 +129,55 @@ function useHousehold(initial: HouseholdWire) {
     }
     if (pending.current === 0) void refresh();
     return result;
+  }, [refresh, keepForLater]);
+
+  /** Sends what was queued offline, oldest first; stops at the first sign the connection is gone again. */
+  const flush = useCallback(async () => {
+    if (flushing.current || isOffline()) return;
+    flushing.current = true;
+    try {
+      for (const { key, op } of await readQueue()) {
+        let r: ActionResult<unknown>;
+        try {
+          r = await (OFFLINE_ACTIONS[op.name] as (i: unknown) => Promise<ActionResult<unknown>>)(op.input);
+        } catch {
+          break;
+        }
+        if (!r.ok && r.error === "network") break;
+        if (!r.ok) setError(r.error);
+        await dequeue(key);
+        queue.current = queue.current.slice(1);
+        setQueued(queue.current.length);
+      }
+    } finally {
+      flushing.current = false;
+      void refresh();
+    }
   }, [refresh]);
+
+  // Picks up what an earlier visit queued, and, without a connection, the newest snapshot this device has.
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const ops = (await readQueue()).map((q) => q.op);
+      if (!live) return;
+      queue.current = ops;
+      setQueued(ops.length);
+      const cached = isOffline() ? await loadSnapshot() : undefined;
+      if (!live) return;
+      if (cached && new Date(cached.generatedAt) > new Date(initial.generatedAt)) setData(applyQueued(hydrate(cached), ops));
+      else if (ops.length) setData((d) => applyQueued(d, ops));
+      if (!isOffline()) void flush();
+    })();
+    const online = () => void flush();
+    window.addEventListener("online", online);
+    return () => {
+      live = false;
+      window.removeEventListener("online", online);
+    };
+    // The initial snapshot only matters on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flush]);
 
   // Live updates from the server; the browser reconnects EventSource on its own.
   useEffect(() => {
@@ -157,17 +234,20 @@ function useHousehold(initial: HouseholdWire) {
 
   // ── Shopping ──────────────────────────────────────────────────────────────
   const setShoppingDone = (id: string, done: boolean) =>
-    mutate((d) => ({ ...d, shoppingItems: d.shoppingItems.map((i) => (i.id === id ? { ...i, done } : i)) }), () => A.setShoppingDone({ id, done }));
+    mutate((d) => ({ ...d, shoppingItems: d.shoppingItems.map((i) => (i.id === id ? { ...i, done } : i)) }), () => A.setShoppingDone({ id, done }),
+      { name: "setShoppingDone", input: { id, done } });
   const toggleShopping = (id: string) => setShoppingDone(id, !data.shoppingItems.find((i) => i.id === id)?.done);
   const addShopping = (listId: string, name: string, memberId?: string) => {
     const id = uid();
     return mutate(
       (d) => ({ ...d, shoppingItems: [{ id, listId, name, category: guessCategory(name, listId), memberId, done: false }, ...d.shoppingItems] }),
       () => A.addShoppingItem({ id, listId, name, memberId }),
+      { name: "addShoppingItem", input: { id, listId, name, memberId } },
     );
   };
   const clearDone = (listId: string) =>
-    mutate((d) => ({ ...d, shoppingItems: d.shoppingItems.filter((i) => !(i.listId === listId && i.done)) }), () => A.clearDoneShopping({ listId }));
+    mutate((d) => ({ ...d, shoppingItems: d.shoppingItems.filter((i) => !(i.listId === listId && i.done)) }), () => A.clearDoneShopping({ listId }),
+      { name: "clearDoneShopping", input: { listId } });
 
   // ── Tasks ─────────────────────────────────────────────────────────────────
   const toggleTask = (id: string) => {
@@ -209,7 +289,7 @@ function useHousehold(initial: HouseholdWire) {
 
   return {
     data, ...selectors, sync, error, clearError: () => setError(null), refresh, run,
-    routineDay: today, times, periodAt, viewer: data.viewer,
+    routineDay: today, times, periodAt, viewer: data.viewer, queued,
     pinRequest, requestPin: () => setPinRequest({ retry: async () => {} }), closePin: () => setPinRequest(null),
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,

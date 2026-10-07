@@ -289,7 +289,7 @@ export interface HouseholdData {
 }
 
 /** The snapshot as it crosses the wire: dates of days are filled in on the device. */
-export type HouseholdWire = Omit<HouseholdData, "meals"> & { meals: Omit<Meal, "date">[] };
+export type HouseholdWire = Omit<HouseholdData, "meals"> & { meals: Omit<Meal, "date">[]; generatedAt: Date };
 
 /** What every Server Action returns: production builds hide thrown messages, so errors travel as codes. */
 export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };

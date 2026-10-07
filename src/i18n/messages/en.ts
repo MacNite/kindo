@@ -83,12 +83,13 @@ const en = {
     open: "Open", done: "Done", overdue: "Overdue", due: "Due {date}", noDue: "No date", unassigned: "Anyone",
   },
   shopping: {
+    queued: "Offline: {n} changes will be sent once you're back online.", offlineNow: "Offline: the list still works, changes are sent later.",
     newList: "New list",
     title: "Shopping", add: "Add to {list}", items: "{n} to buy", clearDone: "Clear ticked items",
     inTrolley: "In the trolley ({n})", whoAdds: "For",
     cat_produce: "Fruit & veg", cat_dairy: "Dairy", cat_bakery: "Bakery", cat_pantry: "Pantry", cat_frozen: "Frozen",
     cat_household: "Household", cat_hardware: "Hardware", cat_care: "Personal care", cat_other: "Other",
-    offline: "Lists will work offline once the app is installed on a phone.",
+    offline: "The list works offline too: install Kindo on your phone and open it once.",
   },
   meals: {
     clearHint: "Leave empty to clear the day.", note: "Note", cook: "Who cooks", nobody: "Not decided",
@@ -140,6 +141,7 @@ const en = {
   logins: { none: "No login yet.", give: "Give a login", manage: "Login", create: "Login for {name}", edit: "{name}'s login", remove: "Remove login", resetHint: "Sets a new password and signs the person out everywhere.", ssoHint: "Leave empty to sign in only with {name}, using this email." },
   integrations: { immichNameHint: "Shown above its albums, e.g. whose server it is.", immichNamePlaceholder: "e.g. Oma & Opa", apiKey: "API key", immichKeyHint: "In Immich: Account settings → API keys. Read access to albums and assets is enough. It is stored encrypted on the Kindo server only.", failed: "Last sync failed: {error}", synced: "synced {when}", waiting: "Waiting for the first sync", syncNow: "Sync now", remove: "Disconnect", removeConfirm: "Disconnect {name}? Its calendars and events leave Kindo; nothing is deleted on the server.", addAnother: "Add another", connect: "Connect", connecting: "Connecting…", serverUrl: "Server address", caldavUrlHint: "For Nextcloud: your Nextcloud address followed by /remote.php/dav", username: "Username", appPassword: "App password", appPasswordHint: "Create one in Nextcloud under Settings → Security → Devices & sessions. It is stored encrypted on the Kindo server only." },
   sources: { background: "Daily attendance", backgroundHint: "School or Kita: shown quietly, left out of “coming up”.", readOnlyHint: "Nobody can add or change events here from Kindo.", whoHint: "Events take these people's colours unless Kindo assigned them itself.", remove: "Remove from Kindo", localHint: "Kindo's own calendar, stored in Kindo's database." },
+  offline: { title: "No connection", body: "This page hasn't been opened on this device before. The shopping list works offline once you've opened it with a connection." },
   settings: {
     title: "Settings",
     sections: {

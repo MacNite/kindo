@@ -80,12 +80,13 @@ const de: Messages = {
     open: "Offen", done: "Erledigt", overdue: "Überfällig", due: "Fällig {date}", noDue: "Ohne Datum", unassigned: "Irgendwer",
   },
   shopping: {
+    queued: "Offline: {n} Änderungen werden gesendet, sobald du wieder online bist.", offlineNow: "Offline: Die Liste funktioniert trotzdem, Änderungen werden später gesendet.",
     newList: "Neue Liste",
     title: "Einkauf", add: "Zu {list} hinzufügen", items: "{n} offen", clearDone: "Abgehakte entfernen",
     inTrolley: "Im Wagen ({n})", whoAdds: "Für",
     cat_produce: "Obst & Gemüse", cat_dairy: "Milchprodukte", cat_bakery: "Backwaren", cat_pantry: "Vorrat", cat_frozen: "Tiefkühl",
     cat_household: "Haushalt", cat_hardware: "Werkzeug & Material", cat_care: "Pflege", cat_other: "Sonstiges",
-    offline: "Listen funktionieren offline, sobald die App auf dem Handy installiert ist.",
+    offline: "Die Liste funktioniert auch offline: Kindo auf dem Handy installieren und einmal öffnen.",
   },
   meals: {
     clearHint: "Leer lassen, um den Tag zu leeren.", note: "Notiz", cook: "Wer kocht", nobody: "Noch offen",
@@ -137,6 +138,7 @@ const de: Messages = {
   logins: { none: "Noch kein Login.", give: "Login einrichten", manage: "Login", create: "Login für {name}", edit: "Login von {name}", remove: "Login entfernen", resetHint: "Setzt ein neues Passwort und meldet die Person überall ab.", ssoHint: "Leer lassen, um sich nur mit {name} über diese E-Mail anzumelden." },
   integrations: { immichNameHint: "Steht über den Alben, z. B. wem der Server gehört.", immichNamePlaceholder: "z. B. Oma & Opa", apiKey: "API-Schlüssel", immichKeyHint: "In Immich: Kontoeinstellungen → API-Schlüssel. Lesezugriff auf Alben und Medien genügt. Er wird nur verschlüsselt auf dem Kindo-Server gespeichert.", failed: "Letzte Synchronisierung fehlgeschlagen: {error}", synced: "synchronisiert {when}", waiting: "Wartet auf die erste Synchronisierung", syncNow: "Jetzt synchronisieren", remove: "Trennen", removeConfirm: "{name} trennen? Die Kalender und Termine verschwinden aus Kindo, auf dem Server wird nichts gelöscht.", addAnother: "Weitere hinzufügen", connect: "Verbinden", connecting: "Verbinde…", serverUrl: "Serveradresse", caldavUrlHint: "Bei Nextcloud: deine Nextcloud-Adresse, gefolgt von /remote.php/dav", username: "Benutzername", appPassword: "App-Passwort", appPasswordHint: "In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen anlegen. Es wird nur verschlüsselt auf dem Kindo-Server gespeichert." },
   sources: { background: "Tägliche Betreuung", backgroundHint: "Schule oder Kita: dezent angezeigt und nicht unter „Demnächst“.", readOnlyHint: "Niemand kann hier aus Kindo Termine anlegen oder ändern.", whoHint: "Termine bekommen die Farben dieser Personen, außer Kindo hat sie selbst zugeordnet.", remove: "Aus Kindo entfernen", localHint: "Kindos eigener Kalender, gespeichert in Kindos Datenbank." },
+  offline: { title: "Keine Verbindung", body: "Diese Seite wurde auf diesem Gerät noch nicht geöffnet. Die Einkaufsliste funktioniert offline, sobald du sie einmal mit Verbindung geöffnet hast." },
   settings: {
     title: "Einstellungen",
     sections: {

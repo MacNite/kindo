@@ -26,7 +26,8 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 - **Calendar:** month, week and agenda views, colour-coded by person, with filters and calendar sources (Nextcloud/CalDAV, Google, ICS, local).
 - **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library. Routines reset at a household reset time (default 03:00), school days skip the holidays from your state's ICS feed, and a two-week history shows how each routine went.
 - **Rewards:** off, stars, tokens or pocket money. Expected routines earn nothing, extras can earn a reward. Includes parent approval.
-- **Everyday lists:** shopping (several lists, quick add), tasks, weekly meal plan, important dates with countdowns.
+- **Everyday lists:** shopping (several lists, quick add, works offline), tasks, weekly meal plan, important dates with countdowns.
+- **Installable (PWA):** add Kindo to the home screen of a phone or the wall tablet. The shopping list opens without a connection; ticks and additions made in the shop are sent once the phone is back online. The wall display keeps the screen on.
 - **Photos:** several Immich servers, album pool, weighting.
 - **Customization:** show, hide, reorder and resize home widgets.
 - **Languages and themes:** English and German (separate language and region formats), light, dark and system themes.

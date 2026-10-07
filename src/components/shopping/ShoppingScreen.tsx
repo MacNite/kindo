@@ -17,7 +17,7 @@ const ORDER: ShoppingCategory[] = ["produce", "bakery", "dairy", "pantry", "froz
 
 export function ShoppingScreen() {
   const { t, tx } = useI18n();
-  const { shopping, toggleShopping, addShopping, clearDone, shoppingLists: LISTS, getMember, getMembers } = useStore();
+  const { shopping, toggleShopping, addShopping, clearDone, shoppingLists: LISTS, getMember, getMembers, queued, sync } = useStore();
   const [chosen, setListId] = useState<string | undefined>();
   const listId = LISTS.find((l) => l.id === chosen)?.id ?? LISTS[0]?.id;
   const [text, setText] = useState("");
@@ -117,7 +117,10 @@ export function ShoppingScreen() {
             )}
           </section>
         )}
-        <p className="flex items-center gap-2 px-2 text-sm text-soft"><WifiOff size={16} />{t("shopping.offline")}</p>
+        <p role="status" className={cn("flex items-center gap-2 px-2 text-sm", queued || sync === "offline" ? "font-bold text-ink" : "text-soft")}>
+          <WifiOff size={16} />
+          {queued ? t("shopping.queued", { n: queued }) : sync === "offline" ? t("shopping.offlineNow") : t("shopping.offline")}
+        </p>
       </div>
     </div>
   );

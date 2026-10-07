@@ -5,6 +5,7 @@ import { ImageIcon, LayoutGrid, Smile } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
+import { useWakeLock } from "@/lib/useWakeLock";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { BigClock, WeatherNow, DatesList } from "./Widgets";
@@ -23,6 +24,8 @@ export function WallDashboard() {
   const { idleMinutes, shopping, shoppingLists, data, getMember } = useStore();
   const greeting = useGreeting();
   const [saver, setSaver] = useState(false);
+  // The wall stays on; the photo frame is its screensaver (§13).
+  useWakeLock();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const poke = useCallback(() => {

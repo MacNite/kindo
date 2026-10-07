@@ -61,6 +61,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     .map((c) => ({ id: c.id, memberId: c.memberId!, day: c.day, at: c.at, item: { id: c.itemId, pictogram: c.pictogram, label: c.label as Text, value: value(c.value) } }));
 
   return {
+    generatedAt: new Date(),
     household: {
       name: household.name, timezone: household.timezone, location: household.location ?? undefined, rewardMode: household.rewardMode,
       pointValue: household.pointValue, idleMinutes: household.idleMinutes, showPhotoMeta: household.showPhotoMeta,

@@ -72,7 +72,7 @@ Emoji and uploaded photos are supported as alternatives (`emoji:` and `img:` pre
 
 ## §10 Shopping
 
-Several lists, quick add, checkboxes, categories, an assigned person, and a trolley section for ticked items. Shopping must work offline once the app is installed as a PWA (planned).
+Several lists, quick add, checkboxes, categories, an assigned person, and a trolley section for ticked items. Shopping works offline once the page has been opened on the device (§19.7).
 
 ## §11 Meals
 
@@ -127,7 +127,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 4. **Accounts:** *(done)* local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar. *(done)*
 6. **Immich adapter** with a thumbnail proxy and cache. *(done)*
-7. **PWA:** installable, offline shopping list, wake lock on the wall.
+7. **PWA:** installable, offline shopping list, wake lock on the wall. *(done)*
 8. Google Calendar, ICS, Home Assistant (presence for the photo frame).
 
 ## §20 Decisions
@@ -168,3 +168,5 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D32 | `Field` is a `<label>` only around a native input; around chips and pickers it is a labelled group | A label around buttons turns its whole area into a click on the first button. |
 | D33 | Immich: each server is a connection with its own API key; albums appear unselected, and an album joining the rotation fetches its photo list at once (otherwise every 30 minutes). Videos stay out of the photo frame. The playlist is drawn on the server, weighted per album | Several servers form one pool (§13) without sending thousands of asset ids to the wall. |
 | D34 | Photos reach devices only through `/api/photos/<id>`, which checks the viewer and caches images on disk (`KINDO_CACHE_DIR`, default `/data/cache` in the image, a named compose volume) with least-recently-used eviction at `KINDO_PHOTO_CACHE_MB` | The API key never leaves the server, and the wall doesn't fetch every picture again after a restart. |
+| D35 | PWA with Serwist: the app shell and visited pages are cached (network first), live sync and sign-in never. Shopping changes made offline queue in IndexedDB and are sent in order once online; the device also keeps its latest snapshot so a reload in the shop shows the list. Only shopping works offline | The shop is where the connection fails. Routines, approvals and planning need the server's truth (§9), so they stay online-only. |
+| D36 | The wall display holds a screen wake lock while it's open, renewed whenever the page becomes visible | An always-on kitchen screen must not go dark; the photo frame is its screensaver. |
