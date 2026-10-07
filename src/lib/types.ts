@@ -286,6 +286,8 @@ export interface HouseholdData {
   integrations: Integration[];
   /** Admins only; empty for everyone else. */
   connections: ConnectionInfo[];
+  /** What the server is set up for. */
+  features: { google: boolean };
 }
 
 /** The snapshot as it crosses the wire: dates of days are filled in on the device. */

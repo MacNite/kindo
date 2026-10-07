@@ -105,6 +105,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       id: c.id, kind: c.kind, name: c.name, url: c.url ?? undefined, username: c.username ?? undefined, status: c.status,
       lastError: c.lastError ?? undefined, lastSyncAt: c.lastSyncAt ?? undefined, config: (c.config ?? {}) as Record<string, unknown>,
     })) : [],
+    features: { google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) },
   };
 }
 

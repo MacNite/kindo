@@ -7,6 +7,8 @@ import { decryptSecret, sha256 } from "../crypto";
 import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
 import * as caldav from "./caldav";
+import { icsProvider } from "./ics";
+import { googleProvider } from "./google";
 import type { RemoteCalendar, RemoteEvent } from "./caldav";
 import type { EventToWrite } from "./ical";
 
@@ -40,6 +42,8 @@ const providers: Partial<Record<Connection["kind"], CalendarProvider>> = {
     update: (c, _s, row, e) => caldav.updateEvent(caldavAccount(c), row.href!, row.etag ?? undefined, e),
     remove: (c, _s, row) => caldav.deleteEvent(caldavAccount(c), row.href!, row.etag ?? undefined),
   },
+  ics: icsProvider,
+  google: googleProvider,
 };
 
 export function registerCalendarProvider(kind: Connection["kind"], p: CalendarProvider) {
@@ -106,11 +110,19 @@ export async function syncConnection(db: Tx, conn: Connection, opts: { force?: b
   return changed;
 }
 
+/** Feeds change rarely and their hosts don't like being polled: at most every half hour. */
+const FEED_MINUTES = 30;
+
 /** Connections whose calendars are due for a sync. */
 export async function dueConnections(db: Tx, now = new Date()) {
-  const before = new Date(now.getTime() - syncMinutes() * 60_000);
+  const before = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
   return db.connection.findMany({
-    where: { kind: { in: ["caldav", "ics", "google"] }, OR: [{ lastSyncAt: null }, { lastSyncAt: { lt: before } }] },
+    where: {
+      OR: [
+        { kind: { in: ["caldav", "google"] }, OR: [{ lastSyncAt: null }, { lastSyncAt: { lt: before(syncMinutes()) } }] },
+        { kind: "ics", OR: [{ lastSyncAt: null }, { lastSyncAt: { lt: before(Math.max(FEED_MINUTES, syncMinutes())) } }] },
+      ],
+    },
   });
 }
 

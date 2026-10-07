@@ -8,7 +8,7 @@ People → Today → Routines & Tasks → Calendar → Rewards
 
 Kindo puts one screen on the wall that the whole family can read at a glance: what's happening today, and what each person still has to do. Young children who can't read yet follow their morning and evening routines through large picture cards. Parents get the same data on their phones.
 
-> **Status: v0.2.** Everything is stored in PostgreSQL and every screen stays in sync live (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*). A new install starts empty; the Müller demo family can be loaded on the first-run screen.
+> **Status: v0.2.** Roadmap steps 1–8 are in (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*): PostgreSQL with live sync between screens, the recurrence engine, logins with single sign-on and paired wall displays, Nextcloud/CalDAV, Immich, ICS, Google Calendar and Home Assistant presence, and an installable PWA with an offline shopping list. A new install starts empty; the Müller demo family can be loaded on the first-run screen.
 
 | Wall display | Child view |
 |---|---|
@@ -103,7 +103,7 @@ npm run dev               # http://localhost:3000
 | `npm run build` / `npm start` | Production build, served from the standalone output exactly as in the image |
 | `npm run lint` | ESLint (`next/core-web-vitals`, `next/typescript`) |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest: unit tests, plus integration tests against `TEST_DATABASE_URL` when it is set (skipped otherwise) |
+| `npm test` | Vitest: unit tests, plus integration tests against `TEST_DATABASE_URL` when it is set, and against a real CalDAV server when `CALDAV_TEST_URL` is set (skipped otherwise) |
 | `npm run test:e2e` | Playwright. Creates, migrates and seeds its own database (`<name>_e2e` next to `DATABASE_URL`), then starts the production server |
 | `npm run check` | lint + typecheck + tests |
 | `npm run db:migrate` / `db:migrate:dev` | Apply migrations / create a new one after changing `prisma/schema.prisma` |
@@ -170,7 +170,9 @@ Everything below runs on the server. Passwords, API keys and tokens are entered 
 
 - **Nextcloud / CalDAV** (the main calendar source): add the server address (`https://cloud.example.com/remote.php/dav`), username and an app password. Kindo discovers the calendars, and in Settings → Calendar you choose whose each one is (its events take their colours), whether it is read-only, and whether it is daily attendance like school. Calendars are synced every few minutes (`KINDO_SYNC_MINUTES`) into Kindo's database, so the wall stays fast when Nextcloud is down. New events and changes to single events are written to Nextcloud first; the people Kindo assigns travel along in `X-KINDO-MEMBERS`. Repeating series are shown, and edited in the calendar app they come from.
 - **Immich** (several servers): add each server's address and an API key in Settings → Integrations. Its albums appear on the Photos screen; tick the ones for the photo frame and set how often each appears. Album lists refresh every half hour. Images reach devices only through Kindo (`/api/photos/…`), cached on disk in the `kindo-cache` volume (`KINDO_PHOTO_CACHE_MB`, default 500 MB, least recently shown go first).
-- **Google Calendar, ICS subscriptions, Home Assistant:** shown in Settings → Integrations.
+- **ICS subscriptions:** paste a feed address (school calendar, waste collection, `webcal://` works too), choose whose it is and whether it's daily attendance. Read-only, refreshed every half hour. The address is stored encrypted, since private feeds work like a password.
+- **Google Calendar:** needs the household's own OAuth client. Create one in the Google Cloud console (type *Web application*, redirect URI `<APP_URL>/api/integrations/google/callback`, Calendar API enabled) and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Then Settings → Integrations → Google signs an account in; its calendars sync like Nextcloud's, and writable ones accept new events and edits of single events.
+- **Home Assistant (presence for the photo frame):** the Home Assistant address, a long-lived access token and one presence entity (motion, occupancy or a person). Kindo follows it over Home Assistant's WebSocket API: someone there wakes the wall from the photo frame, nobody there lets it go back to photos.
 
 ## License
 

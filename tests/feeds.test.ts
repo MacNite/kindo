@@ -1,0 +1,194 @@
+import { createServer, type Server } from "node:http";
+import { readFileSync } from "node:fs";
+import type { AddressInfo } from "node:net";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { WebSocketServer } from "ws";
+import type { PrismaClient } from "@prisma/client";
+import * as C from "@/server/connections";
+import { saveEvent, deleteEvent } from "@/server/household";
+import { syncConnection } from "@/server/calendar/sync";
+import { isPresent, watchPresence } from "@/server/homeassistant";
+import { seedDemo } from "@/server/demo/seed";
+import { TEST_DB, resetTestDatabase } from "./db";
+
+const ics = readFileSync(new URL("./fixtures/school.ics", import.meta.url), "utf8");
+const listen = (s: Server) => new Promise<string>((r) => s.listen(0, "127.0.0.1", () => r(`http://127.0.0.1:${(s.address() as AddressInfo).port}`)));
+const readBody = (req: import("node:http").IncomingMessage) => new Promise<string>((r) => {
+  let d = "";
+  req.on("data", (c) => (d += c));
+  req.on("end", () => r(d));
+});
+
+/** A small stand-in for Google's token and Calendar APIs. */
+function googleMock() {
+  const calendars = [
+    { id: "family@group.calendar.google.com", summary: "Family", accessRole: "owner" },
+    { id: "holidays@group.v.calendar.google.com", summary: "Holidays", accessRole: "reader" },
+  ];
+  const tomorrow = new Date(Date.now() + 86_400_000);
+  const events: Record<string, Record<string, unknown>[]> = {
+    [calendars[0].id]: [
+      { id: "g1", etag: '"1"', summary: "Dentist", start: { dateTime: tomorrow.toISOString() }, end: { dateTime: new Date(tomorrow.getTime() + 3_600_000).toISOString() } },
+      { id: "g2_20261009", etag: '"2"', summary: "Choir", recurringEventId: "g2", start: { dateTime: tomorrow.toISOString() }, end: { dateTime: tomorrow.toISOString() } },
+      { id: "g3", status: "cancelled", start: { date: "2026-10-01" }, end: { date: "2026-10-02" } },
+    ],
+    [calendars[1].id]: [{ id: "h1", summary: "Unity day", start: { date: "2026-10-03" }, end: { date: "2026-10-04" } }],
+  };
+  const log: { method: string; path: string; body?: Record<string, unknown> }[] = [];
+  const server = createServer(async (req, res) => {
+    const url = new URL(req.url ?? "/", "http://x");
+    const json = (b: unknown, status = 200) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(b));
+    if (url.pathname === "/token") return json({ access_token: "access-1", expires_in: 3600 });
+    if (req.headers.authorization !== "Bearer access-1") return json({ error: "unauthorized" }, 401);
+    if (url.pathname === "/calendar/v3/users/me/calendarList") return json({ items: calendars });
+    const m = url.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
+    if (m) {
+      const cal = decodeURIComponent(m[1]);
+      const body = req.method === "POST" || req.method === "PUT" ? JSON.parse(await readBody(req)) : undefined;
+      log.push({ method: req.method!, path: url.pathname, body });
+      if (req.method === "GET") return json({ items: events[cal] ?? [] });
+      if (req.method === "POST") {
+        const e = { id: `new${log.length}`, etag: '"n"', ...body };
+        events[cal].push(e);
+        return json(e);
+      }
+      if (req.method === "PUT") {
+        events[cal] = events[cal].map((e) => (e.id === m[2] ? { ...e, ...body } : e));
+        return json({});
+      }
+      if (req.method === "DELETE") {
+        events[cal] = events[cal].filter((e) => e.id !== m[2]);
+        return res.writeHead(204).end();
+      }
+    }
+    json({ error: "not found" }, 404);
+  });
+  return { server, log };
+}
+
+describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () => {
+  let db: PrismaClient;
+  let feed: Server;
+  let feedUrl = "";
+  const google = googleMock();
+
+  beforeAll(async () => {
+    db = await resetTestDatabase();
+    await db.$transaction((tx) => seedDemo(tx), { timeout: 60_000 });
+    feed = createServer((req, res) => (req.url === "/school.ics" ? res.writeHead(200, { "content-type": "text/calendar" }).end(ics) : res.writeHead(200).end("<html>not a calendar</html>")));
+    feedUrl = await listen(feed);
+    const base = await listen(google.server);
+    process.env.GOOGLE_API_BASE = base;
+    process.env.GOOGLE_OAUTH_BASE = base;
+    process.env.GOOGLE_CLIENT_ID = "client";
+    process.env.GOOGLE_CLIENT_SECRET = "secret";
+  }, 60_000);
+  afterAll(async () => {
+    feed?.close();
+    google.server.close();
+    await db?.$disconnect();
+  });
+
+  it("subscribes to a feed: read-only, its people's colours, the address kept secret", async () => {
+    await expect(C.addIcs(db, { name: "Nope", url: `${feedUrl}/page.html`, defaultMemberIds: [], background: false })).rejects.toMatchObject({ code: "remote" });
+    const id = await C.addIcs(db, { name: "School", url: `${feedUrl}/school.ics`, defaultMemberIds: ["lena"], background: true });
+    const conn = await db.connection.findUniqueOrThrow({ where: { id }, include: { sources: { include: { events: true } } } });
+    expect(conn.secret).not.toContain("school.ics");
+    const [source] = conn.sources;
+    expect(source).toMatchObject({ readOnly: true, background: true, defaultMemberIds: ["lena"] });
+    const autumn = source.events.find((e) => e.title === "Herbstferien");
+    expect(autumn).toMatchObject({ memberIds: ["lena"], background: true, allDay: true });
+    // Kindo's own member assignment in the feed wins over the calendar's people.
+    expect(source.events.find((e) => e.title === "Football practice")?.memberIds).toEqual(["lena", "max"]);
+  });
+
+  it("connects a Google account: calendars, events, read-only where Google says so", async () => {
+    const id = await C.addGoogle(db, { email: "max@example.test", refreshToken: "refresh-1" });
+    const conn = await db.connection.findUniqueOrThrow({ where: { id }, include: { sources: true } });
+    expect(conn.secret).not.toContain("refresh-1");
+    expect(conn.sources.map((s) => [s.remoteId, s.readOnly])).toEqual([
+      ["family@group.calendar.google.com", false], ["holidays@group.v.calendar.google.com", true],
+    ]);
+    const family = conn.sources[0];
+    const events = await db.event.findMany({ where: { sourceId: family.id }, orderBy: { title: "asc" } });
+    expect(events.map((e) => [e.title, e.recurring])).toEqual([["Choir", true], ["Dentist", false]]);
+    const holiday = await db.event.findFirstOrThrow({ where: { sourceId: conn.sources[1].id } });
+    expect(holiday.start.toISOString()).toBe("2026-10-03T00:00:00.000Z");
+  });
+
+  it("writes to Google: Kindo's people travel along and the event syncs back under the same id", async () => {
+    const family = await db.calendarSource.findFirstOrThrow({ where: { remoteId: "family@group.calendar.google.com" } });
+    const start = new Date(Date.now() + 2 * 86_400_000);
+    const id = await saveEvent(db, { sourceId: family.id, title: "Football", start, end: new Date(start.getTime() + 3_600_000), allDay: false, memberIds: ["lena"] });
+    const post = google.log.find((l) => l.method === "POST")!;
+    expect(post.body).toMatchObject({ summary: "Football", extendedProperties: { private: { kindoMembers: "lena" } } });
+    expect(await db.event.findUniqueOrThrow({ where: { id } })).toMatchObject({ title: "Football", memberIds: ["lena"] });
+    await deleteEvent(db, { id });
+    expect(google.log.some((l) => l.method === "DELETE")).toBe(true);
+    const choir = await db.event.findFirstOrThrow({ where: { title: { equals: "Choir" } } });
+    await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "readOnly" });
+  });
+
+  it("a failing account is marked, and the error kept for Settings", async () => {
+    const conn = await db.connection.findFirstOrThrow({ where: { kind: "google" } });
+    const api = process.env.GOOGLE_API_BASE;
+    process.env.GOOGLE_API_BASE = "http://127.0.0.1:9"; // nothing listens there
+    await expect(syncConnection(db, conn, { force: true })).rejects.toMatchObject({ code: "remote" });
+    process.env.GOOGLE_API_BASE = api;
+    expect((await db.connection.findUniqueOrThrow({ where: { id: conn.id } })).status).toBe("error");
+  });
+});
+
+describe("Home Assistant presence (§19.8)", () => {
+  it("knows which states mean someone is there", () => {
+    expect(["on", "home", "Detected", "occupied"].every((s) => isPresent(s))).toBe(true);
+    expect(["off", "not_home", "clear", "unavailable"].some((s) => isPresent(s))).toBe(false);
+  });
+
+  it("follows one entity over the WebSocket API, reporting only changes", async () => {
+    const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    await new Promise((r) => wss.once("listening", r));
+    const port = (wss.address() as AddressInfo).port;
+    let send: ((state: string) => void) | undefined;
+    wss.on("connection", (ws) => {
+      ws.send(JSON.stringify({ type: "auth_required" }));
+      ws.on("message", (raw) => {
+        const msg = JSON.parse(String(raw));
+        if (msg.type === "auth") ws.send(JSON.stringify({ type: msg.access_token === "token" ? "auth_ok" : "auth_invalid" }));
+        if (msg.type === "get_states") ws.send(JSON.stringify({ id: msg.id, type: "result", success: true, result: [{ entity_id: "binary_sensor.hall", state: "off" }] }));
+        if (msg.type === "subscribe_trigger") {
+          send = (state) => ws.send(JSON.stringify({ id: msg.id, type: "event", event: { variables: { trigger: { to_state: { state } } } } }));
+        }
+      });
+    });
+    const seen: boolean[] = [];
+    const statuses: boolean[] = [];
+    const stop = watchPresence({ url: `http://127.0.0.1:${port}`, token: "token", entityId: "binary_sensor.hall", presentStates: ["on"] }, (p) => seen.push(p), (ok) => statuses.push(ok));
+    await expect.poll(() => send !== undefined).toBe(true);
+    send!("on");
+    send!("on");
+    send!("off");
+    await expect.poll(() => seen).toEqual([false, true, false]);
+    expect(statuses[0]).toBe(true);
+    stop();
+    wss.close();
+  });
+
+  it("gives up on a refused token instead of hammering Home Assistant", async () => {
+    const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    await new Promise((r) => wss.once("listening", r));
+    let connections = 0;
+    wss.on("connection", (ws) => {
+      connections++;
+      ws.send(JSON.stringify({ type: "auth_required" }));
+      ws.on("message", () => ws.send(JSON.stringify({ type: "auth_invalid" })));
+    });
+    const statuses: (string | undefined)[] = [];
+    const stop = watchPresence({ url: `http://127.0.0.1:${(wss.address() as AddressInfo).port}`, token: "wrong", entityId: "x.y", presentStates: ["on"] }, () => {}, (_ok, e) => statuses.push(e));
+    await expect.poll(() => statuses).toContain("Home Assistant refused the token");
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(connections).toBe(1);
+    stop();
+    wss.close();
+  });
+});

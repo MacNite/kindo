@@ -49,6 +49,7 @@
     "@types/qrcode": "1.5.6",
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
+    "@types/ws": "8.18.2",
     "autoprefixer": "10.4.21",
     "eslint": "9.35.0",
     "eslint-config-next": "15.5.27",
@@ -57,6 +58,7 @@
     "serwist": "9.5.13",
     "tailwindcss": "3.4.17",
     "typescript": "5.9.2",
-    "vitest": "3.2.4"
+    "vitest": "3.2.4",
+    "ws": "8.22.0"
   }
 }

@@ -4,7 +4,8 @@ import { Cloud, Globe, House, ImageIcon, Lock, Pencil, Plus, RefreshCw, Rss, Tra
 import type { ActionResult, CalendarSource, ConnectionInfo, Integration } from "@/lib/types";
 import { useI18n, type MessageKey } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { addCalDav, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
+import { addCalDav, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
+import { useSearchParams } from "next/navigation";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
@@ -23,15 +24,20 @@ const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: 
 export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode>> = {
   caldav: ({ onClose }) => <CalDavForm onClose={onClose} />,
   immich: ({ onClose }) => <ImmichForm onClose={onClose} />,
+  ics: ({ onClose }) => <IcsForm onClose={onClose} />,
+  homeassistant: ({ onClose }) => <HomeAssistantForm onClose={onClose} />,
+  google: ({ onClose }) => <GoogleConnect onClose={onClose} />,
 };
 
 /** Settings → Integrations (§15): connect services; passwords go to the server and stay there (§17). */
 export function IntegrationsSection() {
   const { t } = useI18n();
   const { data } = useStore();
+  const google = useSearchParams().get("google");
   return (
     <>
       <p className="mb-4 max-w-prose text-soft">{t("settings.integrations.hint")}</p>
+      {google && <p role="status" className="mb-4 rounded-card bg-surface p-4 font-bold">{t(`integrations.google_${google === "connected" ? "connected" : google === "notConfigured" ? "notConfigured" : "failed"}`)}</p>}
       <div className="grid gap-3 lg:grid-cols-2">
         {data.integrations.map((i) => <IntegrationCard key={i.id} integration={i} />)}
       </div>
@@ -161,6 +167,85 @@ function ImmichForm({ onClose }: { onClose: () => void }) {
         <Field label={t("integrations.apiKey")} hint={t("integrations.immichKeyHint")}>
           <input className={inputCls} type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" />
         </Field>
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
+}
+
+/** ICS subscriptions: read-only feeds such as the school calendar or the waste collection. */
+function IcsForm({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const { run, getMembers } = useStore();
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [who, setWho] = useState(new Set<string>());
+  const [background, setBackground] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    setBusy(true);
+    const r = await run(() => addIcs({ name, url, defaultMemberIds: [...who], background }));
+    setBusy(false);
+    if (r.ok) onClose();
+    else setError(r.error);
+  };
+  return (
+    <Dialog open onClose={onClose} title={t("settings.integrations.ics")}
+      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" disabled={busy || !name || !url} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.subscribe")}</Button></>}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <Field label={t("routines.label")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={t("integrations.icsNamePlaceholder")} /></Field>
+        <Field label={t("integrations.feedUrl")} hint={t("integrations.feedUrlHint")}><input className={inputCls} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… .ics" /></Field>
+        <Field label={t("settings.calendar.belongsTo")}><MemberFilter size="sm" members={getMembers()} selected={who} onToggle={(id) => setWho((s) => toggled(s, id))} /></Field>
+        <div className="flex items-center justify-between gap-3"><span><span className="block font-bold">{t("sources.background")}</span><span className="text-sm text-soft">{t("sources.backgroundHint")}</span></span>
+          <Switch label={t("sources.background")} checked={background} onChange={setBackground} /></div>
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
+}
+
+/** Google: the consent screen does the rest; the household's own OAuth client must be set up on the server. */
+function GoogleConnect({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const { data } = useStore();
+  return (
+    <Dialog open onClose={onClose} title={t("settings.integrations.google")}
+      footer={<><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        {data.features.google && <a href="/api/integrations/google/start"><Button variant="primary">{t("integrations.googleContinue")}</Button></a>}</>}>
+      <p className="text-soft">{data.features.google ? t("integrations.googleHint") : t("integrations.google_notConfigured")}</p>
+    </Dialog>
+  );
+}
+
+/** Home Assistant presence: someone in the hallway wakes the wall from the photo frame. */
+function HomeAssistantForm({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const { run } = useStore();
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
+  const [entityId, setEntityId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    setBusy(true);
+    const r = await run(() => addHomeAssistant({ url, token, entityId }));
+    setBusy(false);
+    if (r.ok) onClose();
+    else setError(r.error);
+  };
+  return (
+    <Dialog open onClose={onClose} title={t("settings.integrations.homeassistant")}
+      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" disabled={busy || !url || token.length < 20 || !entityId} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <p className="text-sm text-soft">{t("integrations.haHint")}</p>
+        <Field label={t("integrations.serverUrl")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://homeassistant.local:8123" /></Field>
+        <Field label={t("integrations.haToken")} hint={t("integrations.haTokenHint")}><input className={inputCls} type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" /></Field>
+        <Field label={t("integrations.haEntity")} hint={t("integrations.haEntityHint")}><input className={inputCls} value={entityId} onChange={(e) => setEntityId(e.target.value.trim())} placeholder="binary_sensor.hallway_motion" /></Field>
         <button type="submit" hidden />
       </form>
     </Dialog>

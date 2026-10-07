@@ -3,6 +3,7 @@
  * video, which the photo frame skips), and real JPEG thumbnails. Counts the
  * thumbnail requests so tests can see the proxy's cache working.
  */
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 export const IMMICH_KEY = "e2e-immich-api-key";
@@ -25,6 +26,8 @@ export function startImmichMock(port = 0) {
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://x");
     if (url.pathname === "/health") return res.writeHead(200).end("ok");
+    // Also hands out an ICS feed for the subscription tests.
+    if (url.pathname === "/feeds/school.ics") return res.writeHead(200, { "content-type": "text/calendar" }).end(readFileSync(new URL("./school.ics", import.meta.url)));
     if (req.headers["x-api-key"] !== IMMICH_KEY) return res.writeHead(401).end();
     const json = (b) => res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(b));
     if (url.pathname === "/api/albums") {

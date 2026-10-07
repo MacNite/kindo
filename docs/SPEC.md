@@ -86,7 +86,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
 - **Several Immich servers.** Albums from all of them form one pool, with weighting.
 - Each photo can show date, place and album.
-- Flow: dashboard → no touch for N minutes → photo frame → touch → dashboard. Presence sensors (e.g. via Home Assistant) are planned and will trigger the same switch.
+- Flow: dashboard → no touch for N minutes → photo frame → touch → dashboard. A Home Assistant presence entity triggers the same switch: someone there wakes the wall, nobody there brings the photos back.
 
 ## §14 Localisation
 
@@ -128,7 +128,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar. *(done)*
 6. **Immich adapter** with a thumbnail proxy and cache. *(done)*
 7. **PWA:** installable, offline shopping list, wake lock on the wall. *(done)*
-8. Google Calendar, ICS, Home Assistant (presence for the photo frame).
+8. Google Calendar, ICS, Home Assistant (presence for the photo frame). *(done)*
 
 ## §20 Decisions
 
@@ -170,3 +170,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D34 | Photos reach devices only through `/api/photos/<id>`, which checks the viewer and caches images on disk (`KINDO_CACHE_DIR`, default `/data/cache` in the image, a named compose volume) with least-recently-used eviction at `KINDO_PHOTO_CACHE_MB` | The API key never leaves the server, and the wall doesn't fetch every picture again after a restart. |
 | D35 | PWA with Serwist: the app shell and visited pages are cached (network first), live sync and sign-in never. Shopping changes made offline queue in IndexedDB and are sent in order once online; the device also keeps its latest snapshot so a reload in the shop shows the list. Only shopping works offline | The shop is where the connection fails. Routines, approvals and planning need the server's truth (§9), so they stay online-only. |
 | D36 | The wall display holds a screen wake lock while it's open, renewed whenever the page becomes visible | An always-on kitchen screen must not go dark; the photo frame is its screensaver. |
+| D37 | ICS subscriptions are connections with the feed URL as their (encrypted) secret and exactly one read-only calendar; feeds are fetched at most every 30 minutes | Private feed URLs are passwords, and feed hosts don't like being polled every few minutes. |
+| D38 | Google Calendar uses the household's own OAuth client (`GOOGLE_CLIENT_ID`/`SECRET`), scopes `calendar.readonly` + `calendar.events`, offline access; the refresh token is stored encrypted, access tokens only in memory. Kindo's people and uid travel in the event's private extended properties | No shared Kindo client to trust or rate-limit; writes behave like CalDAV's (D30). |
+| D39 | Home Assistant presence: one entity per household, followed over HA's WebSocket API (`subscribe_trigger`) by the instance that runs the jobs; changes are pushed to screens as a `presence` topic on the SSE stream. `on`, `home`, `detected`, `occupied` mean someone is there | No automation to write in HA, and presence reaches the wall within a second without being stored. |
+| D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |

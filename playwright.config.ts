@@ -24,6 +24,7 @@ const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 const OIDC_MOCK_PORT = Number(process.env.OIDC_MOCK_PORT ?? 3199);
 const IMMICH_MOCK_PORT = Number(process.env.IMMICH_MOCK_PORT ?? 3198);
+const HA_MOCK_PORT = Number(process.env.HA_MOCK_PORT ?? 3197);
 
 /** Prefer a Chromium the environment already provides (as in BrewCore). */
 function providedChromium(): string | undefined {
@@ -71,6 +72,13 @@ export default defineConfig({
           url: `http://127.0.0.1:${IMMICH_MOCK_PORT}/health`,
           reuseExistingServer: !process.env.CI,
           env: { IMMICH_MOCK_PORT: String(IMMICH_MOCK_PORT) },
+        },
+        {
+          // A stand-in Home Assistant (e2e/ha-mock.mjs).
+          command: "node e2e/ha-mock.mjs",
+          url: `http://127.0.0.1:${HA_MOCK_PORT}/health`,
+          reuseExistingServer: !process.env.CI,
+          env: { HA_MOCK_PORT: String(HA_MOCK_PORT) },
         },
         {
           // A fresh demo household in the suite's own database (e2e/prepare-db.ts), then the production server.

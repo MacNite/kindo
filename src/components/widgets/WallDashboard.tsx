@@ -21,7 +21,7 @@ import { useGreeting } from "./HomeScreen";
 export function WallDashboard() {
   const today = useToday();
   const { t, tx } = useI18n();
-  const { idleMinutes, shopping, shoppingLists, data, getMember } = useStore();
+  const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync } = useStore();
   const greeting = useGreeting();
   const [saver, setSaver] = useState(false);
   // The wall stays on; the photo frame is its screensaver (§13).
@@ -40,12 +40,21 @@ export function WallDashboard() {
     return () => { clearTimeout(timer.current); evs.forEach((e) => window.removeEventListener(e, poke)); };
   }, [poke]);
 
+  // Home Assistant presence: someone there wakes the wall, nobody there brings the photos back (§13).
+  useEffect(() => {
+    if (!presence) return;
+    if (presence.present) {
+      setSaver(false);
+      poke();
+    } else setSaver(true);
+  }, [presence, poke]);
+
   const tonight = data.meals.find((m) => sameDay(m.date, today));
   const cook = getMember(tonight?.cookId);
   const toBuy = shopping.filter((s) => s.listId === shoppingLists[0]?.id && !s.done);
 
   return (
-    <div className="flex h-dvh gap-5 overflow-hidden p-6 max-lg:h-auto max-lg:flex-col">
+    <div data-sync={sync} className="flex h-dvh gap-5 overflow-hidden p-6 max-lg:h-auto max-lg:flex-col">
       <aside className="flex w-[400px] shrink-0 flex-col gap-5 max-lg:w-full">
         <div className="px-1">
           <p className="mb-3 text-xl text-soft">{greeting}, {data.household.name}</p>

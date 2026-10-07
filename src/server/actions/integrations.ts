@@ -9,6 +9,8 @@ export const addCalDav = act(C.C.addCalDav, async (db, input) => {
   await C.syncNow(db, { id }).catch(() => {});
   return id;
 }, { level: "admin", topic: "events" });
+export const addIcs = act(C.C.addIcs, async (db, input) => C.addIcs(db, input), { level: "admin", topic: "events" });
+export const addHomeAssistant = act(C.C.addHomeAssistant, async (db, input) => C.addHomeAssistant(db, input), { level: "admin", topic: "household" });
 export const addImmich = act(C.C.addImmich, async (db, input) => C.addImmich(db, input), { level: "admin", topic: "household" });
 export const updateSource = act(C.C.source, C.updateSource, { level: "admin", topic: "events" });
 export const removeSource = act(C.C.byId, C.removeSource, { level: "admin", topic: "events" });

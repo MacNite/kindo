@@ -52,5 +52,7 @@ test("a new event lands in the calendar", async ({ page }) => {
   await page.getByLabel("Title").fill("Kindergarten party");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
+  // The agenda shows every title in full, however busy the afternoon is.
+  await page.getByRole("radio", { name: "Agenda" }).click();
   await expect(page.getByText("Kindergarten party").filter({ visible: true }).first()).toBeVisible();
 });

@@ -57,6 +57,8 @@ function useHousehold(initial: HouseholdWire) {
   const [error, setError] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus>("connecting");
   /** A wall display tried something that needs the settings PIN: what to retry once it's unlocked. */
+  /** The latest presence report from Home Assistant, if one is connected. */
+  const [presence, setPresence] = useState<{ present: boolean; at: number } | null>(null);
   const [pinRequest, setPinRequest] = useState<{ retry: () => Promise<unknown> } | null>(null);
   const pending = useRef(0);
   const stale = useRef(false);
@@ -188,7 +190,15 @@ function useHousehold(initial: HouseholdWire) {
       void refresh();
     };
     es.onerror = () => setSync(navigator.onLine ? "connecting" : "offline");
-    es.addEventListener("change", () => void refresh());
+    es.addEventListener("change", (ev) => {
+      let change: { topic?: string; present?: boolean } = {};
+      try {
+        change = JSON.parse((ev as MessageEvent).data);
+      } catch {}
+      // Presence (Home Assistant) is news for the wall, not a data change (§19.8).
+      if (change.topic === "presence") setPresence({ present: Boolean(change.present), at: Date.now() });
+      else void refresh();
+    });
     const onVisible = () => document.visibilityState === "visible" && void refresh();
     document.addEventListener("visibilitychange", onVisible);
     return () => {
@@ -289,7 +299,7 @@ function useHousehold(initial: HouseholdWire) {
 
   return {
     data, ...selectors, sync, error, clearError: () => setError(null), refresh, run,
-    routineDay: today, times, periodAt, viewer: data.viewer, queued,
+    routineDay: today, times, periodAt, viewer: data.viewer, queued, presence,
     pinRequest, requestPin: () => setPinRequest({ retry: async () => {} }), closePin: () => setPinRequest(null),
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,

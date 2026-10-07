@@ -3,6 +3,7 @@ import { registerJob } from "./jobs";
 import { holidaysDue, syncHolidays } from "./holidays";
 import { dueConnections, syncConnection } from "./calendar/sync";
 import { duePhotoConnections, syncPhotos } from "./photos/sync";
+import { syncPresenceWatchers } from "./homeassistant";
 import { errorMessage, log } from "./log";
 
 /** Every background job Kindo runs, in one place. */
@@ -30,4 +31,6 @@ export function registerAllJobs() {
     },
     topic: "household",
   });
+  // Home Assistant presence: keeps one live subscription per connection (§19.8).
+  registerJob({ name: "presence", due: async () => true, run: () => syncPresenceWatchers(prisma) });
 }
