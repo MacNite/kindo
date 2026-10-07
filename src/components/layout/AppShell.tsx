@@ -2,14 +2,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { Monitor, MoreHorizontal, Smile } from "lucide-react";
+import { Monitor, MoreHorizontal, Smile, UserRound } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { NAV, isActive } from "./nav";
 import { QuickPrefs } from "./QuickPrefs";
 import { Dialog } from "../ui/Dialog";
 import { cn } from "../ui/cn";
-import { getMembers } from "@/lib/services/household";
+import { useStore } from "@/lib/state/store";
 import { Avatar } from "../ui/Avatar";
+import { PinDialog } from "./PinDialog";
+import { ErrorToast } from "../ui/ErrorText";
 
 /**
  * Management shell for phones, tablets and desktops.
@@ -19,6 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { t } = useI18n();
   const [more, setMore] = useState(false);
+  const { getMembers, getMember, viewer } = useStore();
+  const me = getMember(viewer.memberId);
 
   return (
     <div className="min-h-dvh md:flex">
@@ -44,6 +48,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <Link href="/wall" className="flex h-11 items-center gap-3 rounded-full px-3.5 font-bold text-soft hover:bg-sunken hover:text-ink max-lg:justify-center">
             <Monitor size={20} className="shrink-0" /><span className="hidden lg:inline">{t("nav.wall")}</span>
+          </Link>
+          <Link href={viewer.kind === "user" ? "/settings?section=account" : "/wall"} title={viewer.name}
+            className="flex h-11 items-center gap-3 rounded-full px-2 font-bold text-soft hover:bg-sunken hover:text-ink max-lg:justify-center">
+            {me ? <Avatar member={me} size="sm" /> : <UserRound size={20} className="mx-1.5 shrink-0" />}<span className="hidden truncate lg:inline">{viewer.name}</span>
           </Link>
           <div className="hidden lg:block"><QuickPrefs /></div>
         </div>
@@ -71,6 +79,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </nav>
 
+      <PinDialog />
+      <ErrorToast />
       <Dialog open={more} onClose={() => setMore(false)} title={t("nav.more")}>
         <div className="grid grid-cols-3 gap-3">
           {[...NAV.filter((n) => !n.mobile), { href: "/kids", key: "nav.kids" as const, Icon: Smile }, { href: "/wall", key: "nav.wall" as const, Icon: Monitor }].map(({ href, key, Icon }) => (
@@ -87,7 +97,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 /** Neutral placeholder mark: four overlapping dots in the family colours. */
 export function Logo({ size = 30 }: { size?: number }) {
-  const c = getMembers().map((m) => m.color);
+  const { getMembers } = useStore();
+  // Family colours, topped up with calm defaults for small or new households.
+  const c = [...getMembers().map((m) => m.color), "#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B"];
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       <circle cx="11" cy="11" r="8" fill={c[0]} /><circle cx="21" cy="11" r="8" fill={c[1]} opacity=".9" />

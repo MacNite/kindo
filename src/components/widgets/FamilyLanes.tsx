@@ -8,8 +8,6 @@ import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
 import { addDays } from "@/lib/dates";
-import { getMembers, currentPeriod, routineFor, choresOn } from "@/lib/services/household";
-import { eventsForMember, familyEvents } from "@/lib/services/calendar";
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
 import { cn } from "../ui/cn";
@@ -20,6 +18,7 @@ import { cn } from "../ui/cn";
  */
 export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" }) {
   const today = useToday();
+  const { getMembers, familyEvents } = useStore();
   const members = getMembers();
   const { t, tx, fmt } = useI18n();
   const fam = familyEvents(today);
@@ -38,7 +37,7 @@ export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" })
           ))}
         </div>
       )}
-      <div className={cn("grid min-h-0 flex-1 gap-3", "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4", wall && "!grid-cols-4 gap-4")}>
+      <div className={cn("grid min-h-0 flex-1 gap-3", "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4", wall && "gap-4", wall && (members.length > 4 ? "!grid-cols-5" : members.length > 2 ? "!grid-cols-4" : "!grid-cols-2"))}>
         {members.map((m) => <MemberLane key={m.id} member={m} wall={wall} />)}
       </div>
     </div>
@@ -49,11 +48,11 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
   const today = useToday();
   const { t, tx, fmt } = useI18n();
   const now = useNow();
-  const { isDone, toggleTaskItem } = useStore();
-  const period = currentPeriod(now);
-  const routine = routineFor(member.id, period, today);
+  const { isDone, toggleTaskItem, routineFor, eventsForMember, choresOn, routineDay, periodAt } = useStore();
+  const period = periodAt(now);
+  const routine = routineFor(member.id, period, routineDay);
   const events = eventsForMember(member.id, today);
-  const chores = choresOn(today).filter((c) => c.memberId === member.id && c.item.value.kind === "expected");
+  const chores = choresOn(routineDay).filter((c) => c.memberId === member.id && c.item.value.kind === "expected");
   const left = routine ? routine.items.filter((i) => !isDone(i.id)).length : 0;
   const isChild = member.role === "child";
   const tomorrow = eventsForMember(member.id, addDays(today, 1)).filter((e) => !e.background);

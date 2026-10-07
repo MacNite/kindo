@@ -1,25 +1,55 @@
-import type { Member, Period, Routine } from "../types";
-import { MEMBERS } from "../data/members";
-import { ROUTINES, CHORES } from "../data/routines";
-import { occursOn } from "../recurrence";
+import type { Chore, HouseholdData, Member, Period, Routine } from "../types";
+import { occursOn, schoolDaysFrom } from "../recurrence";
+import { dateKey } from "../dates";
 
-export const getMembers = () => MEMBERS;
-export const getMember = (id: string | null | undefined): Member | undefined => MEMBERS.find((m) => m.id === id);
-export const children = () => MEMBERS.filter((m) => m.role === "child");
+/**
+ * Household selectors (§4, §6): pure functions over the snapshot. The store
+ * binds them to the current data, so components call `getMember(id)` without
+ * knowing where members come from.
+ */
+export function householdSelectors(d: HouseholdData) {
+  const isSchoolDay = schoolDaysFrom(d.holidays);
+  const getMembers = () => d.members;
+  const getMember = (id: string | null | undefined): Member | undefined => (id ? d.members.find((m) => m.id === id) : undefined);
+  const children = () => d.members.filter((m) => m.role === "child");
 
-/** Which routine the wall shows "now". Times will come from settings. */
-export function currentPeriod(now = new Date()): Period {
-  const h = now.getHours();
-  return h < 11 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const routinesFor = (memberId: string, day: Date): Routine[] =>
+    d.routines.filter((r) => r.memberId === memberId && occursOn(r.recurrence, day, isSchoolDay));
+  const routineFor = (memberId: string, period: Period, day: Date): Routine | undefined =>
+    routinesFor(memberId, day).find((r) => r.period === period);
+  const choresOn = (day: Date): Chore[] => d.chores.filter((c) => occursOn(c.recurrence, day, isSchoolDay));
+
+  return {
+    getMembers, getMember, children, routinesFor, routineFor, choresOn, isSchoolDay,
+    allRoutines: () => d.routines,
+    allChores: () => d.chores,
+  };
 }
 
-export const routinesFor = (memberId: string, day: Date) =>
-  ROUTINES.filter((r) => r.memberId === memberId && occursOn(r.recurrence, day));
-
-export function routineFor(memberId: string, period: Period, day: Date): Routine | undefined {
-  return routinesFor(memberId, day).find((r) => r.period === period);
+export interface DayProgress {
+  day: Date;
+  /** Per period: steps due and steps done. Missing when no routine was due. */
+  periods: Partial<Record<Period, { due: number; done: number }>>;
+  choresDue: number;
+  choresDone: number;
 }
 
-export const allRoutines = () => ROUTINES;
-export const choresOn = (day: Date) => CHORES.filter((c) => occursOn(c.recurrence, day));
-export const allChores = () => CHORES;
+/**
+ * What a member had to do on a day and how much of it got done (§19.3).
+ * Uses today's routines: history shows how the current plan went, and steps
+ * that were deleted since then simply don't count.
+ */
+export function dayProgress(d: HouseholdData, memberId: string, day: Date): DayProgress {
+  const { routinesFor, choresOn } = householdSelectors(d);
+  const key = dateKey(day);
+  const done = new Set(d.completions.filter((c) => c.day === key && c.status === "done").map((c) => c.itemId));
+  const periods: DayProgress["periods"] = {};
+  for (const r of routinesFor(memberId, day)) {
+    const p = periods[r.period] ?? { due: 0, done: 0 };
+    p.due += r.items.length;
+    p.done += r.items.filter((i) => done.has(i.id)).length;
+    periods[r.period] = p;
+  }
+  const chores = choresOn(day).filter((c) => c.memberId === memberId && c.item.value.kind === "expected");
+  return { day, periods, choresDue: chores.length, choresDone: chores.filter((c) => done.has(c.item.id)).length };
+}

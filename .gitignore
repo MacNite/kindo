@@ -9,3 +9,9 @@ playwright-report/
 test-results/
 /data/
 .DS_Store
+e2e/.auth/
+
+# Built by Serwist from src/app/sw.ts
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js

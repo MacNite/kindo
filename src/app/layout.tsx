@@ -6,6 +6,8 @@ export const metadata: Metadata = {
   title: "Kindo",
   description: "Self-hosted family dashboard – prototype",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/icon-192.png", apple: "/apple-icon.png" },
+  appleWebApp: { capable: true, title: "Kindo", statusBarStyle: "default" },
 };
 export const viewport: Viewport = {
   width: "device-width", initialScale: 1, viewportFit: "cover",

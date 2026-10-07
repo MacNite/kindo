@@ -1,21 +1,35 @@
 "use client";
-import { useSyncExternalStore } from "react";
-import { sameDay, startOfDay } from "./dates";
+import { useCallback, useSyncExternalStore } from "react";
+import { householdDay } from "./recurrence";
 
 /**
- * The current calendar day (midnight, local time). Rolls over at midnight so
- * an always-on wall display moves on to the new day. One shared timer; the
- * Date instance only changes when the day does, so it is safe as a hook dep.
+ * The current day (local midnight), rolling over at `rollover` (HH:MM).
+ * Calendars use the default, midnight; routines use the household's reset
+ * time (§19.3), so the evening routine stays on screen until it has passed.
+ * One shared timer; a Date instance only changes when its day does, so it is
+ * safe as a hook dependency.
  */
-let today = startOfDay(new Date());
+const days = new Map<string, Date>();
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setInterval> | undefined;
 
+const current = (rollover: string) => {
+  let d = days.get(rollover);
+  if (!d) days.set(rollover, (d = householdDay(new Date(), rollover)));
+  return d;
+};
+
 function check() {
   const now = new Date();
-  if (sameDay(now, today)) return;
-  today = startOfDay(now);
-  listeners.forEach((l) => l());
+  let changed = false;
+  for (const [rollover, d] of days) {
+    const next = householdDay(now, rollover);
+    if (next.getTime() !== d.getTime()) {
+      days.set(rollover, next);
+      changed = true;
+    }
+  }
+  if (changed) listeners.forEach((l) => l());
 }
 
 function subscribe(listener: () => void) {
@@ -36,8 +50,7 @@ function subscribe(listener: () => void) {
   };
 }
 
-const snapshot = () => today;
-
-export function useToday() {
+export function useToday(rollover = "00:00") {
+  const snapshot = useCallback(() => current(rollover), [rollover]);
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

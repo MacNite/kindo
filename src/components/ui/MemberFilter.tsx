@@ -13,7 +13,7 @@ export function MemberFilter({ members, selected, onToggle, size = "md" }: {
       {members.map((m) => {
         const on = selected.has(m.id);
         return (
-          <button key={m.id} onClick={() => onToggle(m.id)} aria-pressed={on} style={{ "--m": m.color } as CSSProperties}
+          <button type="button" key={m.id} onClick={() => onToggle(m.id)} aria-pressed={on} style={{ "--m": m.color } as CSSProperties}
             className={cn("inline-flex items-center gap-2 rounded-full border-2 pl-1 pr-3.5 font-bold transition-colors",
               size === "sm" ? "h-9 text-sm" : "h-11",
               on ? "tint m-border" : "border-line text-soft opacity-70")}>

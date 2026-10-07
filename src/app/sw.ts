@@ -1,0 +1,32 @@
+/// <reference lib="webworker" />
+import { defaultCache } from "@serwist/next/worker";
+import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { NetworkOnly, Serwist } from "serwist";
+
+/**
+ * Kindo's service worker (§19.7). The app shell and every page a device has
+ * opened are cached, so the shopping list opens without a connection; its
+ * changes queue on the device and are sent once it's back (see
+ * src/lib/state/offline.ts). Live sync and sign-in never come from a cache.
+ */
+declare global {
+  interface WorkerGlobalScope extends SerwistGlobalConfig {
+    __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
+  }
+}
+declare const self: ServiceWorkerGlobalScope;
+
+const serwist = new Serwist({
+  precacheEntries: self.__SW_MANIFEST,
+  skipWaiting: true,
+  clientsClaim: true,
+  navigationPreload: true,
+  runtimeCaching: [
+    // Never cached: the live-sync stream, sign-in, health.
+    { matcher: ({ url }) => /^\/api\/(stream|auth|health)/.test(url.pathname), handler: new NetworkOnly() },
+    ...defaultCache,
+  ],
+  fallbacks: { entries: [{ url: "/offline", matcher: ({ request }) => request.destination === "document" }] },
+});
+
+serwist.addEventListeners();

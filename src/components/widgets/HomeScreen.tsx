@@ -7,10 +7,6 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
-import { FAMILY_NAME } from "@/lib/data/members";
-import { MEALS } from "@/lib/data/meals";
-import { eventsOn } from "@/lib/services/calendar";
-import { currentPeriod, getMember, getMembers, routineFor } from "@/lib/services/household";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { WIDGETS, WeatherNow, DatesList } from "./Widgets";
@@ -26,7 +22,8 @@ const SPAN: Record<WidgetSize, string> = { s: "md:col-span-1", m: "md:col-span-2
 export function useGreeting() {
   const now = useNow(60_000);
   const { t } = useI18n();
-  return t(`greeting.${currentPeriod(now)}`);
+  const { periodAt } = useStore();
+  return t(`greeting.${periodAt(now)}`);
 }
 
 export function HomeScreen() {
@@ -43,7 +40,7 @@ function DesktopHome() {
   const { t, fmt } = useI18n();
   const greeting = useGreeting();
   const now = useNow();
-  const { widgets, moveWidget, updateWidget } = useStore();
+  const { widgets, moveWidget, updateWidget, data } = useStore();
   const [editing, setEditing] = useState(false);
   const visible = widgets.filter((w) => w.enabled);
   const hidden = widgets.filter((w) => !w.enabled);
@@ -52,7 +49,7 @@ function DesktopHome() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <p className="text-lg text-soft">{greeting}, {FAMILY_NAME}s</p>
+          <p className="text-lg text-soft">{greeting}, {data.household.name}</p>
           <h1 className="font-display text-5xl font-bold tracking-tight">{fmt.dateLong(now)}</h1>
         </div>
         <div className="flex items-center gap-6">
@@ -122,10 +119,10 @@ function MobileHome() {
   const { t, tx, fmt } = useI18n();
   const greeting = useGreeting();
   const now = useNow();
-  const { isDone, approvals, resolveApproval } = useStore();
-  const period = currentPeriod(now);
+  const { isDone, approvals, resolveApproval, eventsOn, getMember, getMembers, routineFor, data, routineDay, periodAt } = useStore();
+  const period = periodAt(now);
   const rest = eventsOn(today).filter((e) => !e.background && (e.allDay || e.end > now));
-  const tonight = MEALS.find((m) => sameDay(m.date, today));
+  const tonight = data.meals.find((m) => sameDay(m.date, today));
 
   return (
     <div className="flex flex-col gap-5">
@@ -138,7 +135,7 @@ function MobileHome() {
       {/* Who's doing what: one swipeable row of people */}
       <div className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 no-scrollbar">
         {getMembers().map((m) => {
-          const r = routineFor(m.id, period, today);
+          const r = routineFor(m.id, period, routineDay);
           const left = r ? r.items.filter((i) => !isDone(i.id)).length : 0;
           const next = eventsOn(today).find((e) => e.memberIds.includes(m.id) && !e.background && e.end > now);
           return (
@@ -159,7 +156,8 @@ function MobileHome() {
         <Panel title={t("home.waitingForOk")}>
           <ul className="flex flex-col gap-3">
             {approvals.map((a) => {
-              const m = getMember(a.memberId)!;
+              const m = getMember(a.memberId);
+              if (!m) return null;
               return (
                 <li key={a.id} className="flex items-center gap-3" style={{ "--m": m.color } as CSSProperties}>
                   <span className="tint m-text grid h-11 w-11 shrink-0 place-items-center rounded-tile"><Pictogram id={a.item.pictogram} className="h-6 w-6" /></span>
@@ -181,7 +179,7 @@ function MobileHome() {
             {rest.map((e) => (
               <li key={e.id} className="flex items-stretch gap-3">
                 <span className="num w-12 shrink-0 pt-0.5 text-sm text-soft">{e.allDay ? "" : fmt.time(e.start)}</span>
-                <ColorRail colors={e.memberIds.map((id) => getMember(id)!.color)} />
+                <ColorRail colors={e.memberIds.flatMap((id) => getMember(id)?.color ?? [])} />
                 <span className="font-bold">{tx(e.title)}</span>
               </li>
             ))}
@@ -204,8 +202,8 @@ function MobileHome() {
 
 function ShoppingTile() {
   const { t } = useI18n();
-  const { shopping } = useStore();
-  const n = shopping.filter((s) => s.listId === "groceries" && !s.done).length;
+  const { shopping, shoppingLists } = useStore();
+  const n = shopping.filter((s) => s.listId === shoppingLists[0]?.id && !s.done).length;
   return (
     <Link href="/shopping" className="rounded-panel bg-surface p-4">
       <p className="text-sm font-bold text-soft">{t("nav.shopping")}</p>

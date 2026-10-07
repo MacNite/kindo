@@ -1,6 +1,8 @@
+import type { Photo as PhotoT } from "@/lib/types";
+
 /**
- * Stand-in for Immich thumbnails: calm, procedurally drawn landscapes so the
- * prototype needs no network and no stock photos of strangers.
+ * Stand-in for Immich thumbnails in the demo: calm, procedurally drawn
+ * landscapes, so the demo needs no network and no stock photos of strangers.
  */
 const PALETTES = [
   { sky: ["#F6D7B0", "#E9A98B"], sun: "#FFF1D6", hills: ["#B97A6A", "#8C5A58", "#5E3E46"] }, // dusk
@@ -41,4 +43,10 @@ export function PhotoPlaceholder({ seed, className }: { seed: number; className?
       <path d={ridge(830, 45)} fill={p.hills[2]} />
     </svg>
   );
+}
+
+/** A photo from the rotation: the proxied image, or the demo's drawn landscape. */
+export function Photo({ photo, className, size = "preview" }: { photo: PhotoT; className?: string; size?: "preview" | "thumbnail" }) {
+  if (photo.src) return <img src={`${photo.src}?size=${size}`} alt="" loading="lazy" decoding="async" className={`${className ?? ""} object-cover`} />;
+  return <PhotoPlaceholder seed={photo.seed ?? 0} className={className} />;
 }

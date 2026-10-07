@@ -8,7 +8,7 @@ People → Today → Routines & Tasks → Calendar → Rewards
 
 Kindo puts one screen on the wall that the whole family can read at a glance: what's happening today, and what each person still has to do. Young children who can't read yet follow their morning and evening routines through large picture cards. Parents get the same data on their phones.
 
-> **Status: v0.1 UX prototype.** Every screen is clickable and uses realistic mock data. There is **no database, no login and no real integration yet**. Ticking things off is kept in memory until reload. This release validates the UX before the backend is built (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*).
+> **Status: v0.2.** Roadmap steps 1–8 are in (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*): PostgreSQL with live sync between screens, the recurrence engine, logins with single sign-on and paired wall displays, Nextcloud/CalDAV, Immich, ICS, Google Calendar and Home Assistant presence, and an installable PWA with an offline shopping list. A new install starts empty; the Müller demo family can be loaded on the first-run screen.
 
 | Wall display | Child view |
 |---|---|
@@ -24,9 +24,10 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 - **Child view:** large pictogram cards, progress shown as dots, morning/afternoon/evening chosen by icon. Leaving the view needs a press-and-hold.
 - **Wall display:** a kiosk layout readable from a few metres. It becomes a photo frame when idle, and a tap returns to the dashboard.
 - **Calendar:** month, week and agenda views, colour-coded by person, with filters and calendar sources (Nextcloud/CalDAV, Google, ICS, local).
-- **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library.
+- **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library. Routines reset at a household reset time (default 03:00), school days skip the holidays from your state's ICS feed, and a two-week history shows how each routine went.
 - **Rewards:** off, stars, tokens or pocket money. Expected routines earn nothing, extras can earn a reward. Includes parent approval.
-- **Everyday lists:** shopping (several lists, quick add), tasks, weekly meal plan, important dates with countdowns.
+- **Everyday lists:** shopping (several lists, quick add, works offline), tasks, weekly meal plan, important dates with countdowns.
+- **Installable (PWA):** add Kindo to the home screen of a phone or the wall tablet. The shopping list opens without a connection; ticks and additions made in the shop are sent once the phone is back online. The wall display keeps the screen on.
 - **Photos:** several Immich servers, album pool, weighting.
 - **Customization:** show, hide, reorder and resize home widgets.
 - **Languages and themes:** English and German (separate language and region formats), light, dark and system themes.
@@ -36,23 +37,25 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 Requirements: Docker with Compose v2.
 
 ```sh
-cp .env.example .env      # optional: port, image tag, time zone
+cp .env.example .env      # set POSTGRES_PASSWORD and KINDO_SECRET_KEY; optional: APP_URL, single sign-on, time zone
 docker compose up -d
 ```
 
-Open <http://localhost:3000>. For the wall display open <http://localhost:3000/wall> in full-screen/kiosk mode on the tablet.
+Open <http://localhost:3000> and set up your household and your admin login, or tick *Start with the demo family*.
+
+### Logins and the wall display
+
+- **Everything is behind a login.** Adults get a login from an admin (Settings → Members). Children never need one.
+- **Single sign-on** with authentik or any OpenID Connect provider: set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, with the redirect URI `<APP_URL>/api/auth/callback/oidc`. It signs in people whose email already has a login; it never creates new ones.
+- **Wall display:** open `/pair` on the tablet. It shows a code and a QR code; an admin confirms it in Settings → Devices. The tablet then shows the wall and the child view without a login. It can tick off routines, chores and shopping; anything else (approving extras, planning, settings) asks for the **settings PIN**, which an admin sets in Settings → Devices and which unlocks the tablet for 10 minutes.
 
 | Service | What it does |
 |---|---|
-| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Healthcheck at `/api/health`. |
+| `db` | PostgreSQL 17. Data in `./data/postgres` (`POSTGRES_DATA_PATH`). Not published outside the compose network. |
+| `migrate` | One-shot: applies database migrations (`ghcr.io/macnite/kindo-migrate`), then exits. With `KINDO_DEMO=true` it loads the demo family into an empty database. |
+| `app` | The Next.js server (`ghcr.io/macnite/kindo`). Waits for `migrate`. Healthcheck at `/api/health` (includes a database round-trip). Photo cache in the `kindo-cache` volume. |
 
-There is no database yet. PostgreSQL and a one-shot `migrate` service will join the stack once persistence lands, following the BrewCore pattern.
-
-### Without Compose
-
-```sh
-docker run -d --name kindo -p 3000:3000 ghcr.io/macnite/kindo:latest
-```
+Back up `./data/postgres` (or run `docker compose exec db pg_dump -U kindo kindo > kindo.sql`).
 
 ### Building locally
 
@@ -71,10 +74,11 @@ The **Publish image** workflow ([`.github/workflows/publish.yml`](.github/workfl
 | Tag `v0.x.y` | as above, without the bare major tag | `linux/amd64`, `linux/arm64` |
 | Manual run | as for the ref | selectable |
 
-Images carry provenance attestations and an SBOM. For a reproducible deployment, pin a version in `.env`:
+Images carry provenance attestations and an SBOM. The migration image `ghcr.io/macnite/kindo-migrate` is published alongside with the same tags. For a reproducible deployment, pin the same version on both in `.env`:
 
 ```sh
-APP_IMAGE=ghcr.io/macnite/kindo:0.1.0
+APP_IMAGE=ghcr.io/macnite/kindo:0.2.0
+MIGRATE_IMAGE=ghcr.io/macnite/kindo-migrate:0.2.0
 ```
 
 To release, tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
@@ -83,10 +87,14 @@ To release, tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
 
 ## Development
 
-Requirements: Node.js 22.
+Requirements: Node.js 22 and a PostgreSQL you can create databases in.
 
 ```sh
 npm install
+cp .env.example .env      # then set DATABASE_URL (e.g. postgresql://kindo:kindo@localhost:5432/kindo)
+                          # and KINDO_SECRET_KEY: `npm start` runs in production mode and refuses to start without it
+npm run db:migrate        # apply migrations
+npm run db:seed:demo      # optional: the Müller demo family
 npm run dev               # http://localhost:3000
 ```
 
@@ -96,11 +104,14 @@ npm run dev               # http://localhost:3000
 | `npm run build` / `npm start` | Production build, served from the standalone output exactly as in the image |
 | `npm run lint` | ESLint (`next/core-web-vitals`, `next/typescript`) |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest unit tests (recurrence, dates, translation parity, photo pool) |
-| `npm run test:e2e` | Playwright: every route renders, plus the key flows on desktop and phone |
-| `npm run check` | lint + typecheck + unit tests |
+| `npm test` | Vitest: unit tests, plus integration tests against `TEST_DATABASE_URL` when it is set, and against a real CalDAV server when `CALDAV_TEST_URL` is set (skipped otherwise) |
+| `npm run test:e2e` | Playwright. Creates, migrates and seeds its own database (`<name>_e2e` next to `DATABASE_URL`), then starts the production server |
+| `npm run check` | lint + typecheck + tests |
+| `npm run db:migrate` / `db:migrate:dev` | Apply migrations / create a new one after changing `prisma/schema.prisma` |
+| `npm run db:drift` | Fails when the schema and the committed migrations disagree (needs `SHADOW_DATABASE_URL`) |
+| `npm run db:seed:demo` | Load the demo family into an empty database |
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above on every push. It also builds the Docker image and checks that the image starts, becomes healthy and runs as a non-root user.
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above against PostgreSQL on every push. It also builds both images, migrates a fresh database with the migrate image, and checks that the app starts, becomes healthy, carries no Prisma CLI and runs as a non-root user.
 
 ### Screens
 
@@ -119,7 +130,9 @@ src/
   app/
     (app)/            Management screens inside the AppShell (rail on desktop, bottom nav on phones)
     (kiosk)/          Full-screen surfaces: wall, kids, screensaver
-    api/health/       Liveness endpoint for Docker
+    setup/            First-run setup
+    api/health/       Liveness endpoint for Docker (with a database round-trip)
+    api/stream/       Server-Sent Events: tells every screen when something changed
     layout.tsx, providers.tsx
   components/
     ui/               Design-system primitives (Avatar, Button, Panel, Dialog, Pictogram, …)
@@ -128,15 +141,23 @@ src/
     routines/         ChildRoutine, RoutinesScreen, RecurrenceEditor, PictogramPicker
     calendar/ shopping/ rewards/ photos/ settings/
   lib/
-    types.ts          Domain model: the contract between UI and data
-    services/         Data seams (calendar, photos, household). The UI reads only from here
-    state/            Device prefs and in-memory household state
-    data/             Mock household, generated relative to today
+    types.ts          Domain model: the contract between UI and server
+    services/         Selectors over the household snapshot, and the Server Action seam (actions.ts)
+    state/            Device prefs and the household store (snapshot, optimistic updates, live refresh)
     recurrence.ts     Recurrence model, matcher, RRULE mapping
+    ledger.ts         The reward rule (§9)
+  server/
+    household.ts      The household's rules and writes (plain functions over Prisma)
+    actions/          Server Actions: thin wrappers that parse input and announce changes
+    snapshot.ts       Loads everything a screen needs in one round-trip
+    realtime.ts       PostgreSQL LISTEN/NOTIFY → SSE
+    demo/             The Müller demo family and the seed
     pictograms.tsx    Pictogram library
   i18n/               messages/en.ts + de.ts (parity enforced by types and tests), formats
-e2e/                  Playwright specs
-docker/               entrypoint.sh, healthcheck.sh
+prisma/               schema.prisma, migrations, seed-demo.ts
+tests/                Integration tests against PostgreSQL
+e2e/                  Playwright specs, and prepare-db.ts for the suite's own database
+docker/               entrypoint.sh, migrate.sh, healthcheck.sh
 docs/                 SPEC.md (product + decisions), screenshots
 ```
 
@@ -144,13 +165,15 @@ docs/                 SPEC.md (product + decisions), screenshots
 
 UI strings live in `src/i18n/messages/`. `de.ts` is typed against `en.ts`, so a missing German string fails the build. A unit test also checks that placeholders match. Language (UI text) and region (date format, 12/24 h, week start, numbers, currency) are set separately in **Settings → Language & region**.
 
-## Integrations (planned)
+## Integrations
 
-The seams are in place and documented in code. Nothing connects yet.
+Everything below runs on the server. Passwords, API keys and tokens are entered in Settings → Integrations, stored encrypted with `KINDO_SECRET_KEY`, and never sent to a device.
 
-- **Nextcloud / CalDAV** (primary calendar source): `CalendarAdapter` in [`src/lib/services/calendar.ts`](src/lib/services/calendar.ts). It runs server-side so app passwords never reach the browser. `Recurrence` maps 1:1 onto RRULE, so routines can later be stored as VTODO.
-- **Immich** (several servers): `PhotoAdapter` and `buildPool()` in [`src/lib/services/photos.ts`](src/lib/services/photos.ts). Thumbnails will be proxied by Kindo so API keys stay on the server.
-- **Google Calendar, ICS subscriptions, Home Assistant:** shown in Settings → Integrations.
+- **Nextcloud / CalDAV** (the main calendar source): add the server address (`https://cloud.example.com/remote.php/dav`), username and an app password. Kindo discovers the calendars, and in Settings → Calendar you choose whose each one is (its events take their colours), whether it is read-only, and whether it is daily attendance like school. Calendars are synced every few minutes (`KINDO_SYNC_MINUTES`) into Kindo's database, so the wall stays fast when Nextcloud is down. New events and changes to single events are written to Nextcloud first; the people Kindo assigns travel along in `X-KINDO-MEMBERS`. Repeating series are shown, and edited in the calendar app they come from.
+- **Immich** (several servers): add each server's address and an API key in Settings → Integrations. Its albums appear on the Photos screen; tick the ones for the photo frame and set how often each appears. Album lists refresh every half hour. Images reach devices only through Kindo (`/api/photos/…`), cached on disk in the `kindo-cache` volume (`KINDO_PHOTO_CACHE_MB`, default 500 MB, least recently shown go first).
+- **ICS subscriptions:** paste a feed address (school calendar, waste collection, `webcal://` works too), choose whose it is and whether it's daily attendance. Read-only, refreshed every half hour. The address is stored encrypted, since private feeds work like a password.
+- **Google Calendar:** needs the household's own OAuth client. Create one in the Google Cloud console (type *Web application*, redirect URI `<APP_URL>/api/integrations/google/callback`, Calendar API enabled) and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Then Settings → Integrations → Google signs an account in; its calendars sync like Nextcloud's, and writable ones accept new events and edits of single events.
+- **Home Assistant (presence for the photo frame):** the Home Assistant address, a long-lived access token and one presence entity (motion, occupancy or a person). Kindo follows it over Home Assistant's WebSocket API: someone there wakes the wall from the photo frame, nobody there lets it go back to photos.
 
 ## License
 

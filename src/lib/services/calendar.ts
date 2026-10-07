@@ -1,49 +1,31 @@
 import type { CalendarEvent, CalendarSource } from "../types";
-import { CALENDAR_SOURCES, EVENTS } from "../data/calendar";
-import { sameDay, startOfDay, addDays } from "../dates";
+import { addDays, sameDay, startOfDay } from "../dates";
 
 /**
- * Calendar seam. Each source type gets an adapter; the UI only sees merged
- * CalendarEvent[]. The member colour comes from source.defaultMemberIds unless
- * an event overrides it.
- *
- * Future: CaldavAdapter (Nextcloud) does PROPFIND to discover calendars and
- * REPORT calendar-query with a time-range filter, parsing VEVENT via ical.js.
- * It runs server-side (Next route handler / backend) so credentials never
- * reach the browser.
+ * Calendar selectors (§5). The server merges every source (CalDAV, Google,
+ * ICS, Kindo's own) into one event list; the member colour comes from the
+ * source's default members unless an event names its own.
  */
-export interface CalendarAdapter {
-  provider: CalendarSource["provider"];
-  listEvents(source: CalendarSource, from: Date, to: Date): Promise<CalendarEvent[]>;
-}
+export function calendarSelectors(sources: CalendarSource[], events: CalendarEvent[]) {
+  const getSources = () => sources;
+  const getSource = (id: string) => sources.find((s) => s.id === id);
 
-export const mockAdapter: CalendarAdapter = {
-  provider: "local",
-  async listEvents(source, from, to) {
-    return EVENTS.filter((e) => e.sourceId === source.id && e.end >= from && e.start <= to);
-  },
-};
+  const eventsBetween = (from: Date, to: Date, memberFilter?: Set<string>) =>
+    events.filter((e) => e.end >= from && e.start < to && matches(e, memberFilter));
+  const eventsOn = (day: Date, memberFilter?: Set<string>) =>
+    events.filter((e) => (sameDay(e.start, day) || (e.start < day && e.end > day)) && matches(e, memberFilter));
+  const eventsForMember = (memberId: string, day: Date) => eventsOn(day).filter((e) => e.memberIds.includes(memberId));
+  const familyEvents = (day: Date) => eventsOn(day).filter((e) => e.memberIds.length === 0);
 
-// ── Synchronous selectors used by the prototype UI ─────────────────────────
-export const getSources = () => CALENDAR_SOURCES;
-export const getSource = (id: string) => CALENDAR_SOURCES.find((s) => s.id === id);
+  /** Next events within `days`. `afterToday` skips events starting on `from`'s day (before the limit is applied). */
+  function upcoming(from: Date, days = 14, limit = 8, { afterToday = false } = {}) {
+    const start = afterToday ? addDays(startOfDay(from), 1) : from;
+    return eventsBetween(start, addDays(startOfDay(from), days))
+      .filter((e) => !e.background && e.end > start && !(afterToday && e.start < start))
+      .slice(0, limit);
+  }
 
-export function eventsBetween(from: Date, to: Date, memberFilter?: Set<string>) {
-  return EVENTS.filter((e) => e.end >= from && e.start < to && matches(e, memberFilter));
-}
-export function eventsOn(day: Date, memberFilter?: Set<string>) {
-  return EVENTS.filter((e) => (sameDay(e.start, day) || (e.start < day && e.end > day)) && matches(e, memberFilter));
-}
-export const eventsForMember = (memberId: string, day: Date) =>
-  eventsOn(day).filter((e) => e.memberIds.includes(memberId));
-export const familyEvents = (day: Date) => eventsOn(day).filter((e) => e.memberIds.length === 0);
-
-/** Next events within `days`. `afterToday` skips events starting on `from`'s day (before the limit is applied). */
-export function upcoming(from: Date, days = 14, limit = 8, { afterToday = false } = {}) {
-  const start = afterToday ? addDays(startOfDay(from), 1) : from;
-  return eventsBetween(start, addDays(startOfDay(from), days))
-    .filter((e) => !e.background && e.end > start && !(afterToday && e.start < start))
-    .slice(0, limit);
+  return { getSources, getSource, eventsBetween, eventsOn, eventsForMember, familyEvents, upcoming };
 }
 
 function matches(e: CalendarEvent, filter?: Set<string>) {

@@ -1,0 +1,86 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { PrismaClient } from "@prisma/client";
+import * as C from "@/server/connections";
+import { saveEvent, deleteEvent } from "@/server/household";
+import { syncConnection } from "@/server/calendar/sync";
+import { seedDemo } from "@/server/demo/seed";
+import { TEST_DB, resetTestDatabase } from "./db";
+
+/**
+ * Against a real CalDAV server (Radicale in CI, Nextcloud works the same):
+ * CALDAV_TEST_URL, CALDAV_TEST_USER, CALDAV_TEST_PASSWORD, and an existing
+ * calendar for that user.
+ */
+const URL_ = process.env.CALDAV_TEST_URL;
+const USER = process.env.CALDAV_TEST_USER ?? "anna";
+const PASS = process.env.CALDAV_TEST_PASSWORD ?? "app-password";
+const auth = { Authorization: `Basic ${Buffer.from(`${USER}:${PASS}`).toString("base64")}` };
+
+describe.skipIf(!TEST_DB || !URL_)("Nextcloud / CalDAV (§19.5)", () => {
+  let db: PrismaClient;
+  let connectionId = "";
+  let sourceId = "";
+  let calendarUrl = "";
+
+  beforeAll(async () => {
+    db = await resetTestDatabase();
+    await db.$transaction((tx) => seedDemo(tx), { timeout: 60_000 });
+  }, 60_000);
+  afterAll(() => db?.$disconnect());
+
+  it("refuses a wrong app password before saving anything", async () => {
+    await expect(C.addCalDav(db, { url: URL_!, username: USER, password: "wrong" })).rejects.toMatchObject({ code: "remote" });
+    expect(await db.connection.count()).toBe(0);
+  });
+
+  it("connects, discovers the calendars and keeps the password encrypted", async () => {
+    connectionId = await C.addCalDav(db, { url: URL_!, username: USER, password: PASS });
+    const conn = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
+    expect(conn.secret).not.toContain(PASS);
+    const sources = await db.calendarSource.findMany({ where: { connectionId } });
+    expect(sources.length).toBeGreaterThan(0);
+    sourceId = sources[0].id;
+    calendarUrl = sources[0].remoteId!;
+    await C.updateSource(db, { id: sourceId, name: "Family", defaultMemberIds: ["anna"], readOnly: false, background: false });
+  });
+
+  it("writes an event to the server and pulls it back with its people", async () => {
+    const start = new Date(Date.now() + 2 * 86_400_000);
+    start.setHours(15, 0, 0, 0);
+    const id = await saveEvent(db, { sourceId, title: "Swimming", start, end: new Date(start.getTime() + 3_600_000), allDay: false, memberIds: ["paul", "max"], location: "Hallenbad" });
+    const row = await db.event.findUniqueOrThrow({ where: { id } });
+    expect(row).toMatchObject({ title: "Swimming", memberIds: ["paul", "max"], location: "Hallenbad", recurring: false });
+    expect(row.href).toContain(calendarUrl.replace(/^https?:\/\/[^/]+/, ""));
+    const ics = await (await fetch(row.href!.startsWith("http") ? row.href! : new URL(row.href!, URL_).toString(), { headers: auth })).text();
+    expect(ics).toContain("SUMMARY:Swimming");
+    expect(ics).toContain("X-KINDO-MEMBERS:paul max");
+
+    // Editing keeps the same event; deleting removes it on the server too.
+    await saveEvent(db, { id, sourceId, title: "Swimming lesson", start, end: new Date(start.getTime() + 3_600_000), allDay: false, memberIds: ["paul"] });
+    expect(await db.event.findUniqueOrThrow({ where: { id } })).toMatchObject({ title: "Swimming lesson", memberIds: ["paul"] });
+    await deleteEvent(db, { id });
+    expect(await db.event.count({ where: { id } })).toBe(0);
+  });
+
+  it("reads events made elsewhere: the calendar's people by default, recurring series read-only", async () => {
+    const d = new Date(Date.now() + 86_400_000);
+    const ymd = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+    const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//test//EN", "BEGIN:VEVENT", "UID:yoga@elsewhere", `DTSTAMP:${ymd}T000000Z`,
+      `DTSTART:${ymd}T180000Z`, `DTEND:${ymd}T190000Z`, "RRULE:FREQ=WEEKLY;COUNT=4", "SUMMARY:Yoga", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+    const put = await fetch(`${calendarUrl.replace(/\/$/, "")}/yoga.ics`, { method: "PUT", headers: { ...auth, "Content-Type": "text/calendar" }, body });
+    expect(put.ok).toBe(true);
+    const conn = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
+    await syncConnection(db, conn, { force: true });
+    const yoga = await db.event.findMany({ where: { sourceId, title: { equals: "Yoga" } }, orderBy: { start: "asc" } });
+    expect(yoga).toHaveLength(4);
+    expect(yoga.every((e) => e.recurring && e.memberIds.join() === "anna")).toBe(true);
+    await expect(deleteEvent(db, { id: yoga[0].id })).rejects.toMatchObject({ code: "readOnly" });
+    expect((await db.connection.findUniqueOrThrow({ where: { id: connectionId } })).status).toBe("ok");
+  });
+
+  it("a calendar removed from Kindo stays removed after the next discovery", async () => {
+    await C.removeSource(db, { id: sourceId });
+    await C.syncNow(db, { id: connectionId });
+    expect(await db.calendarSource.count({ where: { remoteId: calendarUrl } })).toBe(0);
+  });
+});

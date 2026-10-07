@@ -6,8 +6,7 @@ import { Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
 import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { useToday } from "@/lib/useToday";
-import { choresOn, currentPeriod, getMember, children, routineFor } from "@/lib/services/household";
+
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
 import { cn } from "../ui/cn";
@@ -25,10 +24,9 @@ const GRID: Record<number, string> = {
  * Pictures carry the meaning; words are small helpers for parents/older kids.
  */
 export function ChildRoutine({ memberId }: { memberId: string }) {
-  const today = useToday();
+  const { isDone, toggleTaskItem, rewardMode, getMember, routineFor, choresOn, routineDay: today, periodAt } = useStore();
   const member = getMember(memberId);
-  const [period, setPeriod] = useState<Period>(() => currentPeriod());
-  const { isDone, toggleTaskItem, rewardMode } = useStore();
+  const [period, setPeriod] = useState<Period>(() => periodAt());
   const { t } = useI18n();
   if (!member) return null;
 
@@ -161,10 +159,9 @@ function HoldToLeave() {
 }
 
 export function ChildPicker() {
-  const today = useToday();
   const { t } = useI18n();
-  const { isDone } = useStore();
-  const period = currentPeriod();
+  const { isDone, children, routineFor, routineDay: today, periodAt } = useStore();
+  const period = periodAt();
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-10 p-8">
       <Link href="/wall" className="absolute left-6 top-6 grid h-14 w-14 place-items-center rounded-full bg-surface text-soft" aria-label={t("kids.back")}><Home size={22} /></Link>

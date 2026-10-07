@@ -1,40 +1,87 @@
 "use client";
-import { ShoppingCart, BookOpen } from "lucide-react";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, ShoppingCart, BookOpen } from "lucide-react";
+import type { Meal } from "@/lib/types";
 import { useI18n } from "@/i18n";
-import { MEALS } from "@/lib/data/meals";
 import { useToday } from "@/lib/useToday";
-import { sameDay } from "@/lib/dates";
-import { getMember } from "@/lib/services/household";
+import { useStore } from "@/lib/state/store";
+import { saveMeal } from "@/lib/services/actions";
+import { addDays, dateKey, sameDay, startOfWeek } from "@/lib/dates";
 import { PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
-import { Button } from "../ui/Button";
+import { Button, IconButton } from "../ui/Button";
+import { Dialog } from "../ui/Dialog";
+import { Field, inputCls } from "../ui/Segmented";
+import { MemberPicker } from "../ui/MemberPicker";
+import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 
+/** A week of dinners, and who cooks (§11). Tap a day to plan it. */
 export function MealsScreen() {
   const today = useToday();
-  const { t, tx, fmt } = useI18n();
+  const { t, tx, fmt, region } = useI18n();
+  const { data, getMember } = useStore();
+  const [week, setWeek] = useState(0);
+  const [editing, setEditing] = useState<Date | null>(null);
+  const start = addDays(startOfWeek(today, region.weekStartsOn), week * 7);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const mealOn = (d: Date) => data.meals.find((m) => m.day === dateKey(d));
+
   return (
     <div>
       <PageHeader title={t("meals.title")} subtitle={t("meals.subtitle")}
-        actions={<Button variant="outline" disabled title={t("common.planned")}><ShoppingCart size={18} />{t("meals.toShopping")}</Button>} />
+        actions={<>
+          <IconButton label={t("calendar.previous")} onClick={() => setWeek((w) => w - 1)}><ChevronLeft /></IconButton>
+          <Button size="sm" variant="outline" onClick={() => setWeek(0)}>{t("calendar.today")}</Button>
+          <IconButton label={t("calendar.next")} onClick={() => setWeek((w) => w + 1)}><ChevronRight /></IconButton>
+          <Button variant="outline" disabled title={t("common.planned")}><ShoppingCart size={18} />{t("meals.toShopping")}</Button>
+        </>} />
       <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-        {MEALS.map((m) => {
-          const cook = getMember(m.cookId);
-          const isToday = sameDay(m.date, today);
-          const past = m.date < today;
+        {days.map((d) => {
+          const m = mealOn(d);
+          const cook = getMember(m?.cookId);
+          const isToday = sameDay(d, today);
+          const past = d < today;
           return (
-            <li key={m.date.toISOString()} className={cn("flex flex-col rounded-panel p-5 xl:min-h-[260px]", isToday ? "bg-ink text-surface" : "bg-surface", past && "opacity-55")}>
-              <p className={cn("font-bold", today ? "text-surface/70" : "text-soft")}>{today ? t("meals.tonight") : fmt.weekday(m.date, "long")}</p>
-              <p className="num text-sm opacity-70">{fmt.dateMedium(m.date)}</p>
-              <p className="mt-4 font-display text-2xl font-semibold leading-tight">{tx(m.dinner)}</p>
-              {m.note && <p className={cn("mt-2 text-sm", isToday ? "text-surface/75" : "text-soft")}>{tx(m.note)}</p>}
-              <span className="flex-1" />
-              {cook && <p className="mt-4 flex items-center gap-2 text-sm font-bold"><Avatar member={cook} size="xs" />{t("meals.cooks", { name: cook.name })}</p>}
+            <li key={dateKey(d)}>
+              <button onClick={() => setEditing(d)} className={cn("flex h-full w-full flex-col rounded-panel p-5 text-left xl:min-h-[260px]", isToday ? "bg-ink text-surface" : "bg-surface hover:ring-2 hover:ring-line", past && "opacity-55")}>
+                <p className={cn("font-bold", isToday ? "text-surface/70" : "text-soft")}>{isToday ? t("meals.tonight") : fmt.weekday(d, "long")}</p>
+                <p className="num text-sm opacity-70">{fmt.dateMedium(d)}</p>
+                <p className={cn("mt-4 font-display text-2xl font-semibold leading-tight", !m && "opacity-50")}>{m ? tx(m.dinner) : t("meals.empty")}</p>
+                {m?.note && <p className={cn("mt-2 text-sm", isToday ? "text-surface/75" : "text-soft")}>{tx(m.note)}</p>}
+                <span className="flex-1" />
+                {cook && <p className="mt-4 flex items-center gap-2 text-sm font-bold"><Avatar member={cook} size="xs" />{t("meals.cooks", { name: cook.name })}</p>}
+              </button>
             </li>
           );
         })}
       </ol>
       <p className="mt-6 flex items-center gap-2 text-soft"><BookOpen size={18} />{t("meals.recipesLater")}</p>
+      {editing && <MealEditor day={editing} meal={mealOn(editing)} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+function MealEditor({ day, meal, onClose }: { day: Date; meal?: Meal; onClose: () => void }) {
+  const { t, tx, fmt } = useI18n();
+  const { getMembers, run } = useStore();
+  const [dinner, setDinner] = useState(meal ? tx(meal.dinner) : "");
+  const [note, setNote] = useState(meal?.note ? tx(meal.note) : "");
+  const [cookId, setCookId] = useState<string | null>(meal?.cookId ?? null);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    const r = await run(() => saveMeal({ day: dateKey(day), dinner, note: note || undefined, cookId }));
+    if (r.ok) onClose();
+    else setError(r.error);
+  };
+  return (
+    <Dialog open onClose={onClose} title={`${fmt.weekday(day, "long")}, ${fmt.dateMedium(day)}`}
+      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" onClick={save}>{t("common.save")}</Button></>}>
+      <div className="flex flex-col gap-4">
+        <Field label={t("meals.dinner")} hint={t("meals.clearHint")}><input className={inputCls} value={dinner} onChange={(e) => setDinner(e.target.value)} /></Field>
+        <Field label={t("meals.note")}><input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+        <Field label={t("meals.cook")}><MemberPicker members={getMembers()} value={cookId} onChange={setCookId} noneLabel={t("meals.nobody")} /></Field>
+      </div>
+    </Dialog>
   );
 }

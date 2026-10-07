@@ -1,46 +1,68 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  CalendarDays, ChevronRight, Cloud, Gift, Globe, House, ImageIcon, Languages, LayoutGrid, Palette, Plug, Plus, Rss, Sparkles, Users,
+  CalendarDays, CalendarHeart, ChevronRight, Gift, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Sparkles, UserRound, Users,
 } from "lucide-react";
-import type { Integration } from "@/lib/types";
-import { useI18n, type MessageKey } from "@/i18n";
+import { useI18n } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
+import { useStore } from "@/lib/state/store";
+import { updateHousehold } from "@/lib/services/actions";
 import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
-import { FAMILY_NAME } from "@/lib/data/members";
-import { WEATHER } from "@/lib/data/weather";
-import { INTEGRATIONS } from "@/lib/data/integrations";
-import { getMembers, getMember } from "@/lib/services/household";
-import { getSources } from "@/lib/services/calendar";
-import { PROVIDER_ICON } from "../calendar/CalendarScreen";
+import { MemberEditor, DatesSection, RoutineSettings } from "./Editors";
+import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountSections";
+import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSections";
+import { lockAgain } from "@/lib/services/accounts";
+import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
 import { PageHeader } from "../ui/Panel";
-import { Avatar, AvatarStack } from "../ui/Avatar";
+import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
-import { Field, Segmented, Switch, inputCls } from "../ui/Segmented";
+import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { cn } from "../ui/cn";
 
 const SECTIONS = [
-  { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "calendar", Icon: CalendarDays },
+  { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "dates", Icon: CalendarHeart }, { id: "calendar", Icon: CalendarDays },
   { id: "routines", Icon: Sparkles }, { id: "rewards", Icon: Gift }, { id: "photos", Icon: ImageIcon },
   { id: "dashboard", Icon: LayoutGrid }, { id: "appearance", Icon: Palette }, { id: "language", Icon: Languages },
-  { id: "integrations", Icon: Plug },
+  { id: "integrations", Icon: Plug }, { id: "devices", Icon: Monitor }, { id: "account", Icon: UserRound },
 ] as const;
+/** Sections only an admin changes; everyone else doesn't see them (the server refuses anyway). */
+const ADMIN_ONLY = new Set(["integrations", "devices"]);
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function SettingsScreen() {
   const { t } = useI18n();
-  const [section, setSection] = useState<SectionId | null>(null);
+  const params = useSearchParams();
+  const asked = params.get("section");
+  const { viewer, requestPin } = useStore();
+  const sections = SECTIONS.filter((s) => (s.id === "account" ? viewer.kind === "user" : !ADMIN_ONLY.has(s.id) || viewer.isAdmin));
+  const [section, setSection] = useState<SectionId | null>(() => sections.find((s) => s.id === asked)?.id ?? null);
   // Desktop always shows a section; phones show the list first.
-  const active = section ?? "integrations";
+  const active = section ?? "family";
+
+  // A wall display shows settings only after someone enters the PIN (§19.4).
+  if (viewer.kind === "device" && !viewer.elevated) {
+    return (
+      <div>
+        <PageHeader title={t("settings.title")} />
+        <div className="flex max-w-md flex-col items-start gap-4 rounded-panel bg-surface p-6">
+          <Lock size={28} className="text-soft" />
+          <p className="text-soft">{viewer.pinSet ? t("pin.settingsLocked") : t("pin.notSet")}</p>
+          {viewer.pinSet && <Button variant="primary" onClick={requestPin}><KeyRound size={18} />{t("pin.unlock")}</Button>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <PageHeader title={t("settings.title")} />
+      <PageHeader title={t("settings.title")}
+        actions={viewer.kind === "device" ? <Button variant="outline" onClick={async () => { await lockAgain(); window.location.reload(); }}><Lock size={16} />{t("pin.lock")}</Button> : undefined} />
       <div className="grid gap-6 md:grid-cols-[240px_1fr]">
         <nav className={cn("flex flex-col gap-1", section && "max-md:hidden")}>
-          {SECTIONS.map(({ id, Icon }) => (
+          {sections.map(({ id, Icon }) => (
             <button key={id} onClick={() => setSection(id)} aria-current={active === id ? "page" : undefined}
               className={cn("flex h-12 items-center gap-3 rounded-full px-4 text-left font-bold max-md:bg-surface max-md:rounded-card max-md:h-14",
                 active === id ? "md:bg-ink md:text-surface" : "text-soft hover:bg-sunken hover:text-ink max-md:text-ink")}>
@@ -51,7 +73,7 @@ export function SettingsScreen() {
         <div className={cn("min-w-0", !section && "max-md:hidden")}>
           <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden">← {t("common.back")}</button>
           <h2 className="mb-4 font-display text-2xl font-bold">{t(`settings.sections.${active}`)}</h2>
-          <Section id={active} />
+          <Section id={active} code={params.get("code") ?? undefined} />
         </div>
       </div>
     </div>
@@ -65,19 +87,25 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="mb-4 max-w-prose text-soft">{children}</p>;
 }
 
-function Section({ id }: { id: SectionId }) {
-  const { t, tx, fmt, language, weekdayName, region } = useI18n();
+function Section({ id, code }: { id: SectionId; code?: string }) {
+  const { t, fmt, language, weekdayName, region } = useI18n();
   const { prefs, setPrefs } = usePrefs();
+  const { getMembers, getMember, viewer } = useStore();
+  const [editingMember, setEditingMember] = useState<string | "new" | null>(null);
+  const [editingLogin, setEditingLogin] = useState<string | null>(null);
 
   switch (id) {
     case "family":
-      return (
-        <Card className="flex max-w-xl flex-col gap-4">
-          <Field label={t("settings.family.name")} hint={t("settings.family.hint")}><input className={inputCls} defaultValue={FAMILY_NAME} /></Field>
-          <Field label={t("settings.family.location")}><input className={inputCls} defaultValue={WEATHER.place} /></Field>
-          <Field label={t("settings.family.timezone")}><input className={inputCls} defaultValue="Europe/Berlin" /></Field>
-        </Card>
-      );
+      return <FamilyForm />;
+
+    case "dates":
+      return <DatesSection />;
+
+    case "account":
+      return <AccountSection />;
+
+    case "devices":
+      return <DevicesSection initialCode={code} />;
 
     case "members":
       return (
@@ -85,7 +113,8 @@ function Section({ id }: { id: SectionId }) {
           <Hint>{t("settings.members.hint")}</Hint>
           <div className="grid gap-3 lg:grid-cols-2">
             {getMembers().map((m) => (
-              <Card key={m.id} className="flex items-start gap-4">
+              <Card key={m.id} className="relative flex items-start gap-4">
+                {viewer.isAdmin && <button onClick={() => setEditingMember(m.id)} aria-label={`${t("common.edit")}: ${m.name}`} className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full text-soft hover:bg-sunken"><Pencil size={16} /></button>}
                 <Avatar member={m} size="lg" />
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-xl font-bold">{m.name}</p>
@@ -95,58 +124,26 @@ function Section({ id }: { id: SectionId }) {
                     <dd className="flex items-center gap-2"><span className="h-4 w-4 rounded-full" style={{ background: m.color }} />{m.color}</dd>
                     {m.birthday && <><dt className="text-soft">{t("settings.members.birthday")}</dt><dd>{fmt.dateShort(new Date(m.birthday + "T00:00"))}</dd></>}
                     <dt className="text-soft">{t("settings.members.login")}</dt>
-                    <dd className="min-w-0 truncate">{m.account ? m.account.email : <span className="text-soft">{t("settings.members.noLogin")}</span>}</dd>
+                    <dd className="min-w-0 truncate">{m.account ? m.account.email : <span className="text-soft">{m.role === "child" ? t("settings.members.noLogin") : t("logins.none")}</span>}</dd>
                   </dl>
+                  {viewer.isAdmin && m.role !== "child" && (
+                    <Button size="sm" variant="ghost" className="-ml-3 mt-2" onClick={() => setEditingLogin(m.id)}><KeyRound size={14} />{m.account ? t("logins.manage") : t("logins.give")}</Button>
+                  )}
                 </div>
               </Card>
             ))}
           </div>
-          <Button className="mt-4" variant="outline"><Plus size={18} />{t("settings.members.add")}</Button>
+          {viewer.isAdmin && <Button className="mt-4" variant="outline" onClick={() => setEditingMember("new")}><Plus size={18} />{t("settings.members.add")}</Button>}
+          {editingMember && <MemberEditor member={editingMember === "new" ? null : getMember(editingMember) ?? null} onClose={() => setEditingMember(null)} />}
+          {editingLogin && getMember(editingLogin) && <LoginEditor member={getMember(editingLogin)!} onClose={() => setEditingLogin(null)} />}
         </>
       );
 
     case "calendar":
-      return (
-        <>
-          <Hint>{t("settings.calendar.hint")}</Hint>
-          <Card className="p-2">
-            <ul className="divide-y divide-line">
-              {getSources().map((s) => {
-                const I = PROVIDER_ICON[s.provider];
-                return (
-                  <li key={s.id} className="flex items-center gap-4 p-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken"><I size={18} /></span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-bold">{tx(s.name)}</span>
-                      <span className="block truncate text-sm text-soft">{t(`providers.${s.provider}`)}{s.account && `, ${s.account}`}</span>
-                    </span>
-                    <span className="text-sm text-soft max-sm:hidden">{t("settings.calendar.belongsTo")}</span>
-                    {s.defaultMemberIds.length ? <AvatarStack size="sm" members={s.defaultMemberIds.map((x) => getMember(x)!)} /> : <span className="text-sm font-bold">{t("common.everyone")}</span>}
-                  </li>
-                );
-              })}
-            </ul>
-            <Button variant="ghost" className="m-2"><Plus size={18} />{t("settings.calendar.add")}</Button>
-          </Card>
-        </>
-      );
+      return <CalendarSourcesSection />;
 
     case "routines":
-      return (
-        <Card className="flex max-w-xl flex-col gap-4">
-          <p className="font-bold">{t("settings.routines.periods")}</p>
-          <p className="-mt-3 text-sm text-soft">{t("settings.routines.periodsHint")}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("settings.routines.morningUntil")}><input type="time" className={inputCls} defaultValue="11:00" /></Field>
-            <Field label={t("settings.routines.afternoonUntil")}><input type="time" className={inputCls} defaultValue="17:00" /></Field>
-          </div>
-          <Field label={t("settings.routines.resetAt")}><input type="time" className={inputCls} defaultValue="03:00" /></Field>
-          <Field label={t("settings.routines.schoolCal")}>
-            <select className={inputCls}><option>{tx({ en: "Lindenhof Primary (ICS)", de: "Grundschule Lindenhof (ICS)" })}</option></select>
-          </Field>
-          <Link href="/routines"><Button variant="outline">{t("nav.routines")}<ChevronRight size={16} /></Button></Link>
-        </Card>
-      );
+      return <RoutineSettings />;
 
     case "rewards":
       return <RewardModePicker />;
@@ -167,10 +164,7 @@ function Section({ id }: { id: SectionId }) {
             <p className="mb-4 text-sm text-soft">{t("settings.dashboard.kioskHint")}</p>
             <Link href="/wall"><Button variant="outline">{t("settings.dashboard.openKiosk")}</Button></Link>
           </Card>
-          <Card className="flex items-center justify-between gap-3 md:col-span-2">
-            <span className="font-bold">{t("settings.dashboard.pin")}</span>
-            <Switch label={t("settings.dashboard.pin")} checked onChange={() => {}} />
-          </Card>
+          <div className="md:col-span-2"><PinCard /></div>
         </div>
       );
 
@@ -228,46 +222,39 @@ function Section({ id }: { id: SectionId }) {
     }
 
     case "integrations":
-      return (
-        <>
-          <Hint>{t("settings.integrations.hint")}</Hint>
-          <div className="grid gap-3 lg:grid-cols-2">
-            {INTEGRATIONS.map((i) => <IntegrationCard key={i.id} integration={i} />)}
-          </div>
-        </>
-      );
+      return <IntegrationsSection />;
   }
 }
 
 const TODAY_SAMPLE = new Date(new Date().getFullYear(), 11, 24, 18, 30).getTime();
 
-const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, immich: ImageIcon, google: Globe, ics: Rss, homeassistant: House };
-
-function IntegrationCard({ integration: i }: { integration: Integration }) {
-  const { t, tx } = useI18n();
-  const I = INT_ICON[i.id];
-  const status = { connected: { cls: "bg-ok/15 text-ok", dot: "bg-ok" }, partial: { cls: "bg-star/20 text-ink", dot: "bg-star" }, off: { cls: "bg-sunken text-soft", dot: "bg-line" } }[i.status];
-  const primary = i.id === "nextcloud";
+function FamilyForm() {
+  const { t } = useI18n();
+  const { data, run } = useStore();
+  const h = data.household;
+  const [name, setName] = useState(h.name);
+  const [location, setLocation] = useState(h.location ?? "");
+  const [timezone, setTimezone] = useState(h.timezone);
+  const [state, setState] = useState<{ error?: string; saved?: boolean }>({});
+  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [h.timezone];
+  const save = async () => {
+    const r = await run(() => updateHousehold({ name, location, timezone }));
+    setState(r.ok ? { saved: true } : { error: r.error });
+  };
   return (
-    <Card className={cn("flex flex-col gap-3", primary && "lg:col-span-2 ring-2 ring-ink/10")}>
-      <div className="flex items-start gap-4">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-tile bg-sunken"><I size={22} /></span>
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-lg font-semibold">{t(`settings.integrations.${i.id}` as MessageKey)}</p>
-          <p className="text-sm text-soft">{t(`settings.integrations.${i.id}Body` as MessageKey)}</p>
-          <span className={cn("mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold", status.cls)}>
-            <span className={cn("h-2 w-2 rounded-full", status.dot)} />{t(`common.${i.status}`)}
-          </span>
-        </div>
+    <Card className="flex max-w-xl flex-col gap-4">
+      <Field label={t("settings.family.name")} hint={t("settings.family.hint")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+      <Field label={t("settings.family.location")}><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
+      <Field label={t("settings.family.timezone")}>
+        <select className={inputCls} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+          {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => <option key={z} value={z}>{z}</option>)}
+        </select>
+      </Field>
+      <div className="flex items-center gap-3">
+        <Button variant="primary" onClick={save} disabled={!name.trim()}>{t("common.save")}</Button>
+        {state.saved && <span role="status" className="text-sm font-bold text-ok">{t("common.saved")}</span>}
+        <ErrorText code={state.error} />
       </div>
-      {i.detail && <p className="text-sm">{tx(i.detail)}</p>}
-      {primary && (
-        <div className="grid gap-3 rounded-card bg-sunken p-4 sm:grid-cols-2">
-          <Field label="Server"><input className={inputCls} defaultValue="https://cloud.mueller.home" readOnly /></Field>
-          <Field label={t("settings.members.login")}><input className={inputCls} defaultValue="anna" readOnly /></Field>
-        </div>
-      )}
-      <div><Button size="sm" variant={i.status === "off" ? "primary" : "outline"}>{i.status === "off" ? t("common.configure") : t("common.edit")}</Button></div>
     </Card>
   );
 }

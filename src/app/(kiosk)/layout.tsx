@@ -1,4 +1,18 @@
+import { StoreProvider } from "@/lib/state/store";
+import { PinDialog } from "@/components/layout/PinDialog";
+import { ErrorToast } from "@/components/ui/ErrorText";
+import { guardedSnapshot } from "@/server/guard";
+
+export const dynamic = "force-dynamic";
+
 /** Kiosk surfaces: no admin chrome. */
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh select-none">{children}</div>;
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const snapshot = await guardedSnapshot();
+  return (
+    <StoreProvider initial={snapshot}>
+      <div className="min-h-dvh select-none">{children}</div>
+      <PinDialog />
+      <ErrorToast />
+    </StoreProvider>
+  );
 }
