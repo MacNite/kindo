@@ -150,7 +150,7 @@ jobs:
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:3000/api/health; then
               # Signed out, a household page sends you to the sign-in page.
-              curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3000/wall | grep -q '/login$' && exit 0
+              curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3000/wall | grep -q '/login' && exit 0
             fi
             sleep 2
           done

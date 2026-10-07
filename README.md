@@ -91,7 +91,8 @@ Requirements: Node.js 22 and a PostgreSQL you can create databases in.
 
 ```sh
 npm install
-cp .env.example .env      # then set DATABASE_URL, e.g. postgresql://kindo:kindo@localhost:5432/kindo
+cp .env.example .env      # then set DATABASE_URL (e.g. postgresql://kindo:kindo@localhost:5432/kindo)
+                          # and KINDO_SECRET_KEY: `npm start` runs in production mode and refuses to start without it
 npm run db:migrate        # apply migrations
 npm run db:seed:demo      # optional: the Müller demo family
 npm run dev               # http://localhost:3000
