@@ -25,6 +25,8 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # A hung download or server must fail the run, not hold it for GitHub's six-hour default.
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -94,6 +96,7 @@ jobs:
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
+        timeout-minutes: 10
 
       # The suite migrates and seeds its own database (kindo_e2e) before the server starts.
       - name: End-to-end tests
@@ -110,6 +113,7 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:17.6-alpine
