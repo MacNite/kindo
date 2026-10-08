@@ -6,6 +6,8 @@ import { Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
 import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
+import { dateKey } from "@/lib/dates";
+import { useNow } from "@/lib/useNow";
 
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
@@ -26,7 +28,13 @@ const GRID: Record<number, string> = {
 export function ChildRoutine({ memberId }: { memberId: string }) {
   const { isDone, toggleTaskItem, rewardMode, getMember, routineFor, choresOn, routineDay: today, periodAt } = useStore();
   const member = getMember(memberId);
-  const [period, setPeriod] = useState<Period>(() => periodAt());
+  // The routine follows the time of day. A period the child picks holds until the
+  // time of day moves on by itself or the household day resets (§19.3).
+  const now = useNow(30_000);
+  const auto = periodAt(now);
+  const [picked, setPicked] = useState<{ period: Period; auto: Period; day: string } | null>(null);
+  const period = picked && picked.auto === auto && picked.day === dateKey(today) ? picked.period : auto;
+  const setPeriod = (p: Period) => setPicked({ period: p, auto, day: dateKey(today) });
   const { t } = useI18n();
   if (!member) return null;
 
@@ -150,7 +158,7 @@ function HoldToLeave() {
   const start = () => { setHolding(true); timer.current = setTimeout(() => router.push("/wall"), 700); };
   const stop = () => { setHolding(false); clearTimeout(timer.current); };
   return (
-    <button onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onKeyDown={(e) => e.key === "Enter" && router.push("/wall")}
+    <button onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop} onKeyDown={(e) => e.key === "Enter" && router.push("/wall")}
       aria-label={`${t("kids.back")} (${t("kids.parentHint")})`} title={t("kids.parentHint")}
       className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-surface/70 text-soft">
       <span className={cn("absolute inset-0 origin-bottom bg-[var(--m)] opacity-30 transition-transform ease-linear", holding ? "scale-y-100 duration-700" : "scale-y-0 duration-150")} />
@@ -162,7 +170,7 @@ function HoldToLeave() {
 export function ChildPicker() {
   const { t } = useI18n();
   const { isDone, children, routineFor, routineDay: today, periodAt } = useStore();
-  const period = periodAt();
+  const period = periodAt(useNow(30_000));
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-10 p-8">
       <Link href="/wall" className="absolute left-6 top-6 grid h-14 w-14 place-items-center rounded-full bg-surface text-soft" aria-label={t("kids.back")}><Home size={22} /></Link>
