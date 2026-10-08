@@ -57,7 +57,7 @@ const de: Messages = {
     extra: "Extra", extraHint: "Freiwillige Hilfe, die belohnt wird.",
     points: "Belohnung", needsApproval: "Ein Elternteil bestätigt, bevor es zählt",
     pictogram: "Bild", label: "Name", labelHint: "Optional. Erscheint klein unter dem Bild.",
-    assignTo: "Wer", repeats: "Wiederholung", childView: "Kinderansicht", steps: "{n} Schritte",
+    assignToMany: "Mehrere Personen wählen, um es für jede anzulegen.", assignTo: "Wer", repeats: "Wiederholung", childView: "Kinderansicht", steps: "{n} Schritte",
     preview: "So sieht {name} es", earns: "+{n}",
   },
   recurrence: {
