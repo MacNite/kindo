@@ -21,3 +21,25 @@ describe("holidaysOn", () => {
     expect(isSchoolDay(new Date(2026, 9, 19))).toBe(false);
   });
 });
+
+describe("routineFor", () => {
+  const step = (id: string) => ({ id, pictogram: "book", label: "", value: { kind: "expected" as const } });
+  const data = {
+    holidays: [],
+    routines: [
+      { id: "daily", memberId: "f", period: "morning", recurrence: { kind: "daily" }, items: [step("teeth"), step("dress")] },
+      { id: "school", memberId: "f", period: "morning", recurrence: { kind: "schoolDays" }, items: [step("bag")] },
+      { id: "evening", memberId: "f", period: "evening", recurrence: { kind: "daily" }, items: [step("bath")] },
+    ],
+  } as unknown as HouseholdData;
+  const { routineFor } = householdSelectors(data);
+
+  it("joins every routine due in a period into one morning (D43)", () => {
+    expect(routineFor("f", "morning", new Date(2026, 9, 5))?.items.map((i) => i.id)).toEqual(["teeth", "dress", "bag"]);
+  });
+
+  it("leaves out what isn't due that day", () => {
+    expect(routineFor("f", "morning", new Date(2026, 9, 10))?.items.map((i) => i.id)).toEqual(["teeth", "dress"]);
+    expect(routineFor("f", "afternoon", new Date(2026, 9, 10))).toBeUndefined();
+  });
+});

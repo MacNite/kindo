@@ -45,10 +45,10 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 ## §6 Routines, chores, tasks
 
-- **Routine:** a member, a period (morning, afternoon, evening), a recurrence and ordered steps.
+- **Routine:** a member, a period (morning, afternoon, evening), a recurrence and ordered steps. There is one routine per member, period and rhythm: new steps for the same morning join it, and a step whose period or rhythm changes moves to the matching routine (D43). On a given day, everything due in a period shows as one routine.
 - **Chore:** a recurring household responsibility for one member or anyone.
 - **Task:** a one-off item with an optional due date.
-- Each step is a pictogram, an optional short label and a value.
+- Each step is a pictogram, an optional short label and an optional reward (§9).
 - The child view must be fully usable without reading. Completed cards change calmly. No excessive gamification.
 
 ## §7 Recurrence
@@ -68,7 +68,8 @@ Emoji and uploaded photos are supported as alternatives (`emoji:` and `img:` pre
 ## §9 Rewards
 
 - Modes: off, stars, tokens, pocket money (with a conversion rate).
-- **Expected routines earn nothing. Extras may earn a reward**, optionally after a parent approves.
+- **Rewards are optional on every item.** A chore can earn points, optionally after a parent approves.
+- **Routine steps earn points only while the child's routine points are on** (a switch per child, with points per step). It helps a child get used to a routine and is meant to be switched off again; the setting is kept. A step may set its own points (0 = none). Routine points are paid at once, without approval (D42).
 - Rewards are a simple catalogue with costs. The product should never feel like a video game.
 
 ## §10 Shopping
@@ -149,7 +150,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D12 | Realtime sync: Server-Sent Events fed by PostgreSQL `LISTEN/NOTIFY` | Works with more than one app container and needs no extra service. Messages carry only a topic, never data; each device refetches what it may see. |
 | D13 | Screens keep rendering on the device (D7 stays); the route-group layouts load a household snapshot on the server and hand it to the store | Smallest change from v0.1, no hydration mismatches for time and theme, and the first paint has data. SSR can still come later. |
 | D14 | One household snapshot per round-trip: everything a screen needs, events from 90 days back to 400 days ahead, completions of the last 35 days | Family-sized data is small. One shape keeps the store simple and the optimistic updates honest. |
-| D15 | The server decides rewards: routine steps are always stored as expected, and an item's points come from the database, not the device | §9 must hold whatever a device sends. |
+| D15 | The server decides rewards: routine steps are always stored as expected, and an item's points come from the database, not the device | §9 must hold whatever a device sends. *Routine part superseded by D42; points still come from the database.* |
 | D16 | Important dates are stored as the original date plus a yearly flag, managed in a new Settings section, *Dates* | Ages and anniversaries count themselves; §15 gains one section. |
 | D17 | All-day events are stored at UTC midnight with an exclusive end, as in iCalendar | "Tuesday" stays Tuesday on every device and round-trips through CalDAV. |
 | D18 | Mutations are idempotent "set" operations; offline-capable creates use ids from the device | Retries, double taps and the later offline queue (§19.7) cannot create duplicates or flip state twice. |
@@ -176,3 +177,5 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D39 | Home Assistant presence: one entity per household, followed over HA's WebSocket API (`subscribe_trigger`) by the instance that runs the jobs; changes are pushed to screens as a `presence` topic on the SSE stream. `on`, `home`, `detected`, `occupied` mean someone is there | No automation to write in HA, and presence reaches the wall within a second without being stored. |
 | D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |
 | D41 | Immich album photos come from `POST /api/search/metadata` (album filter, images only, paged by `nextCursor`, or `nextPage` before v3.2), not from the album response. The API key needs `album.read`, `asset.read` and `asset.view` | Immich v3 dropped `assets` from album responses, so selecting an album emptied it. |
+| D42 | Routine steps may earn points: a switch and points per step on each child (`Member.routineRewards`, `routinePoints`, default off and 5), a step's own points override them (0 = none). Paid at once, never with approval, and never while the household's rewards are off. Chores and extras are one list, each with an optional reward | Points help a young child get used to brushing teeth and getting dressed. A switch per child lets parents phase them out without editing every step. Replaces "expected routines never earn points". |
+| D43 | One routine per member, period and recurrence; the server finds or starts it when a step is saved, and existing duplicates were merged by migration. Routines due in the same period of a day are shown as one | Adding steps for the same morning kept creating new panels. Blocks now only split where the rhythm differs (every day, school days, weekends). |

@@ -112,12 +112,75 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(await db.routine.count({ where: { id: routineId } })).toBe(0);
   });
 
-  it("routine steps never earn points, whatever the device sends", async () => {
+  it("routine steps earn nothing until the child's routine points are on, then at once (D42)", async () => {
+    await H.setCompletion(db, { itemId: "paul-morning-3", day, done: true });
+    expect(await H.balanceOf(db, "paul")).toBe(64);
+    await H.setCompletion(db, { itemId: "paul-morning-3", day, done: false });
+
+    await H.setRoutineRewards(db, { memberId: "paul", on: true, points: 3 });
+    await H.setCompletion(db, { itemId: "paul-morning-3", day, done: true });
+    expect(await db.completion.findUniqueOrThrow({ where: { itemId_day: { itemId: "paul-morning-3", day } } })).toMatchObject({ status: "done" });
+    expect(await H.balanceOf(db, "paul")).toBe(67);
+    // Unticking takes the points back; switching off keeps the number for later.
+    await H.setCompletion(db, { itemId: "paul-morning-3", day, done: false });
+    expect(await H.balanceOf(db, "paul")).toBe(64);
+    await H.setRoutineRewards(db, { memberId: "paul", on: false, points: 3 });
+    expect(await db.member.findUniqueOrThrow({ where: { id: "paul" } })).toMatchObject({ routineRewards: false, routinePoints: 3 });
+  });
+
+  it("a step's own points beat the routine points, and nothing earns with rewards off", async () => {
     const { stepId } = await H.saveRoutineStep(db, {
-      routineId: "lena-evening", memberId: "lena", period: "evening", recurrence: { kind: "daily" }, pictogram: "book", label: "Read",
-      ...({ value: { kind: "extra", points: 99, needsApproval: false } } as object),
+      memberId: "lena", period: "evening", recurrence: { kind: "daily" }, pictogram: "book", label: "Read", points: 10,
     });
-    expect((await db.routineStep.findUniqueOrThrow({ where: { id: stepId } })).value).toEqual({ kind: "expected" });
+    await H.setRoutineRewards(db, { memberId: "lena", on: true, points: 2 });
+    await H.setCompletion(db, { itemId: stepId, day, done: true });
+    expect(await H.balanceOf(db, "lena")).toBe(135);
+    await H.setCompletion(db, { itemId: stepId, day, done: false });
+    await H.setRewardMode(db, { mode: "off" });
+    await H.setCompletion(db, { itemId: stepId, day, done: true });
+    expect(await H.balanceOf(db, "lena")).toBe(125);
+  });
+
+  it("the snapshot carries what a step earns now and its own setting", async () => {
+    await H.setRoutineRewards(db, { memberId: "paul", on: true, points: 4 });
+    const s = await loadSnapshot(db, VIEWER);
+    const item = s?.routines.find((r) => r.id === "paul-morning")?.items[0];
+    expect(item).toMatchObject({ own: { kind: "expected" }, value: { kind: "extra", points: 4, needsApproval: false } });
+    expect(s?.members.find((m) => m.id === "paul")?.routineRewards).toEqual({ on: true, points: 4 });
+  });
+
+  it("steps for the same period and rhythm share one routine; another rhythm gets its own (D43)", async () => {
+    const a = await H.saveRoutineStep(db, { memberId: "paul", period: "morning", recurrence: { kind: "daily" }, pictogram: "bed", label: "Bed" });
+    expect(a.routineId).toBe("paul-morning");
+    expect(await db.routineStep.findUniqueOrThrow({ where: { id: a.stepId } })).toMatchObject({ position: 4 });
+
+    const b = await H.saveRoutineStep(db, { memberId: "paul", period: "morning", recurrence: { kind: "weekdays", days: [5, 1] }, pictogram: "backpack", label: "Bag" });
+    expect(b.routineId).not.toBe("paul-morning");
+    const c = await H.saveRoutineStep(db, { memberId: "paul", period: "morning", recurrence: { kind: "weekdays", days: [1, 5] }, pictogram: "shoes", label: "Shoes" });
+    expect(c.routineId).toBe(b.routineId);
+
+    // Changing a step's rhythm moves it, with its id, and closes the gap it leaves.
+    const moved = await H.saveRoutineStep(db, { stepId: "paul-morning-1", memberId: "paul", period: "morning", recurrence: { kind: "weekdays", days: [1, 5] }, pictogram: "toothbrush", label: "Teeth" });
+    expect(moved).toEqual({ routineId: b.routineId, stepId: "paul-morning-1" });
+    const left = await db.routineStep.findMany({ where: { routineId: "paul-morning" }, orderBy: { position: "asc" } });
+    expect(left.map((s) => s.position)).toEqual([0, 1, 2, 3]);
+
+    // Moving the last steps away removes the empty routine.
+    for (const id of [b.stepId, c.stepId, "paul-morning-1"]) {
+      await H.saveRoutineStep(db, { stepId: id, memberId: "paul", period: "morning", recurrence: { kind: "daily" }, pictogram: "bed", label: "x" });
+    }
+    expect(await db.routine.count({ where: { id: b.routineId } })).toBe(0);
+  });
+
+  it("a new routine adds several steps for several children at once, joining what they have", async () => {
+    await H.addRoutineSteps(db, {
+      memberIds: ["lena", "paul"], period: "evening", recurrence: { kind: "daily" },
+      steps: [{ pictogram: "bath", label: { en: "Bath", de: "Baden" } }, { pictogram: "sleep", label: "" }],
+    });
+    expect(await db.routine.count({ where: { memberId: "lena", period: "evening" } })).toBe(1);
+    const lena = await db.routineStep.findMany({ where: { routineId: "lena-evening" }, orderBy: { position: "asc" } });
+    expect(lena.slice(-2).map((s) => [s.pictogram, s.position])).toEqual([["bath", 4], ["sleep", 5]]);
+    expect(await db.routineStep.count({ where: { routineId: "paul-evening" } })).toBe(7);
   });
 
   it("the last admin can be neither deleted nor demoted", async () => {

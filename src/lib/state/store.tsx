@@ -5,7 +5,7 @@ import type {
 } from "../types";
 import { dateKey } from "../dates";
 import { hydrateEvent } from "../events";
-import { completionOutcome, doneKey } from "../ledger";
+import { completionOutcome, doneKey, resolveRoutineValues } from "../ledger";
 import { currentPeriod } from "../recurrence";
 import { guessCategory } from "../shopping";
 import { useToday } from "../useToday";
@@ -240,7 +240,13 @@ function useHousehold(initial: HouseholdWire) {
     () => A.redeem({ memberId, rewardId: reward.id }),
   );
 
-  const setRewardMode = (mode: RewardMode) => mutate((d) => ({ ...d, household: { ...d.household, rewardMode: mode } }), () => A.setRewardMode({ mode }));
+  const setRewardMode = (mode: RewardMode) =>
+    mutate((d) => resolveRoutineValues({ ...d, household: { ...d.household, rewardMode: mode } }), () => A.setRewardMode({ mode }));
+  /** Points for a child's routine steps, while they get used to them (§9, D42). */
+  const setRoutineRewards = (memberId: string, on: boolean, points: number) => mutate(
+    (d) => resolveRoutineValues({ ...d, members: d.members.map((m) => (m.id === memberId ? { ...m, routineRewards: { on, points } } : m)) }),
+    () => A.setRoutineRewards({ memberId, on, points }),
+  );
 
   // ── Shopping ──────────────────────────────────────────────────────────────
   const setShoppingDone = (id: string, done: boolean) =>
@@ -303,7 +309,7 @@ function useHousehold(initial: HouseholdWire) {
     pinRequest, requestPin: () => setPinRequest({ retry: async () => {} }), closePin: () => setPinRequest(null),
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,
-    rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode,
+    rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode, setRoutineRewards,
     shopping: data.shoppingItems, shoppingLists: data.shoppingLists, toggleShopping, setShoppingDone, addShopping, clearDone,
     tasks: data.tasks, toggleTask, addTask,
     widgets: data.household.widgets, moveWidget, updateWidget,
