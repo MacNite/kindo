@@ -1,5 +1,6 @@
 "use client";
-import { useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { X } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -172,19 +173,20 @@ function WheelCentre({ b, tone }: { b: UpcomingBirthday; tone: string }) {
 }
 
 // ── Calendar → Birthdays ────────────────────────────────────────────────────
-export function BirthdaysView({ filter }: { filter: Set<string> }) {
+/** The wheel with the list beside it. On the wall it fills the screen, and the list scrolls on its own. */
+export function BirthdaysView({ filter, wall = false }: { filter?: Set<string>; wall?: boolean }) {
   const { t } = useI18n();
   const list = useBirthdays(filter);
   const [selected, select] = useSelection(list);
   if (!list.length) return <p className="max-w-prose rounded-card bg-surface p-5 text-soft">{t("birthdays.none")}</p>;
   const soon = list.filter((b) => b.days <= SOON_DAYS), later = list.filter((b) => b.days > SOON_DAYS);
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      <section className="flex flex-col items-center gap-2 rounded-panel bg-surface p-4 md:p-6">
-        <div className="w-full max-w-[540px]"><BirthdayWheel list={list} selected={selected} onSelect={select} /></div>
+    <div className={cn("grid gap-5", wall ? "min-h-0 flex-1 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]" : "items-start xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]")}>
+      <section className={cn("flex flex-col items-center gap-2 rounded-panel bg-surface p-4 md:p-6", wall && "min-h-0 justify-center")}>
+        <div className={cn("w-full", wall ? "max-w-[min(100%,calc(100dvh-220px))]" : "max-w-[540px]")}><BirthdayWheel list={list} selected={selected} onSelect={select} /></div>
         <p className="text-center text-sm text-soft">{t("birthdays.legend")}</p>
       </section>
-      <div className="flex flex-col gap-5">
+      <div className={cn("flex flex-col gap-5", wall && "no-scrollbar min-h-0 overflow-y-auto")}>
         {soon.length > 0 && <BirthdayGroup title={t("birthdays.soon")} list={soon} selected={selected} onSelect={select} />}
         {later.length > 0 && <BirthdayGroup title={t("birthdays.later")} list={later} selected={selected} onSelect={select} />}
       </div>
@@ -261,6 +263,25 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** The wall display's full-screen birthday wheel, opened from the button below the lanes (D46). */
+export function BirthdaysFullscreen({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  useEffect(() => {
+    const esc = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onClose]);
+  return (
+    <div role="dialog" aria-modal="true" aria-label={t("birthdays.title")} className="fixed inset-0 z-40 flex flex-col gap-5 overflow-hidden bg-bg p-6 max-lg:overflow-y-auto">
+      <header className="flex shrink-0 items-center justify-between gap-4">
+        <h1 className="font-display text-4xl font-bold tracking-tight">{t("birthdays.title")}</h1>
+        <button onClick={onClose} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><X size={26} />{t("common.close")}</button>
+      </header>
+      <BirthdaysView wall />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ImageIcon, LayoutGrid, Lightbulb, Smile } from "lucide-react";
+import { Cake, ImageIcon, LayoutGrid, Lightbulb, Smile } from "lucide-react";
 import type { WallTileId } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -13,7 +13,7 @@ import { BigClock, WeatherNow, DatesList } from "./Widgets";
 import { Screensaver } from "../photos/Screensaver";
 import { Avatar } from "../ui/Avatar";
 import { HomeTile } from "../home/HomeControl";
-import { BirthdaysCompact } from "../birthdays/Birthdays";
+import { BirthdaysCompact, BirthdaysFullscreen } from "../birthdays/Birthdays";
 import { useGreeting } from "./HomeScreen";
 
 /**
@@ -28,6 +28,8 @@ export function WallDashboard() {
   const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync, wallTiles, home } = useStore();
   const greeting = useGreeting();
   const [saver, setSaver] = useState(false);
+  /** The birthday wheel over the whole screen (D46). */
+  const [wheel, setWheel] = useState(false);
   // The wall stays on; the photo frame is its screensaver (§13).
   useWakeLock();
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -102,6 +104,7 @@ export function WallDashboard() {
       <main className="flex min-w-0 flex-1 flex-col gap-4">
         <FamilyLanes variant="wall" />
         <nav className="flex shrink-0 items-center justify-end gap-3">
+          <button onClick={() => setWheel(true)} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><Cake size={26} />{t("widgets.birthdays")}</button>
           <WallBtn href="/kids" label={t("nav.kids")}><Smile size={26} /></WallBtn>
           {home && <WallBtn href="/home-control" label={t("nav.homeControl")}><Lightbulb size={26} /></WallBtn>}
           <button onClick={() => setSaver(true)} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><ImageIcon size={26} />{t("nav.photos")}</button>
@@ -109,6 +112,7 @@ export function WallDashboard() {
         </nav>
       </main>
 
+      {wheel && <BirthdaysFullscreen onClose={() => setWheel(false)} />}
       {saver && <Screensaver onWake={() => { setSaver(false); poke(); }} />}
     </div>
   );

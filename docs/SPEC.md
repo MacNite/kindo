@@ -88,6 +88,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
 - **Birthday wheel:** the year as a circle, January at the top, one dot per birthday: every member with a birthday, birthdays entered as important dates, and the contacts the household picked. The next birthday is selected at first; tapping a dot (or a row of the list beside it) selects another. The centre shows the name, the age they turn and the days left, and an arc runs from today to that birthday. Within 14 days the sleeps until then show as dots, for children who can't read numbers yet.
 - It is a view of the calendar (Calendar → Birthdays), a home-screen widget and a wall tile, the last two off until someone turns them on.
+- On the wall display, a Birthdays button below the lanes (next to Kids and Photos) opens the wheel and its list over the whole screen, whether or not the tile is on.
 - **Contacts:** a Nextcloud connection can also read birthdays from address books the admin chooses (CardDAV, same app password). Per contact Kindo keeps whether it shows, its own name ("Oma Biggy" for "Mama Nitschke") and the member it belongs to, whose colour it takes. Nothing is written back to the address book (D46).
 
 ## §13 Photos and screensaver
