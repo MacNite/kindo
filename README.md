@@ -18,7 +18,7 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 
 <p align="center"><img src="docs/screenshots/mobile-home.png" alt="Mobile home" width="260"></p>
 
-## What's in the prototype
+## What's in v0.2
 
 - **Family lanes:** one column per person, in their colour, showing the current routine as picture tiles, appointments and chores. School and Kita appear as a quiet line.
 - **Child view:** large pictogram cards, progress shown as dots, morning/afternoon/evening chosen by icon. Leaving the view needs a press-and-hold.
@@ -81,7 +81,7 @@ APP_IMAGE=ghcr.io/macnite/kindo:0.2.0
 MIGRATE_IMAGE=ghcr.io/macnite/kindo-migrate:0.2.0
 ```
 
-To release, tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+To release, tag and push: `git tag v0.2.1 && git push origin v0.2.1` (bump `version` in `package.json` first).
 
 > After the first publish, GHCR packages are **private** by default. To pull without logging in, open the package on GitHub → *Package settings* → *Change visibility* → *Public*.
 
@@ -132,14 +132,23 @@ src/
     (app)/            Management screens inside the AppShell (rail on desktop, bottom nav on phones)
     (kiosk)/          Full-screen surfaces: wall, kids, screensaver
     setup/            First-run setup
+    login/ pair/      Sign-in, and pairing a wall display
+    offline/          Shown by the service worker when a page isn't cached
     api/health/       Liveness endpoint for Docker (with a database round-trip)
     api/stream/       Server-Sent Events: tells every screen when something changed
-    layout.tsx, providers.tsx
+    api/auth/         Better Auth (password and single sign-on)
+    api/photos/       Immich photo proxy with the disk cache
+    api/cameras/      Camera still pictures and the WebRTC handshake (Frigate)
+    api/integrations/ Google Calendar OAuth start and callback
+    layout.tsx, providers.tsx, manifest.ts, sw.ts
   components/
     ui/               Design-system primitives (Avatar, Button, Panel, Dialog, Pictogram, …)
     layout/           AppShell, navigation, language/theme toggle
     widgets/          FamilyLanes, dashboard widgets, HomeScreen, WallDashboard
     routines/         ChildRoutine, RoutinesScreen, RecurrenceEditor, PictogramPicker
+    auth/ setup/      Login and pairing screens, first-run setup
+    home/ cameras/    Home control, cameras and the doorbell
+    birthdays/        The birthday wheel
     calendar/ shopping/ rewards/ photos/ settings/
   lib/
     types.ts          Domain model: the contract between UI and server
@@ -147,17 +156,26 @@ src/
     state/            Device prefs and the household store (snapshot, optimistic updates, live refresh)
     recurrence.ts     Recurrence model, matcher, RRULE mapping
     ledger.ts         The reward rule (§9)
+    pictograms.tsx    Pictogram library
   server/
     household.ts      The household's rules and writes (plain functions over Prisma)
     actions/          Server Actions: thin wrappers that parse input and announce changes
     snapshot.ts       Loads everything a screen needs in one round-trip
     realtime.ts       PostgreSQL LISTEN/NOTIFY → SSE
+    jobs.ts           Background jobs, run by the instance holding an advisory lock
+    calendar/         CalDAV, Google and ICS sync
+    contacts/         CardDAV birthdays
+    photos/           Immich sync, playlist and the photo cache
+    homeassistant.ts  Home Assistant: presence, switches, doorbell sensors
+    home.ts           Home control (§21)
+    cameras.ts        Cameras and talking back (§22); frigate.ts talks to Frigate
     demo/             The Müller demo family and the seed
-    pictograms.tsx    Pictogram library
   i18n/               messages/en.ts + de.ts (parity enforced by types and tests), formats
+  instrumentation.ts  Starts the background jobs when the server starts
 prisma/               schema.prisma, migrations, seed-demo.ts
+scripts/              start-standalone.mjs, check-migration-drift.mjs, make-icons.mjs
 tests/                Integration tests against PostgreSQL
-e2e/                  Playwright specs, and prepare-db.ts for the suite's own database
+e2e/                  Playwright specs, mock servers (OIDC, Immich, Home Assistant, Frigate), and prepare-db.ts for the suite's own database
 docker/               entrypoint.sh, migrate.sh, healthcheck.sh
 docs/                 SPEC.md (product + decisions), screenshots
 ```
