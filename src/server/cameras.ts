@@ -28,7 +28,9 @@ const cameraKey = z.string().regex(/^[a-z0-9-]{1,48}$/);
 /** A browser's id for itself, so the same person on two screens counts as two speakers. */
 const screen = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
 export const K = {
-  addFrigate: z.object({ url: httpUrl, username: z.string().trim().min(1).max(200), password: z.string().min(1).max(500), trustCertificate: z.boolean() }),
+  /** No user for Frigate's unauthenticated port (5000) or with Frigate's authentication off. */
+  addFrigate: z.object({ url: httpUrl, username: z.string().trim().max(200), password: z.string().max(500), trustCertificate: z.boolean() })
+    .refine((x) => Boolean(x.username) === Boolean(x.password), "a user and its password, or neither"),
   setup: z.object({
     id,
     cameras: z.array(z.object({
@@ -72,7 +74,7 @@ export async function addFrigate(db: Tx, input: In<"addFrigate">) {
   const config: FrigateStoredConfig = { fingerprint, cameras: frigateCameras(old[0]) };
   const conn = await db.connection.create({
     data: {
-      kind: "frigate", name: new URL(input.url).host, url: input.url, username: input.username, secret: encryptSecret(input.password),
+      kind: "frigate", name: new URL(input.url).host, url: input.url, username: input.username || null, secret: input.password ? encryptSecret(input.password) : null,
       config: json(config), status: "ok", lastSyncAt: new Date(),
     },
   });
