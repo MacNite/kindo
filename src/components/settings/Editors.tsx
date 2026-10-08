@@ -8,6 +8,8 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
+import { dateKey } from "@/lib/dates";
+import { parseDay } from "@/lib/recurrence";
 import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
@@ -163,7 +165,10 @@ export function RoutineSettings() {
   const [times, setTimes] = useState({ dayStartsAt: h.dayStartsAt, morningUntil: h.morningUntil, afternoonUntil: h.afternoonUntil });
   const [feeds, setFeeds] = useState(h.holidayIcsUrls.join("\n"));
   const [state, setState] = useState<{ error?: string; saved?: "times" | "feeds"; syncing?: boolean }>({});
-  const upcoming = data.holidays.filter((x) => x.end >= new Date().toISOString().slice(0, 10)).slice(0, 4);
+  // Holidays are local dates: compare with today's local key, not a UTC timestamp.
+  const today = useToday();
+  const upcoming = data.holidays.filter((x) => x.end >= dateKey(today)).slice(0, 4);
+  const day = (k: string) => fmt.dateMedium(parseDay(k));
 
   const saveTimes = async () => {
     const r = await run(() => setDayTimes(times));
@@ -216,7 +221,7 @@ export function RoutineSettings() {
         </p>
         {upcoming.length > 0 && (
           <ul className="flex flex-col gap-1 text-sm">
-            {upcoming.map((x) => <li key={x.start + x.summary} className="flex justify-between gap-3"><span className="font-bold">{x.summary}</span><span className="num text-soft">{x.start === x.end ? x.start : `${x.start} – ${x.end}`}</span></li>)}
+            {upcoming.map((x) => <li key={x.start + x.summary} className="flex justify-between gap-3"><span className="font-bold">{x.summary}</span><span className="num text-soft">{x.start === x.end ? day(x.start) : `${day(x.start)} – ${day(x.end)}`}</span></li>)}
           </ul>
         )}
       </div>
