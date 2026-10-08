@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -8,6 +8,7 @@ import { useToday } from "@/lib/useToday";
 import { collectBirthdays, initials, upcomingBirthdays, wheelRings, type UpcomingBirthday } from "@/lib/birthdays";
 import { Avatar } from "../ui/Avatar";
 import { cn } from "../ui/cn";
+import { useOverlay } from "../ui/useOverlay";
 
 /** Within this many days a birthday counts as "soon". */
 const SOON_DAYS = 30;
@@ -270,13 +271,11 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
 /** The wall display's full-screen birthday wheel, opened from the button below the lanes (D46). */
 export function BirthdaysFullscreen({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
-  useEffect(() => {
-    const esc = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
+  const root = useRef<HTMLDivElement>(null);
+  // Not inert underneath: the photo frame comes up over it and must still wake on a touch.
+  useOverlay(true, { root, onClose, layer: 40, inert: false });
   return (
-    <div role="dialog" aria-modal="true" aria-label={t("birthdays.title")} className="fixed inset-0 z-40 flex flex-col gap-5 overflow-hidden bg-bg p-6 max-lg:overflow-y-auto">
+    <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("birthdays.title")} className="fixed inset-0 z-40 flex flex-col gap-5 overflow-hidden bg-bg p-6 outline-none max-lg:overflow-y-auto">
       <header className="flex shrink-0 items-center justify-between gap-4">
         <h1 className="font-display text-4xl font-bold tracking-tight">{t("birthdays.title")}</h1>
         <button onClick={onClose} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><X size={26} />{t("common.close")}</button>

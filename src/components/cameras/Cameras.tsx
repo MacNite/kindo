@@ -12,6 +12,7 @@ import { Button } from "../ui/Button";
 import { ErrorText } from "../ui/ErrorText";
 import { Panel, PageHeader } from "../ui/Panel";
 import { cn } from "../ui/cn";
+import { useOverlay } from "../ui/useOverlay";
 
 /** How often a still picture is refreshed while it's on screen. */
 const PICTURE_MS = 10_000;
@@ -152,13 +153,8 @@ export function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: Came
     if (video.current && !needsTap) video.current.muted = talk.speaking;
   }, [talk.speaking, needsTap]);
 
-  const close = useRef(onClose);
-  close.current = onClose;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const root = useRef<HTMLDivElement>(null);
+  useOverlay(true, { root, onClose, layer: 110 });
 
   const unmute = () => {
     const v = video.current;
@@ -169,8 +165,8 @@ export function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: Came
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={camera.name} data-testid="live-camera" onPointerDown={onTouch}
-      className="fixed inset-0 z-[110] flex flex-col bg-black text-white">
+    <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={camera.name} data-testid="live-camera" onPointerDown={onTouch}
+      className="fixed inset-0 z-[110] flex flex-col bg-black text-white outline-none">
       <header className="flex items-center gap-3 p-4 sm:p-6">
         {ringing && <span className="grid h-12 w-12 shrink-0 animate-pulse place-items-center rounded-full bg-star text-ink"><BellRing size={24} aria-hidden /></span>}
         <div className="min-w-0 flex-1">
@@ -263,6 +259,8 @@ export function DoorbellWatcher() {
   const { cameras, ringTick } = useStore();
   const [ring, setRing] = useState<Ring | null>(null);
   const [touched, setTouched] = useState(0);
+  const ringId = useRef<string | null>(null);
+  ringId.current = ring?.id ?? null;
   const hasDoorbell = cameras.some((c) => c.doorbell);
 
   useEffect(() => {
@@ -270,7 +268,10 @@ export function DoorbellWatcher() {
     let live = true;
     const check = () => activeRing({}).then((r) => {
       if (live && r.ok && r.data && !dismissedRings().includes(r.data.id)) {
-        setRing((old) => (old?.id === r.data!.id ? old : r.data));
+        // Asking again about the same ring keeps it, and the time someone last touched it.
+        if (ringId.current === r.data.id) return;
+        ringId.current = r.data.id;
+        setRing(r.data);
         setTouched(0);
       }
     }, () => {});
