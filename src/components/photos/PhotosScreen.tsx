@@ -89,11 +89,11 @@ export function PhotosScreen() {
           </Panel>
 
           <Panel title={t("photos.behaviour")}>
-            <div className="mb-5 flex items-center gap-2 text-sm font-bold">
+            <div className="mb-5 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm font-bold">
               {[t("photos.flowActive"), t("photos.flowIdle"), t("photos.flowSaver"), t("photos.flowTouch"), t("photos.flowActive")].map((s, i) => (
                 <span key={i} className="flex items-center gap-2">
                   {i > 0 && <ArrowRight size={14} className="text-soft" />}
-                  <span className={cn("rounded-full px-2.5 py-1", i === 2 ? "bg-ink text-surface" : "bg-sunken")}>{s}</span>
+                  <span className={cn("whitespace-nowrap rounded-full px-2.5 py-1", i === 2 ? "bg-ink text-surface" : "bg-sunken")}>{s}</span>
                 </span>
               )).slice(0, 5)}
             </div>
