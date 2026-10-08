@@ -54,12 +54,15 @@ export type SyncStatus = "live" | "connecting" | "offline";
 
 function useHousehold(initial: HouseholdWire) {
   const [data, setData] = useState<HouseholdData>(() => hydrate(initial));
-  const { dayStartsAt, morningUntil, afternoonUntil } = data.household;
-  /** The household day routines and chores belong to: rolls over at the reset time, not midnight (§19.3). */
-  const today = useToday(dayStartsAt);
+  const { dayStartsAt, morningUntil, afternoonUntil, timezone } = data.household;
+  /**
+   * The household day routines and chores belong to: rolls over at the reset
+   * time, not midnight, in the household's time zone, not the device's (§19.3, D52).
+   */
+  const today = useToday(dayStartsAt, timezone);
   const times = useMemo(() => ({ dayStartsAt, morningUntil, afternoonUntil }), [dayStartsAt, morningUntil, afternoonUntil]);
-  /** Which routine is "now". */
-  const periodAt = useCallback((now: Date = new Date()) => currentPeriod(now, times), [times]);
+  /** Which routine is "now", by the household's clock. */
+  const periodAt = useCallback((now: Date = new Date()) => currentPeriod(now, times, timezone), [times, timezone]);
   const [error, setError] = useState<string | null>(null);
   const [sync, setSync] = useState<SyncStatus>("connecting");
   /** A wall display tried something that needs the settings PIN: what to retry once it's unlocked. */
