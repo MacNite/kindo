@@ -64,3 +64,17 @@ test("the wall display shows the birthday wheel once it is switched on", async (
   await page.getByRole("switch", { name: "Birthday wheel" }).click();
   await expect(page.getByRole("switch", { name: "Birthday wheel" })).toHaveAttribute("aria-checked", "false");
 });
+
+test("the wall display opens the birthday wheel full screen and closes it again", async ({ page }) => {
+  const { assertNoErrors } = await prepare(page);
+  await page.goto("/wall");
+  await page.getByRole("button", { name: "Birthdays", exact: true }).click();
+  const full = page.getByRole("dialog", { name: "Birthdays" });
+  const wheel = full.getByRole("group", { name: "Birthdays in the year" });
+  await expect(wheel.getByText("Oma Ingrid", { exact: true })).toBeVisible();
+  await wheel.getByRole("button", { name: /^Lena,/ }).click();
+  await expect(wheel.getByText("turns 8")).toBeVisible();
+  await full.getByRole("button", { name: "Close" }).click();
+  await expect(full).toBeHidden();
+  assertNoErrors();
+});
