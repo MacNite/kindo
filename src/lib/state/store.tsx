@@ -253,7 +253,7 @@ function useHousehold(initial: HouseholdWire) {
 
   const setRewardMode = (mode: RewardMode) =>
     mutate((d) => resolveRoutineValues({ ...d, household: { ...d.household, rewardMode: mode } }), () => A.setRewardMode({ mode }));
-  /** Points for a child's routine steps, while they get used to them (§9, D42). */
+  /** Points for a child's routine steps, while they get used to them (§9, D49). */
   const setRoutineRewards = (memberId: string, on: boolean, points: number) => mutate(
     (d) => resolveRoutineValues({ ...d, members: d.members.map((m) => (m.id === memberId ? { ...m, routineRewards: { on, points } } : m)) }),
     () => A.setRoutineRewards({ memberId, on, points }),

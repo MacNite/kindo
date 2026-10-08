@@ -16,7 +16,7 @@ export function completionOutcome(value: TaskValue, hasMember: boolean): { statu
 export const DEFAULT_ROUTINE_POINTS = 5;
 
 /**
- * What a routine step earns now (§9, D42). Routines earn nothing unless the
+ * What a routine step earns now (§9, D49). Routines earn nothing unless the
  * household uses rewards and the child's routine rewards are on. Then a step
  * earns its own points, or the child's routine points when it has none of its
  * own, at once: nobody approves brushing teeth every day.

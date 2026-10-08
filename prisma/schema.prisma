@@ -116,7 +116,7 @@ model Member {
   avatar         Json
   /// YYYY-MM-DD
   birthday       String?
-  /// Routine steps earn points while this is on (§9, D42).
+  /// Routine steps earn points while this is on (§9, D49).
   routineRewards Boolean  @default(false)
   /// What a routine step earns when it sets no points of its own.
   routinePoints  Int      @default(5)
@@ -156,7 +156,7 @@ model RoutineStep {
   position  Int
   pictogram String
   label     Json
-  /// `TaskValue`: "expected" follows the member's routine points, an "extra" sets its own (§9, D42)
+  /// `TaskValue`: "expected" follows the member's routine points, an "extra" sets its own (§9, D49)
   value     Json
 
   @@index([routineId, position])

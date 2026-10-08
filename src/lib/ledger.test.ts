@@ -24,7 +24,7 @@ describe("completionOutcome (§9)", () => {
   });
 });
 
-describe("routineStepValue (§9, D42)", () => {
+describe("routineStepValue (§9, D49)", () => {
   const on = { on: true, points: 5 };
   it("routine steps earn nothing while the child's routine rewards are off", () => {
     expect(routineStepValue({ kind: "expected" }, undefined, "stars")).toEqual({ kind: "expected" });

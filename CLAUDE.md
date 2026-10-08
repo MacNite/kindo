@@ -33,7 +33,7 @@ decision in §20 in the same PR.
 - Child-facing UI: pictures carry the meaning, text is optional. Large targets,
   calm feedback, no excessive gamification (§6, §9).
 - Rewards are optional per item. Routine steps earn points only while the child's
-  routine points are on, at once and never with approval (§9, D42).
+  routine points are on, at once and never with approval (§9, D49).
 - Integrations run server-side. Secrets never reach the browser (§17).
 - No database yet (§20 D6). Don't add persistence piecemeal. It comes as one
   step with Prisma, a `migrate` image and Server Actions, following BrewCore.

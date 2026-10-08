@@ -22,7 +22,7 @@ export interface Member {
   /** People and accounts are separate: children usually have none. */
   account?: { email: string; lastSeen?: string };
   /**
-   * Points for routine steps while a child gets used to them (§9, D42). Off
+   * Points for routine steps while a child gets used to them (§9, D49). Off
    * keeps the number, so switching back on restores it.
    */
   routineRewards?: { on: boolean; points: number };

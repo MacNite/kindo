@@ -30,7 +30,7 @@ interface Draft {
   memberId: string | null;
   item: TaskItem;
   recurrence: Recurrence;
-  /** Steps: period and rhythm pick the routine the step lands in (D43). */
+  /** Steps: period and rhythm pick the routine the step lands in (D50). */
   period?: Period;
 }
 const isNew = (d: Draft) => d.item.id === "new";
@@ -139,7 +139,7 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
   );
 }
 
-/** Points for a child's routine steps, while they get used to them (§9, D42). */
+/** Points for a child's routine steps, while they get used to them (§9, D49). */
 function RoutineRewards({ member }: { member: Member }) {
   const { t } = useI18n();
   const { setRoutineRewards } = useStore();
@@ -214,7 +214,7 @@ function PeoplePicker({ people, selected, onPick, disabled }: {
 
 /**
  * "New routine": who, when, how often, and several pictures at once. Steps
- * join the routine a person already has for that period and rhythm (D43).
+ * join the routine a person already has for that period and rhythm (D50).
  */
 function NewRoutine({ onClose }: { onClose: () => void }) {
   const { t, tx } = useI18n();
@@ -290,7 +290,7 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
   const member = getMember(multi ? who[0] ?? null : d.memberId);
   const item = d.item;
   const set = (p: Partial<TaskItem>) => setD((x) => ({ ...x, item: { ...x.item, ...p } }));
-  // A step's own setting: "expected" follows the child's routine points (D42).
+  // A step's own setting: "expected" follows the child's routine points (D49).
   const own: TaskValue = item.own ?? { kind: "expected" };
   const routinePoints = member?.routineRewards?.points ?? DEFAULT_ROUTINE_POINTS;
   const preview: TaskItem = { ...item, label: tx(item.label) || " ", value: step ? routineStepValue(own, member?.routineRewards, rewardMode) : item.value };
