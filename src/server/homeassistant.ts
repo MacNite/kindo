@@ -120,8 +120,17 @@ export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, on
     }
     let id = 1;
     const ids = { states: 0, presence: 0, controls: 0, visitors: 0 };
+    // A broken message, a send on a closing socket or a failing handler costs that message, never the process.
     ws.onmessage = (ev) => {
-      const msg = JSON.parse(String(ev.data)) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { entity_id?: string; to_state?: { state: string } } } }; id?: number };
+      try {
+        handle(String(ev.data));
+      } catch (e) {
+        log.warn("home assistant message skipped", { error: errorMessage(e) });
+      }
+    };
+    const handle = (raw: string) => {
+      const msg = JSON.parse(raw) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { entity_id?: string; to_state?: { state: string } } } }; id?: number } | null;
+      if (!msg || typeof msg !== "object") return;
       if (msg.type === "auth_required") ws!.send(JSON.stringify({ type: "auth", access_token: cfg.token }));
       else if (msg.type === "auth_invalid") {
         onStatus(false, "Home Assistant refused the token");

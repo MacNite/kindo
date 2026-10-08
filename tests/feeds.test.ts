@@ -177,6 +177,9 @@ describe("Home Assistant presence (§19.8)", () => {
     const port = (wss.address() as AddressInfo).port;
     let send: ((state: string) => void) | undefined;
     wss.on("connection", (ws) => {
+      // Garbage first: the watcher skips it and carries on.
+      ws.send("not json {");
+      ws.send("null");
       ws.send(JSON.stringify({ type: "auth_required" }));
       ws.on("message", (raw) => {
         const msg = JSON.parse(String(raw));
