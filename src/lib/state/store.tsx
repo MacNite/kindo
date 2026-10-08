@@ -13,7 +13,7 @@ import { useToday } from "../useToday";
 import { calendarSelectors } from "../services/calendar";
 import { householdSelectors } from "../services/household";
 import * as A from "../services/actions";
-import { applyQueued, dequeue, enqueue, loadSnapshot, readQueue, saveSnapshot, type OfflineOp } from "./offline";
+import { applyQueued, dequeue, drainQueue, enqueue, loadSnapshot, readQueue, saveSnapshot, type OfflineOp } from "./offline";
 
 /** What may be done without a connection, and how to send it later (§19.7). */
 const OFFLINE_ACTIONS: { [K in OfflineOp["name"]]: (input: Extract<OfflineOp, { name: K }>["input"]) => Promise<ActionResult<unknown>> } = {
@@ -22,6 +22,11 @@ const OFFLINE_ACTIONS: { [K in OfflineOp["name"]]: (input: Extract<OfflineOp, { 
   clearDoneShopping: A.clearDoneShopping,
 };
 const isOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
+/** A queued change waiting to be sent, with its IndexedDB key once stored. */
+type Queued = { op: OfflineOp; key: Promise<IDBValidKey | undefined> };
+/** How long to wait before trying the queue again when the server didn't answer although the device is online. */
+const RETRY_MS = 20_000;
+const opsOf = (q: Queued[]) => q.map((x) => x.op);
 
 /**
  * The device's copy of the household (§19.2). It starts from the snapshot the
@@ -69,9 +74,10 @@ function useHousehold(initial: HouseholdWire) {
   const stale = useRef(false);
   const fetching = useRef(false);
   /** Shopping changes made without a connection, waiting to be sent (mirrors IndexedDB). */
-  const queue = useRef<OfflineOp[]>([]);
+  const queue = useRef<Queued[]>([]);
   const [queued, setQueued] = useState(0);
   const flushing = useRef(false);
+  const retry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   /** Refetches the snapshot. While the user's own changes are in flight it waits, so they don't flicker back. */
   const refresh = useCallback(async () => {
@@ -87,7 +93,7 @@ function useHousehold(initial: HouseholdWire) {
         window.location.assign("/login");
         return;
       }
-      if (pending.current === 0) setData(applyQueued(hydrate(w), queue.current));
+      if (pending.current === 0) setData(applyQueued(hydrate(w), opsOf(queue.current)));
       else stale.current = true;
       void saveSnapshot(w);
     } catch {
@@ -99,20 +105,60 @@ function useHousehold(initial: HouseholdWire) {
   }, []);
 
   /**
+   * Sends what was queued, oldest first, including what joins the queue while
+   * it runs. Stops at the first sign the connection is gone again and tries
+   * once more a little later, as a server restart never fires "online".
+   */
+  const flush = useCallback(async () => {
+    clearTimeout(retry.current);
+    if (flushing.current || isOffline() || !queue.current.length) return;
+    flushing.current = true;
+    let result: "sent" | "offline" = "offline";
+    try {
+      result = await drainQueue(
+        () => queue.current[0],
+        (q) => (OFFLINE_ACTIONS[q.op.name] as (i: unknown) => Promise<ActionResult<unknown>>)(q.op.input),
+        async (q, r) => {
+          if (!r.ok) setError(r.error);
+          queue.current = queue.current.filter((x) => x !== q);
+          setQueued(queue.current.length);
+          const key = await q.key;
+          if (key !== undefined) await dequeue(key);
+        },
+      );
+    } finally {
+      flushing.current = false;
+      if (result === "offline") retry.current = setTimeout(() => void flush(), RETRY_MS);
+      else if (queue.current.length) void flush();
+      void refresh();
+    }
+  }, [refresh]);
+
+  /**
+   * Keeps a shopping change on the device until it can be sent, behind
+   * everything queued before it. After a failed send it waits a little
+   * before trying again; otherwise the queue goes as soon as it can.
+   */
+  const keepForLater = useCallback((op: OfflineOp, justFailed = false) => {
+    queue.current = [...queue.current, { op, key: enqueue(op) }];
+    setQueued(queue.current.length);
+    if (!justFailed) void flush();
+    else if (!flushing.current) {
+      clearTimeout(retry.current);
+      retry.current = setTimeout(() => void flush(), RETRY_MS);
+    }
+  }, [flush]);
+
+  /**
    * Applies `optimistic` at once, then runs the action. On failure the
    * server's truth comes back and the error is shown.
    */
-  const keepForLater = useCallback(async (op: OfflineOp) => {
-    queue.current = [...queue.current, op];
-    setQueued(queue.current.length);
-    await enqueue(op);
-  }, []);
-
   const mutate = useCallback(async <T,>(optimistic: ((d: HouseholdData) => HouseholdData) | null, call: () => Promise<ActionResult<T>>, offline?: OfflineOp): Promise<ActionResult<T>> => {
     if (optimistic) setData(optimistic);
-    // No connection: shopping changes wait on the device; everything else says so.
-    if (offline && isOffline()) {
-      await keepForLater(offline);
+    // No connection, or older changes still waiting: shopping changes queue up on the
+    // device, so they can't overtake what was queued before them. Everything else says so.
+    if (offline && (isOffline() || flushing.current || queue.current.length > 0)) {
+      keepForLater(offline);
       return { ok: true, data: undefined as T };
     }
     pending.current++;
@@ -125,10 +171,13 @@ function useHousehold(initial: HouseholdWire) {
       result = { ok: false, error: "network" };
     }
     pending.current--;
-    if (!result.ok && result.error === "network" && offline) {
-      await keepForLater(offline);
+    const unreachable = !result.ok && result.error === "network";
+    if (unreachable && offline) {
+      keepForLater(offline, true);
       return { ok: true, data: undefined as T };
     }
+    // The server answered, so whatever is still queued can go now.
+    if (!unreachable) void flush();
     if (!result.ok) {
       stale.current = true;
       if (result.error === "unauthenticated") window.location.assign("/login");
@@ -138,40 +187,18 @@ function useHousehold(initial: HouseholdWire) {
     }
     if (pending.current === 0) void refresh();
     return result;
-  }, [refresh, keepForLater]);
-
-  /** Sends what was queued offline, oldest first; stops at the first sign the connection is gone again. */
-  const flush = useCallback(async () => {
-    if (flushing.current || isOffline()) return;
-    flushing.current = true;
-    try {
-      for (const { key, op } of await readQueue()) {
-        let r: ActionResult<unknown>;
-        try {
-          r = await (OFFLINE_ACTIONS[op.name] as (i: unknown) => Promise<ActionResult<unknown>>)(op.input);
-        } catch {
-          break;
-        }
-        if (!r.ok && r.error === "network") break;
-        if (!r.ok) setError(r.error);
-        await dequeue(key);
-        queue.current = queue.current.slice(1);
-        setQueued(queue.current.length);
-      }
-    } finally {
-      flushing.current = false;
-      void refresh();
-    }
-  }, [refresh]);
+  }, [refresh, keepForLater, flush]);
 
   // Picks up what an earlier visit queued, and, without a connection, the newest snapshot this device has.
   useEffect(() => {
     let live = true;
     (async () => {
-      const ops = (await readQueue()).map((q) => q.op);
+      const stored = await readQueue();
       if (!live) return;
-      queue.current = ops;
-      setQueued(ops.length);
+      // Anything queued in the moment before this ran stays behind what an earlier visit left.
+      queue.current = [...stored.map(({ key, op }) => ({ op, key: Promise.resolve<IDBValidKey | undefined>(key) })), ...queue.current];
+      setQueued(queue.current.length);
+      const ops = opsOf(queue.current);
       const cached = isOffline() ? await loadSnapshot() : undefined;
       if (!live) return;
       if (cached && new Date(cached.generatedAt) > new Date(initial.generatedAt)) setData(applyQueued(hydrate(cached), ops));
@@ -183,6 +210,7 @@ function useHousehold(initial: HouseholdWire) {
     return () => {
       live = false;
       window.removeEventListener("online", online);
+      clearTimeout(retry.current);
     };
     // The initial snapshot only matters on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -194,6 +222,8 @@ function useHousehold(initial: HouseholdWire) {
     const es = new EventSource("/api/stream");
     es.onopen = () => {
       setSync("live");
+      // Back in touch with the server: send what waited, then catch up.
+      void flush();
       void refresh();
       // A ring may have come while this screen was away.
       setRingTick((n) => n + 1);
@@ -216,7 +246,7 @@ function useHousehold(initial: HouseholdWire) {
       es.close();
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [refresh]);
+  }, [refresh, flush]);
 
   // ── Selectors ─────────────────────────────────────────────────────────────
   const selectors = useMemo(() => ({ ...householdSelectors(data), ...calendarSelectors(data.sources, data.events) }), [data]);

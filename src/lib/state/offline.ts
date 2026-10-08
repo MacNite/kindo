@@ -1,4 +1,4 @@
-import type { HouseholdData, HouseholdWire, ShoppingItem } from "../types";
+import type { ActionResult, HouseholdData, HouseholdWire, ShoppingItem } from "../types";
 import { guessCategory } from "../shopping";
 
 /**
@@ -28,6 +28,30 @@ export function applyQueued(d: HouseholdData, ops: OfflineOp[]): HouseholdData {
     }
   }
   return items === d.shoppingItems ? d : { ...d, shoppingItems: items };
+}
+
+/**
+ * Sends a queue oldest first, one at a time, including whatever joins it while
+ * it is being sent, so a change made meanwhile can't overtake an older one.
+ * `next` reads the head of the live queue, `sent` takes it off. Stops, leaving
+ * the rest queued, at the first sign the connection is gone again.
+ */
+export async function drainQueue<T>(
+  next: () => T | undefined,
+  send: (entry: T) => Promise<ActionResult<unknown>>,
+  sent: (entry: T, result: ActionResult<unknown>) => Promise<unknown> | void,
+): Promise<"sent" | "offline"> {
+  for (let entry = next(); entry !== undefined; entry = next()) {
+    let r: ActionResult<unknown>;
+    try {
+      r = await send(entry);
+    } catch {
+      return "offline";
+    }
+    if (!r.ok && r.error === "network") return "offline";
+    await sent(entry, r);
+  }
+  return "sent";
 }
 
 // ── IndexedDB ───────────────────────────────────────────────────────────────
@@ -64,7 +88,8 @@ function run<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore)
   }));
 }
 
-export const enqueue = (op: OfflineOp) => run(QUEUE, "readwrite", (s) => s.add(op));
+/** Stores an operation; resolves to its key (undefined without IndexedDB). */
+export const enqueue = (op: OfflineOp) => run<IDBValidKey>(QUEUE, "readwrite", (s) => s.add(op));
 
 /** The queue in the order it was made, with each entry's key for removal. */
 export async function readQueue(): Promise<{ key: IDBValidKey; op: OfflineOp }[]> {
