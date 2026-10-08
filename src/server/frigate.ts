@@ -53,6 +53,29 @@ function portOf(u: URL) {
   return Number(u.port || (u.protocol === "https:" ? 443 : 80));
 }
 
+/** What a connection error means for someone setting Frigate up behind a reverse proxy or in Docker. */
+function explain(code: string, u: URL): string {
+  if (/SELF_SIGNED|UNABLE_TO_VERIFY|CERT_/.test(code)) return `the certificate isn't trusted (${code}); connect again and trust Frigate's own certificate`;
+  if (code === "ERR_TLS_CERT_ALTNAME_INVALID") return `the certificate is for another name (${code})`;
+  if (code === "ENOTFOUND" || code === "EAI_AGAIN") return `the Kindo server can't resolve ${u.hostname} (${code}); its container needs a DNS server that knows this name`;
+  if (code === "ECONNREFUSED") return `nothing answers on port ${portOf(u)} (${code})`;
+  if (code === "ETIMEDOUT" || code === "EHOSTUNREACH" || code === "ENETUNREACH" || code === "timed out")
+    return `no answer from the Kindo server (${code}); a firewall, or a name that points to the public address from inside the house`;
+  if (/EPROTO|WRONG_VERSION_NUMBER/.test(code)) return `this port doesn't speak https (${code}); try http:// or Frigate's https port 8971`;
+  return code;
+}
+
+/** A redirect from Frigate's address: usually a sign-in proxy (authentik, Authelia) in front of it. */
+function redirected(res: Res): UserError | null {
+  if (res.status < 300 || res.status >= 400) return null;
+  const to = String(res.headers.location ?? "");
+  let where = to;
+  try {
+    where = new URL(to, "http://x").host || to;
+  } catch {}
+  return new UserError("remote", `Frigate's address redirects (HTTP ${res.status}${where ? ` to ${where}` : ""}). If a sign-in proxy is in front of Frigate, let /api through to Frigate or point Kindo at Frigate's own port 8971`);
+}
+
 /**
  * Opens the connection to Frigate. For https with a pinned fingerprint the
  * certificate is compared before the socket is handed over, so a wrong server
@@ -63,8 +86,7 @@ function openSocket(u: URL, fingerprint: string | undefined, timeoutMs: number):
     const host = u.hostname.replace(/^\[|\]$/g, "");
     const fail = (e: Error) => {
       socket.destroy();
-      const code = (e as NodeJS.ErrnoException).code ?? e.message;
-      reject(new UserError("remote", /SELF_SIGNED|UNABLE_TO_VERIFY|CERT_/.test(code) ? `${u.host}: the certificate isn't trusted (${code}); connect again and trust Frigate's own certificate` : `${u.host}: ${code}`));
+      reject(new UserError("remote", `${u.host}: ${explain((e as NodeJS.ErrnoException).code ?? e.message, u)}`));
     };
     const timer = setTimeout(() => fail(new Error("timed out")), timeoutMs);
     const done = () => clearTimeout(timer);
@@ -153,7 +175,7 @@ export function probeCertificate(url: string, timeoutMs = 10_000): Promise<{ fin
     });
     tls.once("error", (e) => {
       clearTimeout(timer);
-      reject(new UserError("remote", `${u.host}: ${(e as NodeJS.ErrnoException).code ?? e.message}`));
+      reject(new UserError("remote", `${u.host}: ${explain((e as NodeJS.ErrnoException).code ?? e.message, u)}`));
     });
   });
 }
@@ -179,6 +201,8 @@ async function login(t: FrigateTarget): Promise<string> {
   const res = await frigateRequest(t, "api/login", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ user: t.username, password: t.password }),
   });
+  const moved = redirected(res);
+  if (moved) throw moved;
   // Port 5000, or authentication switched off: nothing to sign in to.
   if (res.status === 404) return "";
   if (res.status === 401 || res.status === 400) throw new UserError("remote", "Frigate refused the username or password");
@@ -218,12 +242,16 @@ export const forgetToken = (t: FrigateTarget) => tokens.delete(tokenKey(t));
  */
 export async function listFrigate(t: FrigateTarget): Promise<{ cameras: string[]; streams: string[] }> {
   const res = await authed(t, "api/config");
+  const moved = redirected(res);
+  if (moved) throw moved;
+  if (res.status === 404) throw new UserError("remote", `no Frigate API at ${t.url} (HTTP 404); is this Frigate's address, with the right port?`);
+  if (res.status === 401 || res.status === 403) throw new UserError("remote", `Frigate refused access (HTTP ${res.status}); check the user, or a proxy in front of Frigate`);
   if (res.status !== 200) throw new UserError("remote", `Frigate: HTTP ${res.status}`);
   let cfg: { cameras?: Record<string, unknown>; go2rtc?: { streams?: Record<string, unknown> } };
   try {
     cfg = JSON.parse(res.body.toString("utf8"));
   } catch {
-    throw new UserError("remote", "this doesn't look like Frigate");
+    throw new UserError("remote", `${t.url} answered, but not like Frigate (a web page instead of Frigate's API: a proxy's page, or another service)`);
   }
   if (!cfg || typeof cfg.cameras !== "object") throw new UserError("remote", "this doesn't look like Frigate");
   const names = (o: object | undefined) => Object.keys(o ?? {}).filter((n) => STREAM_NAME.test(n)).sort();

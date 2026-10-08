@@ -336,4 +336,5 @@ export interface HouseholdData {
 export type HouseholdWire = Omit<HouseholdData, "meals"> & { meals: Omit<Meal, "date">[]; generatedAt: Date };
 
 /** What every Server Action returns: production builds hide thrown messages, so errors travel as codes. */
-export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string };
+/** `detail`: for admins, what an outside service said when it failed (an address that doesn't resolve, a redirect). */
+export type ActionResult<T = void> = { ok: true; data: T } | { ok: false; error: string; detail?: string };
