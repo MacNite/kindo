@@ -60,7 +60,7 @@ export function CalendarScreen() {
               <IconButton label={t("calendar.next")} onClick={() => step(1)}><ChevronRight /></IconButton>
             </div>
           )}
-          <Segmented value={view} onChange={setView} label="View" options={[
+          <Segmented value={view} onChange={setView} label={t("calendar.view")} options={[
             { value: "month", label: t("calendar.month") }, { value: "week", label: t("calendar.week") }, { value: "agenda", label: t("calendar.agenda") },
             { value: "birthdays", label: t("calendar.birthdays") },
           ]} />

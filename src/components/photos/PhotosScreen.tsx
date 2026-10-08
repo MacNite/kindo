@@ -44,7 +44,7 @@ export function PhotosScreen() {
                 <header className="mb-2 flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken"><Server size={18} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold">Immich, {s}</p>
+                    <p className="font-bold">{t("photos.server", { name: s })}</p>
                   </div>
                 </header>
                 <ul className="grid gap-2 sm:grid-cols-2">
@@ -100,7 +100,7 @@ export function PhotosScreen() {
             <div className="flex items-center justify-between gap-3">
               <span className="font-bold">{t("photos.idle")}</span>
               <select value={idleMinutes} onChange={(e) => setIdleMinutes(+e.target.value)} className="h-10 rounded-full bg-sunken px-4 font-bold">
-                {[0.25, 1, 2, 5, 10].map((n) => <option key={n} value={n}>{n < 1 ? `${n * 60} s` : t("common.minutes", { n })}</option>)}
+                {[0.25, 1, 2, 5, 10].map((n) => <option key={n} value={n}>{n < 1 ? t("common.seconds", { n: n * 60 }) : t("common.minutes", { n })}</option>)}
               </select>
             </div>
             <div className="mt-4 flex items-center justify-between gap-3">

@@ -4,7 +4,7 @@
  * Placeholders use {name} syntax.
  */
 const en = {
-  app: { name: "Kindo" },
+  app: { name: "Kindo", tagline: "The family's day on one screen" },
   nav: {
     home: "Home", calendar: "Calendar", routines: "Routines", tasks: "Tasks", shopping: "Shopping",
     meals: "Meals", rewards: "Rewards", photos: "Photos", settings: "Settings", more: "More",
@@ -16,6 +16,7 @@ const en = {
     edit: "Edit", save: "Save", cancel: "Cancel", add: "Add", close: "Close", everyone: "Everyone",
     anyone: "Anyone", inDays: "in {n} days", now: "Now", seeAll: "See all", ofTotal: "{done} of {total}",
     approve: "Approve", decline: "Not yet", back: "Back", hide: "Hide", show: "Show",
+    decrease: "Less", increase: "More", seconds: "{n} s",
     moveEarlier: "Move earlier", moveLater: "Move later", size: "Size", configure: "Set up",
     connected: "Connected", partial: "Partly set up", off: "Not connected", planned: "Later version",
     mockNote: "Prototype: changes are kept until you reload.", until: "until {time}", minutes: "{n} min",
@@ -24,6 +25,8 @@ const en = {
   greeting: { morning: "Good morning", afternoon: "Good afternoon", evening: "Good evening" },
   roles: { admin: "Household admin", adult: "Adult", child: "Child" },
   period: { morning: "Morning", afternoon: "Afternoon", evening: "Evening" },
+  /** Member colours, by name rather than hex code. */
+  colors: { blue: "Blue", green: "Green", purple: "Purple", orange: "Orange", pink: "Pink", teal: "Teal", red: "Red", grey: "Grey" },
   sky: { sun: "Sunny", partly: "Partly cloudy", cloud: "Cloudy", rain: "Rain", snow: "Snow" },
   weather: { none: "No weather source yet.", range: "{high}° / {low}°", rain: "{p}% rain" },
   home: {
@@ -42,6 +45,7 @@ const en = {
     home: "Home control", birthdays: "Birthdays", cameras: "Cameras",
   },
   calendar: {
+    view: "View",
     holiday: "School holidays", recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
     editEvent: "Edit event", eventTitle: "Title", titlePlaceholder: "e.g. Swimming lesson", startTime: "From", endTime: "Until",
     month: "Month", week: "Week", agenda: "Agenda", sources: "Calendars", newEvent: "New event",
@@ -132,6 +136,7 @@ const en = {
     birthday: "Birthday", anniversary: "Anniversary", school: "School", other: "Date",
   },
   photos: {
+    server: "Immich, {name}",
     none: "No photos in the rotation yet.", noServers: "No photo server connected yet.",
     title: "Photos", subtitle: "The wall display becomes a photo frame when nobody is using it.",
     servers: "Photo sources", addServer: "Add Immich server", albums: "{n} albums", photos: "{n} photos",
@@ -181,7 +186,7 @@ const en = {
     nextUp: "Next", parentHint: "Hold to leave",
   },
   errors: { pin: "This needs the settings PIN.", noPin: "No settings PIN has been set yet.", wrongPin: "That PIN isn't right.", tooManyAttempts: "Too many tries. Please wait a minute.", wrongLogin: "Email or password isn't right.", sso: "Single sign-on didn't work. Is your email set up for a login?", notFound: "That no longer exists. The screen has been refreshed.", invalid: "Please check your entries.", forbidden: "You aren't allowed to do that.", unauthenticated: "Please sign in again.", conflict: "That has already been done.", notEnoughPoints: "Not enough points yet.", readOnly: "This calendar is read only.", remote: "The connected service didn't answer. Please try again later.", server: "Something went wrong. Please try again.", busy: "Someone else is talking through this camera right now.", micDenied: "Kindo may not use the microphone. Allow it in the browser's site settings.", insecure: "Talking needs Kindo to be opened over https.", aborted: "Stopped.", network: "No connection. Please try again." },
-  setup: { claimIntro: "This household has no login yet. Create the admin's login to continue.", passwordHint: "At least 8 characters.", ssoHint: "Use the email of your {name} account. You sign in with {name} next.", title: "Welcome to Kindo", intro: "Set up your household. You can add more people, calendars and photos later in Settings.", household: "Household name", householdPlaceholder: "e.g. The Müllers", you: "Your name", youHint: "You become the household admin.", demo: "Start with the demo family", demoHint: "Loads the Müller family with routines, events and photos, to try everything out.", timezone: "Time zone: {zone}. You can change it later.", start: "Get started" },
+  setup: { defaultHousehold: "Household", defaultName: "Admin", claimIntro: "This household has no login yet. Create the admin's login to continue.", passwordHint: "At least 8 characters.", ssoHint: "Use the email of your {name} account. You sign in with {name} next.", title: "Welcome to Kindo", intro: "Set up your household. You can add more people, calendars and photos later in Settings.", household: "Household name", householdPlaceholder: "e.g. The Müllers", you: "Your name", youHint: "You become the household admin.", demo: "Start with the demo family", demoHint: "Loads the Müller family with routines, events and photos, to try everything out.", timezone: "Time zone: {zone}. You can change it later.", start: "Get started" },
   history: { empty: "Nobody has routines or chores yet.", hint: "The last two weeks. A circle fills as a routine gets done.", nothingDue: "nothing due" },
   login: { email: "Email", password: "Password", signIn: "Sign in", or: "or", sso: "Sign in with {name}", pairHint: "Set up this screen as a wall display" },
   pair: { title: "Pair this screen", hint: "An admin opens Settings → Devices on their phone and enters this code, or scans the QR code. This screen then shows the wall display and needs no login.", code: "Pairing code", signInInstead: "Sign in instead" },

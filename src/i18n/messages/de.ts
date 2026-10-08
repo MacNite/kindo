@@ -1,7 +1,7 @@
 import type { Messages } from "./en";
 
 const de: Messages = {
-  app: { name: "Kindo" },
+  app: { name: "Kindo", tagline: "Der Tag der Familie auf einem Bildschirm" },
   nav: {
     home: "Start", calendar: "Kalender", routines: "Routinen", tasks: "Aufgaben", shopping: "Einkauf",
     meals: "Essen", rewards: "Belohnungen", photos: "Fotos", settings: "Einstellungen", more: "Mehr",
@@ -13,6 +13,7 @@ const de: Messages = {
     edit: "Bearbeiten", save: "Speichern", cancel: "Abbrechen", add: "Hinzufügen", close: "Schließen", everyone: "Alle",
     anyone: "Irgendwer", inDays: "in {n} Tagen", now: "Jetzt", seeAll: "Alle anzeigen", ofTotal: "{done} von {total}",
     approve: "Bestätigen", decline: "Noch nicht", back: "Zurück", hide: "Ausblenden", show: "Einblenden",
+    decrease: "Weniger", increase: "Mehr", seconds: "{n} s",
     moveEarlier: "Nach vorne", moveLater: "Nach hinten", size: "Größe", configure: "Einrichten",
     connected: "Verbunden", partial: "Teilweise eingerichtet", off: "Nicht verbunden", planned: "Spätere Version",
     mockNote: "Prototyp: Änderungen bleiben bis zum Neuladen erhalten.", until: "bis {time}", minutes: "{n} Min.",
@@ -21,6 +22,7 @@ const de: Messages = {
   greeting: { morning: "Guten Morgen", afternoon: "Guten Tag", evening: "Guten Abend" },
   roles: { admin: "Haushaltsverwaltung", adult: "Erwachsen", child: "Kind" },
   period: { morning: "Morgens", afternoon: "Nachmittags", evening: "Abends" },
+  colors: { blue: "Blau", green: "Grün", purple: "Lila", orange: "Orange", pink: "Pink", teal: "Petrol", red: "Rot", grey: "Grau" },
   sky: { sun: "Sonnig", partly: "Teils bewölkt", cloud: "Bewölkt", rain: "Regen", snow: "Schnee" },
   weather: { none: "Noch keine Wetterquelle.", range: "{high}° / {low}°", rain: "{p} % Regen" },
   home: {
@@ -39,6 +41,7 @@ const de: Messages = {
     home: "Zuhause", birthdays: "Geburtstage", cameras: "Kameras",
   },
   calendar: {
+    view: "Ansicht",
     holiday: "Ferien", recurringHint: "Teil einer Terminserie: Bitte in der Kalender-App ändern, aus der sie stammt.",
     editEvent: "Termin bearbeiten", eventTitle: "Titel", titlePlaceholder: "z. B. Schwimmkurs", startTime: "Von", endTime: "Bis",
     month: "Monat", week: "Woche", agenda: "Liste", sources: "Kalender", newEvent: "Neuer Termin",
@@ -129,6 +132,7 @@ const de: Messages = {
     birthday: "Geburtstag", anniversary: "Jahrestag", school: "Schule", other: "Termin",
   },
   photos: {
+    server: "Immich, {name}",
     none: "Noch keine Fotos in der Rotation.", noServers: "Noch kein Fotoserver verbunden.",
     title: "Fotos", subtitle: "Die Wandanzeige wird zum Bilderrahmen, wenn niemand sie benutzt.",
     servers: "Fotoquellen", addServer: "Immich-Server hinzufügen", albums: "{n} Alben", photos: "{n} Fotos",
@@ -178,7 +182,7 @@ const de: Messages = {
     nextUp: "Als Nächstes", parentHint: "Gedrückt halten zum Verlassen",
   },
   errors: { pin: "Dafür braucht es die Einstellungs-PIN.", noPin: "Es wurde noch keine Einstellungs-PIN festgelegt.", wrongPin: "Diese PIN stimmt nicht.", tooManyAttempts: "Zu viele Versuche. Bitte eine Minute warten.", wrongLogin: "E-Mail oder Passwort stimmt nicht.", sso: "Die Anmeldung über Single Sign-on hat nicht geklappt. Gibt es für diese E-Mail ein Login?", notFound: "Das gibt es nicht mehr. Die Anzeige wurde aktualisiert.", invalid: "Bitte prüfe deine Eingaben.", forbidden: "Das darfst du nicht.", unauthenticated: "Bitte melde dich erneut an.", conflict: "Das ist schon erledigt.", notEnoughPoints: "Noch nicht genug Punkte.", readOnly: "Dieser Kalender ist schreibgeschützt.", remote: "Der verbundene Dienst hat nicht geantwortet. Bitte später noch einmal versuchen.", server: "Da ist etwas schiefgegangen. Bitte noch einmal versuchen.", busy: "Gerade spricht jemand anderes über diese Kamera.", micDenied: "Kindo darf das Mikrofon nicht verwenden. Erlaube es in den Website-Einstellungen des Browsers.", insecure: "Zum Sprechen muss Kindo über https geöffnet sein.", aborted: "Abgebrochen.", network: "Keine Verbindung. Bitte noch einmal versuchen." },
-  setup: { claimIntro: "Dieser Haushalt hat noch kein Login. Lege das Login für die Verwaltung an, um fortzufahren.", passwordHint: "Mindestens 8 Zeichen.", ssoHint: "Nimm die E-Mail deines {name}-Kontos. Danach meldest du dich mit {name} an.", title: "Willkommen bei Kindo", intro: "Richte deinen Haushalt ein. Weitere Personen, Kalender und Fotos kannst du später in den Einstellungen hinzufügen.", household: "Name des Haushalts", householdPlaceholder: "z. B. Familie Müller", you: "Dein Name", youHint: "Du verwaltest den Haushalt.", demo: "Mit der Demo-Familie starten", demoHint: "Lädt Familie Müller mit Routinen, Terminen und Fotos, um alles auszuprobieren.", timezone: "Zeitzone: {zone}. Lässt sich später ändern.", start: "Los geht's" },
+  setup: { defaultHousehold: "Haushalt", defaultName: "Admin", claimIntro: "Dieser Haushalt hat noch kein Login. Lege das Login für die Verwaltung an, um fortzufahren.", passwordHint: "Mindestens 8 Zeichen.", ssoHint: "Nimm die E-Mail deines {name}-Kontos. Danach meldest du dich mit {name} an.", title: "Willkommen bei Kindo", intro: "Richte deinen Haushalt ein. Weitere Personen, Kalender und Fotos kannst du später in den Einstellungen hinzufügen.", household: "Name des Haushalts", householdPlaceholder: "z. B. Familie Müller", you: "Dein Name", youHint: "Du verwaltest den Haushalt.", demo: "Mit der Demo-Familie starten", demoHint: "Lädt Familie Müller mit Routinen, Terminen und Fotos, um alles auszuprobieren.", timezone: "Zeitzone: {zone}. Lässt sich später ändern.", start: "Los geht's" },
   history: { empty: "Noch niemand hat Routinen oder Aufgaben.", hint: "Die letzten zwei Wochen. Ein Kreis füllt sich, wenn eine Routine erledigt ist.", nothingDue: "nichts fällig" },
   login: { email: "E-Mail", password: "Passwort", signIn: "Anmelden", or: "oder", sso: "Mit {name} anmelden", pairHint: "Diesen Bildschirm als Wandanzeige einrichten" },
   pair: { title: "Bildschirm koppeln", hint: "Eine Person mit Verwaltungsrechten öffnet auf dem Handy Einstellungen → Geräte und gibt diesen Code ein oder scannt den QR-Code. Danach zeigt dieser Bildschirm die Wandanzeige, ganz ohne Login.", code: "Kopplungscode", signInInstead: "Stattdessen anmelden" },

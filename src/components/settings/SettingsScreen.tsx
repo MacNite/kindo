@@ -73,7 +73,7 @@ export function SettingsScreen() {
           ))}
         </nav>
         <div className={cn("min-w-0", !section && "max-md:hidden")}>
-          <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden">← {t("common.back")}</button>
+          <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden"><span aria-hidden>← </span>{t("common.back")}</button>
           <h2 className="mb-4 font-display text-2xl font-bold">{t(`settings.sections.${active}`)}</h2>
           <Section id={active} code={params.get("code") ?? undefined} />
         </div>

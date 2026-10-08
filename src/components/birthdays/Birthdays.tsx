@@ -245,7 +245,7 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
           {selected.turns && <p className="font-bold" style={{ color: colorOf(selected, getMember) }}>{words.turns(selected)}</p>}
           <p className={cn("num font-display font-semibold", large ? "text-xl" : "text-lg")}>{words.when(selected)}</p>
           {sleeps > 0 && (
-            <p className="mt-1 flex flex-wrap gap-1" aria-label={words.sleeps(sleeps)} title={words.sleeps(sleeps)}>
+            <p className="mt-1 flex flex-wrap gap-1" role="img" aria-label={words.sleeps(sleeps)} title={words.sleeps(sleeps)}>
               {Array.from({ length: sleeps }, (_, i) => <span key={i} className="h-3 w-3 rounded-full bg-star" />)}
             </p>
           )}

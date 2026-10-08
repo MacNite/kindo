@@ -15,9 +15,8 @@ import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { MemberPicker } from "../ui/MemberPicker";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
+import { MEMBER_COLORS, colorName } from "../ui/memberColors";
 
-/** Calm, distinct member colours that read on both themes (§3, §16). */
-export const MEMBER_COLORS = ["#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B", "#C2477A", "#2A8C9E", "#B4443C", "#5B6A6D"];
 /** Avatar choices: friendly animals first, then a few favourite things. Kept apart from task pictures. */
 const AVATAR_EMOJI = [
   "🦊", "🐻", "🦄", "🐴", "🦖", "🐼", "🐸", "🦁", "🐯", "🐨", "🐰", "🐶", "🐱", "🐵", "🐷", "🐧",
@@ -58,7 +57,7 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
         <Field label={t("settings.members.color")}>
           <div className="flex flex-wrap gap-2" role="radiogroup">
             {MEMBER_COLORS.map((c) => (
-              <button type="button" key={c} role="radio" aria-checked={color === c} aria-label={c} onClick={() => setColor(c)}
+              <button type="button" key={c} role="radio" aria-checked={color === c} aria-label={t(colorName(c) ?? "settings.members.color")} onClick={() => setColor(c)}
                 className={cn("h-10 w-10 rounded-full", color === c && "ring-4 ring-ink/30 ring-offset-2 ring-offset-surface")} style={{ background: c }} />
             ))}
           </div>

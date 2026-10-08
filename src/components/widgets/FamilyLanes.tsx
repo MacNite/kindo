@@ -8,6 +8,7 @@ import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
 import { addDays } from "@/lib/dates";
+import { stepName } from "@/lib/pictograms";
 import { Avatar } from "../ui/Avatar";
 import { RewardAmount } from "../ui/RewardAmount";
 import { Pictogram } from "../ui/Pictogram";
@@ -81,7 +82,7 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
       </header>
 
       {showBalance && (
-        <p aria-label={t("rewards.balanceOf", { name: member.name })}
+        <p role="group" aria-label={t("rewards.balanceOf", { name: member.name })}
           className={cn("mt-3 self-start rounded-full bg-star/15", wall ? "px-4 py-1.5" : "px-3 py-1")}>
           <RewardAmount points={balances[member.id] ?? 0} iconSize={wall ? 30 : 20} className={cn("font-display", wall ? "gap-2 text-3xl" : "text-xl")} />
         </p>
@@ -94,7 +95,7 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
             {routine.items.map((i) => {
               const done = isDone(i.id);
               return (
-                <button key={i.id} onClick={() => toggleTaskItem(member.id, i)} aria-pressed={done} aria-label={tx(i.label)} title={tx(i.label)}
+                <button key={i.id} onClick={() => toggleTaskItem(member.id, i)} aria-pressed={done} aria-label={stepName(i, tx)} title={stepName(i, tx)}
                   className={cn("relative grid aspect-square place-items-center rounded-tile transition-colors",
                     done ? "m-bg text-white" : "bg-surface m-text")}>
                   <Pictogram id={i.pictogram} className={wall ? "h-9 w-9" : "h-6 w-6"} />
