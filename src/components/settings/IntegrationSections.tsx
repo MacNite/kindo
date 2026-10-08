@@ -1,7 +1,8 @@
 "use client";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Cctv, Cloud, Globe, House, ImageIcon, Lock, Pencil, Plus, RefreshCw, Rss, Trash2 } from "lucide-react";
-import type { ActionResult, CalendarSource, ConnectionInfo, Integration } from "@/lib/types";
+import type { ActionResult, CalendarSource, ConnectionInfo, Integration, Text } from "@/lib/types";
+import { editText } from "@/lib/text";
 import { useI18n, type MessageKey } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { addCalDav, addFrigate, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
@@ -334,9 +335,9 @@ export function CalendarSourcesSection() {
 }
 
 function SourceEditor({ source, onClose }: { source: CalendarSource; onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, language } = useI18n();
   const { getMembers, run } = useStore();
-  const [name, setName] = useState(tx(source.name));
+  const [name, setName] = useState<Text>(source.name);
   const [who, setWho] = useState(new Set(source.defaultMemberIds));
   const [readOnly, setReadOnly] = useState(source.readOnly);
   const [background, setBackground] = useState(source.background ?? false);
@@ -348,11 +349,11 @@ function SourceEditor({ source, onClose }: { source: CalendarSource; onClose: ()
         {source.provider !== "local" && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => removeSource({ id: source.id })))}><Trash2 size={16} />{t("sources.remove")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={!name.trim()}
+        <Button variant="primary" disabled={!tx(name).trim()}
           onClick={async () => done(await run(() => updateSource({ id: source.id, name, defaultMemberIds: [...who], readOnly, background })))}>{t("common.save")}</Button>
       </>}>
       <div className="flex flex-col gap-5">
-        <Field label={t("routines.label")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label={t("routines.label")}><input className={inputCls} value={tx(name)} onChange={(e) => setName(editText(name, language, e.target.value))} /></Field>
         <Field label={t("settings.calendar.belongsTo")} hint={t("sources.whoHint")}>
           <MemberFilter size="sm" members={getMembers()} selected={who} onToggle={(id) => setWho((s) => toggled(s, id))} />
         </Field>

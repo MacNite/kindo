@@ -3,7 +3,7 @@ import type { Connection, Prisma } from "@prisma/client";
 import type { Tx } from "./db";
 import { encryptSecret } from "./crypto";
 import { UserError, notFound } from "./errors";
-import { id } from "./validation";
+import { id, requiredText } from "./validation";
 import { providerFor, syncConnection } from "./calendar/sync";
 import { listCalendars } from "./calendar/caldav";
 import { listAlbums } from "./photos/immich";
@@ -35,7 +35,7 @@ export const C = {
   addCalDav: z.object({ name: z.string().trim().max(60).optional(), url: httpUrl, username: z.string().trim().min(1).max(200), password: z.string().min(1).max(500) }),
   source: z.object({
     id,
-    name: z.string().trim().min(1).max(80),
+    name: requiredText,
     defaultMemberIds: z.array(id).max(20),
     readOnly: z.boolean(),
     background: z.boolean(),

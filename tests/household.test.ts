@@ -212,6 +212,11 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     await H.saveMeal(db, { day: "2030-01-01", dinner: "" });
     expect(await db.meal.count({ where: { day: "2030-01-01" } })).toBe(0);
   });
+
+  it("a dinner keeps both languages (§14)", async () => {
+    await H.saveMeal(db, { day: "2030-01-02", dinner: { de: "Nudeln", en: "Pasta" }, note: { de: "", en: "" } });
+    expect(await db.meal.findUniqueOrThrow({ where: { day: "2030-01-02" } })).toMatchObject({ dinner: { de: "Nudeln", en: "Pasta" }, note: null });
+  });
 });
 
 describe.skipIf(!TEST_DB)("first-run setup", () => {

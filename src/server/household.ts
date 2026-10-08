@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { z } from "zod";
 import type { Recurrence, RewardMode, TaskValue, Text } from "@/lib/types";
 import { guessCategory } from "@/lib/shopping";
+import { isBlankText } from "@/lib/text";
 import { completionOutcome, routineStepValue } from "@/lib/ledger";
 import { householdDayKeyIn, normalizeRecurrence, sameRecurrence } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
@@ -353,11 +354,11 @@ export async function deleteChore(db: Tx, input: In<"byId">) {
 // ── Meals and dates ─────────────────────────────────────────────────────────
 /** An empty dinner clears the day. */
 export async function saveMeal(db: Tx, input: In<"meal">) {
-  if (!input.dinner) {
+  if (isBlankText(input.dinner)) {
     await db.meal.deleteMany({ where: { day: input.day } });
     return;
   }
-  const data = { dinner: json(input.dinner), cookId: input.cookId ?? null, note: input.note ? json(input.note) : Prisma.DbNull };
+  const data = { dinner: json(input.dinner), cookId: input.cookId ?? null, note: !isBlankText(input.note) ? json(input.note) : Prisma.DbNull };
   await db.meal.upsert({ where: { day: input.day }, create: { day: input.day, ...data }, update: data });
 }
 

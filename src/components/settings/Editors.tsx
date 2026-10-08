@@ -2,7 +2,8 @@
 import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Cake, CalendarHeart, ChevronRight, GraduationCap, Heart, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
-import type { ImportantDate, ImportantDateKind, Member, Role } from "@/lib/types";
+import type { ImportantDate, ImportantDateKind, Member, Role, Text } from "@/lib/types";
+import { editText } from "@/lib/text";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
@@ -123,10 +124,10 @@ export function DatesSection() {
 
 /** Adds or edits an important date; also opened from the calendar's "Important day" (D46). */
 export function DateEditor({ date, onClose, title: heading }: { date: ImportantDate | null; onClose: () => void; title?: string }) {
-  const { t, tx } = useI18n();
+  const { t, tx, language } = useI18n();
   const { getMembers, run } = useStore();
   const [kind, setKind] = useState<ImportantDateKind>(date?.kind ?? "birthday");
-  const [title, setTitle] = useState(date ? tx(date.title) : "");
+  const [title, setTitle] = useState<Text>(date?.title ?? "");
   const [day, setDay] = useState(date?.date ?? "");
   const [yearly, setYearly] = useState(date?.yearly ?? true);
   const [memberId, setMemberId] = useState<string | null>(date?.memberId ?? null);
@@ -138,14 +139,14 @@ export function DateEditor({ date, onClose, title: heading }: { date: ImportantD
         {date && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => deleteImportantDate({ id: date.id })))}><Trash2 size={16} />{t("common.delete")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={!title.trim() || !day}
+        <Button variant="primary" disabled={!tx(title).trim() || !day}
           onClick={async () => done(await run(() => saveImportantDate({ id: date?.id, kind, title, date: day, yearly, memberId })))}>{t("common.save")}</Button>
       </>}>
       <div className="flex flex-col gap-4">
         <Field label={t("settings.dates.kind")}>
           <Segmented size="sm" value={kind} onChange={(k) => { setKind(k); setYearly(k === "birthday" || k === "anniversary"); }} options={KINDS.map((k) => ({ value: k, label: t(`dates.${k}`) }))} />
         </Field>
-        <Field label={t("routines.label")}><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label={t("routines.label")}><input className={inputCls} value={tx(title)} onChange={(e) => setTitle(editText(title, language, e.target.value))} /></Field>
         <Field label={t("settings.dates.date")} hint={yearly ? t("settings.dates.yearlyHint") : undefined}><input type="date" className={inputCls} value={day} onChange={(e) => setDay(e.target.value)} /></Field>
         <label className="flex items-center gap-2 font-bold"><input type="checkbox" className="h-5 w-5" checked={yearly} onChange={(e) => setYearly(e.target.checked)} />{t("settings.dates.yearly")}</label>
         <Field label={t("settings.dates.who")}><MemberPicker members={getMembers()} value={memberId} onChange={setMemberId} noneLabel={t("common.everyone")} /></Field>

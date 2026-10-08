@@ -9,6 +9,7 @@ import { addRoutineSteps, deleteChore, deleteRoutineStep, saveChore, saveRoutine
 import { DEFAULT_ROUTINE_POINTS, routineStepValue } from "@/lib/ledger";
 import { getPictogram } from "@/lib/pictograms";
 import { recurrenceKey } from "@/lib/recurrence";
+import { editText } from "@/lib/text";
 import { Button } from "../ui/Button";
 import { PageHeader } from "../ui/Panel";
 import { Segmented, Switch, Field, inputCls } from "../ui/Segmented";
@@ -281,7 +282,7 @@ function NewRoutine({ onClose }: { onClose: () => void }) {
 }
 
 function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, language } = useI18n();
   const { getMember, getMembers, run, rewardMode } = useStore();
   const [d, setD] = useState(draft);
   const step = d.kind === "step";
@@ -342,7 +343,7 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
         <div className="flex flex-col gap-6">
           <Field label={t("routines.pictogram")}><PictogramPicker value={item.pictogram} onChange={(pictogram) => set({ pictogram })} /></Field>
           <Field label={t("routines.label")} hint={t("routines.labelHint")}>
-            <input className={inputCls} value={tx(item.label)} onChange={(e) => set({ label: e.target.value })} />
+            <input className={inputCls} value={tx(item.label)} onChange={(e) => set({ label: editText(item.label, language, e.target.value) })} />
           </Field>
           <Field label={t("routines.assignTo")} hint={multi ? t("routines.assignToMany") : undefined}>
             <PeoplePicker people={people} selected={selected} onPick={pick} disabled={step} />
