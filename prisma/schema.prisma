@@ -105,19 +105,23 @@ model Household {
 }
 
 model Member {
-  id        String   @id @default(cuid())
-  name      String
-  role      Role
-  color     String
+  id             String   @id @default(cuid())
+  name           String
+  role           Role
+  color          String
   /// `Member["avatar"]`: emoji, initial or photo.
-  avatar    Json
+  avatar         Json
   /// YYYY-MM-DD
-  birthday  String?
-  sortOrder Int      @default(0)
-  createdAt DateTime @default(now())
+  birthday       String?
+  /// Routine steps earn points while this is on (§9, D42).
+  routineRewards Boolean  @default(false)
+  /// What a routine step earns when it sets no points of its own.
+  routinePoints  Int      @default(5)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
   /// People and logins are separate (§3): children never have one.
-  userId    String?  @unique
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   routines    Routine[]
   chores      Chore[]
@@ -148,7 +152,7 @@ model RoutineStep {
   position  Int
   pictogram String
   label     Json
-  /// `TaskValue`: expected, or an extra with points (§9)
+  /// `TaskValue`: "expected" follows the member's routine points, an "extra" sets its own (§9, D42)
   value     Json
 
   @@index([routineId, position])

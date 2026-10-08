@@ -3,6 +3,7 @@ import type {
   Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, WidgetConfig, ConnectionInfo,
 } from "@/lib/types";
 import { addDays, dateKey, startOfDay } from "@/lib/dates";
+import { routineStepValue } from "@/lib/ledger";
 import type { Tx } from "./db";
 import { fromStoredEvent } from "./events";
 import { demoWeather } from "./demo/data";
@@ -48,9 +49,13 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     db.connection.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
+  const rewardsOf = new Map(members.map((m) => [m.id, { on: m.routineRewards, points: m.routinePoints }]));
   const routineItems: Routine[] = routines.map((r) => ({
     id: r.id, memberId: r.memberId, period: r.period, recurrence: r.recurrence as unknown as Recurrence,
-    items: r.steps.map((s): TaskItem => ({ id: s.id, pictogram: s.pictogram, label: s.label as Text, value: value(s.value) })),
+    items: r.steps.map((s): TaskItem => {
+      const own = value(s.value);
+      return { id: s.id, pictogram: s.pictogram, label: s.label as Text, own, value: routineStepValue(own, rewardsOf.get(r.memberId), household.rewardMode) };
+    }),
   }));
 
   const completionList: Completion[] = completions.map((c) => ({
@@ -72,7 +77,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     viewer,
     members: members.map((m): Member => ({
       id: m.id, name: m.name, role: m.role, color: m.color, avatar: m.avatar as Member["avatar"], birthday: m.birthday ?? undefined,
-      account: m.user ? { email: m.user.email } : undefined,
+      account: m.user ? { email: m.user.email } : undefined, routineRewards: { on: m.routineRewards, points: m.routinePoints },
     })),
     routines: routineItems,
     chores: chores.map((c): Chore => ({

@@ -17,8 +17,14 @@ export function householdSelectors(d: HouseholdData) {
 
   const routinesFor = (memberId: string, day: Date): Routine[] =>
     d.routines.filter((r) => r.memberId === memberId && occursOn(r.recurrence, day, isSchoolDay));
-  const routineFor = (memberId: string, period: Period, day: Date): Routine | undefined =>
-    routinesFor(memberId, day).find((r) => r.period === period);
+  /**
+   * Everything a member does in one period of a day, as one routine: a daily
+   * morning and a school-day morning show up as one morning (D43).
+   */
+  const routineFor = (memberId: string, period: Period, day: Date): Routine | undefined => {
+    const due = routinesFor(memberId, day).filter((r) => r.period === period);
+    return due.length > 1 ? { ...due[0], items: due.flatMap((r) => r.items) } : due[0];
+  };
   const choresOn = (day: Date): Chore[] => d.chores.filter((c) => occursOn(c.recurrence, day, isSchoolDay));
   /** Holiday ranges covering a day, one per name (two feeds often list the same holiday). */
   const holidaysOn = (day: Date): Holiday[] => {
@@ -58,6 +64,6 @@ export function dayProgress(d: HouseholdData, memberId: string, day: Date): DayP
     p.done += r.items.filter((i) => done.has(i.id)).length;
     periods[r.period] = p;
   }
-  const chores = choresOn(day).filter((c) => c.memberId === memberId && c.item.value.kind === "expected");
+  const chores = choresOn(day).filter((c) => c.memberId === memberId);
   return { day, periods, choresDue: chores.length, choresDone: chores.filter((c) => done.has(c.item.id)).length };
 }

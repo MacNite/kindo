@@ -19,6 +19,11 @@ export interface Member {
   birthday?: string; // ISO date
   /** People and accounts are separate: children usually have none. */
   account?: { email: string; lastSeen?: string };
+  /**
+   * Points for routine steps while a child gets used to them (§9, D42). Off
+   * keeps the number, so switching back on restores it.
+   */
+  routineRewards?: { on: boolean; points: number };
 }
 
 // ── Calendar ────────────────────────────────────────────────────────────────
@@ -70,14 +75,20 @@ export type Recurrence =
 // ── Routines, chores, tasks ─────────────────────────────────────────────────
 export type Period = "morning" | "afternoon" | "evening";
 
-/** Expected routines earn nothing; extras can earn a reward. */
+/** Without a reward ("expected") or with one ("extra"). Routine steps earn only while their child's routine rewards are on (§9). */
 export type TaskValue = { kind: "expected" } | { kind: "extra"; points: number; needsApproval: boolean };
 
 export interface TaskItem {
   id: string;
   pictogram: string; // id from the pictogram library, "emoji:🐱" or "img:<url>"
   label: Text;
+  /** What ticking it off earns now. */
   value: TaskValue;
+  /**
+   * Routine steps only: the step's own setting. "expected" follows the child's
+   * routine points, an "extra" sets its own (0 = none). `value` is resolved from it.
+   */
+  own?: TaskValue;
 }
 
 export interface Routine {

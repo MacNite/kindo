@@ -24,8 +24,8 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 - **Child view:** large pictogram cards, progress shown as dots, morning/afternoon/evening chosen by icon. Leaving the view needs a press-and-hold.
 - **Wall display:** a kiosk layout readable from a few metres. It becomes a photo frame when idle, and a tap returns to the dashboard.
 - **Calendar:** month, week and agenda views, colour-coded by person, with filters and calendar sources (Nextcloud/CalDAV, Google, ICS, local).
-- **Routines, chores and extras:** a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library. Routines reset at a household reset time (default 03:00), school days skip the holidays from your state's ICS feed, and a two-week history shows how each routine went.
-- **Rewards:** off, stars, tokens or pocket money. Expected routines earn nothing, extras can earn a reward. Includes parent approval.
+- **Routines and chores:** one block per person, time of day and rhythm, several steps added at once, a recurrence editor (daily, selected days, weekly, every N weeks, monthly, once, school days) with an RRULE preview, and a pictogram library. Routines reset at a household reset time (default 03:00), school days skip the holidays from your state's ICS feed, and a two-week history shows how each routine went.
+- **Rewards:** off, stars, tokens or pocket money. Any chore can earn a reward, optionally after a parent approves. Routine steps earn points only while a child's routine points are switched on, which helps while they get used to a routine.
 - **Everyday lists:** shopping (several lists, quick add, works offline), tasks, weekly meal plan, important dates with countdowns.
 - **Installable (PWA):** add Kindo to the home screen of a phone or the wall tablet. The shopping list opens without a connection; ticks and additions made in the shop are sent once the phone is back online. The wall display keeps the screen on.
 - **Photos:** several Immich servers, album pool, weighting.

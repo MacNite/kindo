@@ -1,9 +1,9 @@
 import { Prisma } from "@prisma/client";
 import type { z } from "zod";
-import type { TaskValue, Text } from "@/lib/types";
+import type { Recurrence, TaskValue, Text } from "@/lib/types";
 import { guessCategory } from "@/lib/shopping";
-import { completionOutcome } from "@/lib/ledger";
-import { householdDayKeyIn } from "@/lib/recurrence";
+import { completionOutcome, routineStepValue } from "@/lib/ledger";
+import { householdDayKeyIn, normalizeRecurrence, sameRecurrence } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
 import { inTx, type Tx } from "./db";
 import { UserError, notFound } from "./errors";
@@ -20,24 +20,31 @@ import type { S } from "./validation";
 type In<K extends keyof typeof S> = z.output<(typeof S)[K]>;
 const json = (v: unknown) => v as Prisma.InputJsonValue;
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
-const isMissing = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025";
 
 // ── Routines and chores: ticking off ────────────────────────────────────────
 interface ItemInfo { pictogram: string; label: Text; value: TaskValue; ownerId: string | null }
 
 async function findItem(db: Tx, itemId: string): Promise<ItemInfo | null> {
-  const step = await db.routineStep.findUnique({ where: { id: itemId }, include: { routine: { select: { memberId: true } } } });
-  if (step) return { pictogram: step.pictogram, label: step.label as Text, value: step.value as TaskValue, ownerId: step.routine.memberId };
+  const step = await db.routineStep.findUnique({
+    where: { id: itemId },
+    include: { routine: { select: { memberId: true, member: { select: { routineRewards: true, routinePoints: true } } } } },
+  });
+  if (step) {
+    const h = await db.household.findUnique({ where: { id: 1 }, select: { rewardMode: true } });
+    const { routineRewards: on, routinePoints: points } = step.routine.member;
+    const value = routineStepValue(step.value as TaskValue, { on, points }, h?.rewardMode ?? "off");
+    return { pictogram: step.pictogram, label: step.label as Text, value, ownerId: step.routine.memberId };
+  }
   const chore = await db.chore.findUnique({ where: { id: itemId } });
   if (chore) return { pictogram: chore.pictogram, label: chore.label as Text, value: chore.value as TaskValue, ownerId: chore.memberId };
   return null;
 }
 
 /**
- * Ticks an item off for a household day, or unticks it (§9). Expected items
- * only record that they are done. Extras earn points, at once or after a
- * parent's OK; unticking withdraws the request and takes back what it earned.
- * The item's value always comes from the database, never from the device.
+ * Ticks an item off for a household day, or unticks it (§9). Items without a
+ * reward only record that they are done. Items with one earn points, at once
+ * or after a parent's OK; unticking withdraws the request and takes back what
+ * it earned. The item's value always comes from the database, never from the device.
  */
 export async function setCompletion(db: Tx, input: In<"completion">, now = new Date()) {
   await assertRecentDay(db, input.day, now);
@@ -248,33 +255,66 @@ async function assertAnotherAdmin(db: Tx, memberId: string) {
 
 // ── Routines and chores: editing ────────────────────────────────────────────
 /**
- * Saves one step of a routine. The routine's recurrence and period travel
- * with every step edit: the editor shows them together. Without a routine id
- * this starts a new routine for the member and period.
+ * The member's routine for a period and rhythm, started when there is none.
+ * There is one per member, period and rhythm (D43), so steps added for the
+ * same morning end up together.
+ */
+async function routineFor(tx: Tx, memberId: string, period: In<"routineStep">["period"], input: In<"routineStep">["recurrence"]) {
+  const recurrence = input as Recurrence;
+  const routines = await tx.routine.findMany({ where: { memberId, period }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, recurrence: true } });
+  const same = routines.find((r) => sameRecurrence(r.recurrence as unknown as Recurrence, recurrence));
+  if (same) return same.id;
+  const r = await tx.routine.create({ data: { memberId, period, recurrence: json(normalizeRecurrence(recurrence)), sortOrder: await tx.routine.count() } });
+  return r.id;
+}
+
+/** Closes the gaps a step left behind; a routine left without steps goes. */
+async function compactRoutine(tx: Tx, routineId: string) {
+  const left = await tx.routineStep.findMany({ where: { routineId }, orderBy: { position: "asc" } });
+  if (!left.length) await tx.routine.delete({ where: { id: routineId } });
+  else for (const [i, s] of left.entries()) if (s.position !== i) await tx.routineStep.update({ where: { id: s.id }, data: { position: i } });
+}
+
+/**
+ * Saves one routine step. Its period and rhythm decide which of the member's
+ * routines holds it: changing either moves the step, with its id and history,
+ * to the matching routine. The step's own points are optional (D42).
  */
 export async function saveRoutineStep(db: Tx, input: In<"routineStep">) {
   return inTx(db, async (tx) => {
-    let routineId = input.routineId;
-    if (routineId) {
-      const r = await tx.routine.update({ where: { id: routineId }, data: { recurrence: json(input.recurrence), period: input.period } }).catch((e) => {
-        if (isMissing(e)) throw notFound("routine");
-        throw e;
-      });
-      routineId = r.id;
-    } else {
-      const r = await tx.routine.create({ data: { memberId: input.memberId, period: input.period, recurrence: json(input.recurrence), sortOrder: await tx.routine.count() } });
-      routineId = r.id;
-    }
-    // Routine steps are always expected: routines never earn points (§9).
-    const data = { pictogram: input.pictogram, label: json(input.label), value: json({ kind: "expected" }) };
+    const own: TaskValue = input.points == null ? { kind: "expected" } : { kind: "extra", points: input.points, needsApproval: false };
+    const data = { pictogram: input.pictogram, label: json(input.label), value: json(own) };
     if (input.stepId) {
-      const n = await tx.routineStep.updateMany({ where: { id: input.stepId, routineId }, data });
-      if (!n.count) throw notFound("step");
-      return { routineId, stepId: input.stepId };
+      const step = await tx.routineStep.findUnique({ where: { id: input.stepId }, include: { routine: { select: { memberId: true } } } });
+      if (!step) throw notFound("step");
+      // A step stays with its person.
+      const routineId = await routineFor(tx, step.routine.memberId, input.period, input.recurrence);
+      if (routineId === step.routineId) {
+        await tx.routineStep.update({ where: { id: step.id }, data });
+      } else {
+        const position = await tx.routineStep.count({ where: { routineId } });
+        await tx.routineStep.update({ where: { id: step.id }, data: { ...data, routineId, position } });
+        await compactRoutine(tx, step.routineId);
+      }
+      return { routineId, stepId: step.id };
     }
+    const routineId = await routineFor(tx, input.memberId, input.period, input.recurrence);
     const position = await tx.routineStep.count({ where: { routineId } });
     const step = await tx.routineStep.create({ data: { ...data, routineId, position } });
     return { routineId, stepId: step.id };
+  });
+}
+
+/** Adds several steps for several people at once ("New routine"), each joining that person's matching routine. */
+export async function addRoutineSteps(db: Tx, input: In<"routineSteps">) {
+  return inTx(db, async (tx) => {
+    for (const memberId of new Set(input.memberIds)) {
+      const routineId = await routineFor(tx, memberId, input.period, input.recurrence);
+      const position = await tx.routineStep.count({ where: { routineId } });
+      await tx.routineStep.createMany({
+        data: input.steps.map((s, i) => ({ routineId, position: position + i, pictogram: s.pictogram, label: json(s.label), value: json({ kind: "expected" }) })),
+      });
+    }
   });
 }
 
@@ -284,10 +324,14 @@ export async function deleteRoutineStep(db: Tx, input: In<"byId">) {
     const step = await tx.routineStep.findUnique({ where: { id: input.id } });
     if (!step) return;
     await tx.routineStep.delete({ where: { id: step.id } });
-    const left = await tx.routineStep.findMany({ where: { routineId: step.routineId }, orderBy: { position: "asc" } });
-    if (!left.length) await tx.routine.delete({ where: { id: step.routineId } });
-    else for (const [i, s] of left.entries()) if (s.position !== i) await tx.routineStep.update({ where: { id: s.id }, data: { position: i } });
+    await compactRoutine(tx, step.routineId);
   });
+}
+
+/** Switches a member's routine points on or off (§9, D42). The number stays when they are off. */
+export async function setRoutineRewards(db: Tx, input: In<"routineRewards">) {
+  const n = await db.member.updateMany({ where: { id: input.memberId }, data: { routineRewards: input.on, routinePoints: input.points } });
+  if (!n.count) throw notFound("member");
 }
 
 export async function saveChore(db: Tx, input: In<"chore">) {

@@ -72,3 +72,44 @@ test("a new chore can go to several people at once", async ({ page }) => {
   await page.getByRole("radio", { name: "Chores" }).click();
   await expect(page.getByRole("button", { name: label })).toHaveCount(2);
 });
+
+test("a new routine adds several steps to the block that is already there (D43)", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/routines");
+  await page.getByRole("button", { name: "New routine" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Paul" }).click();
+  await dialog.getByRole("radio", { name: "Afternoon" }).click();
+  await dialog.getByRole("button", { name: "Make bed" }).click();
+  await dialog.getByRole("button", { name: "Shoes on" }).click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  const paul = page.locator("section").filter({ has: page.getByRole("heading", { name: "Paul" }) });
+  // Still one afternoon block for Paul, now with the two new steps in it.
+  await expect(paul.getByText("Afternoon", { exact: true })).toHaveCount(1);
+  await expect(paul.getByRole("button", { name: "Make bed" })).toBeVisible();
+  // Paul's morning already had shoes; now his afternoon has them too.
+  await expect(paul.getByRole("button", { name: "Shoes on" })).toHaveCount(2);
+});
+
+test("routine points are switched on and off per child (D42)", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/routines");
+  const toggle = page.getByRole("switch", { name: "Points for routines: Lena" });
+  const saved = () => page.waitForResponse((r) => r.request().method() === "POST" && r.ok());
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  let done = saved();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await done;
+  await page.reload();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  // The routine tiles show what each step earns now.
+  const lena = page.locator("section").filter({ has: page.getByRole("heading", { name: "Lena" }) });
+  await expect(lena.getByRole("button", { name: "Make bed" })).toContainText("5");
+  done = saved();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await done;
+});
