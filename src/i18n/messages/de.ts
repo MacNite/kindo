@@ -38,7 +38,7 @@ const de: Messages = {
     chores: "Haushalt", meals: "Essen", shopping: "Einkauf", dates: "Wichtige Tage", photos: "Fotos",
   },
   calendar: {
-    recurringHint: "Teil einer Terminserie: Bitte in der Kalender-App ändern, aus der sie stammt.",
+    holiday: "Ferien", recurringHint: "Teil einer Terminserie: Bitte in der Kalender-App ändern, aus der sie stammt.",
     editEvent: "Termin bearbeiten", eventTitle: "Titel", titlePlaceholder: "z. B. Schwimmkurs", startTime: "Von", endTime: "Bis",
     month: "Monat", week: "Woche", agenda: "Liste", sources: "Kalender", newEvent: "Neuer Termin",
     readOnly: "Nur lesen", from: "Aus {source}", who: "Wer", where: "Wo", when: "Wann",

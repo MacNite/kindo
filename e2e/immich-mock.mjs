@@ -30,6 +30,13 @@ export function startImmichMock(port = 0) {
     const url = new URL(req.url ?? "/", "http://x");
     if (url.pathname === "/health") return res.writeHead(200).end("ok");
     // Also hands out an ICS feed for the subscription tests.
+    // School holidays around the real today, so the calendar has some to show whenever the suite runs.
+    if (url.pathname === "/feeds/holidays.ics") {
+      const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`; };
+      const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//kindo//e2e//EN", "BEGIN:VEVENT", "UID:test@holidays",
+        `DTSTART;VALUE=DATE:${day(-1)}`, `DTEND;VALUE=DATE:${day(6)}`, "SUMMARY:Testferien", "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+      return res.writeHead(200, { "content-type": "text/calendar" }).end(ics);
+    }
     if (url.pathname === "/feeds/school.ics") return res.writeHead(200, { "content-type": "text/calendar" }).end(readFileSync(new URL("./school.ics", import.meta.url)));
     if (req.headers["x-api-key"] !== IMMICH_KEY) return res.writeHead(401).end();
     const json = (b) => res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(b));

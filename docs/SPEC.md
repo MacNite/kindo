@@ -40,6 +40,7 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 - Month, week and agenda views. Events are colour-coded by person, with a filter per person.
 - Daily attendance (school, Kita) is a *background* event: shown quietly, and left out of "coming up".
+- School holidays from the household's feeds (§7) show as a quiet band on each day they cover (month and week views) and as one line in the agenda on the day they begin. They are not events: they can't be opened or edited and don't count as "coming up".
 - Sources: **Nextcloud/CalDAV (primary)**, Google Calendar, ICS subscriptions and local events. Each source has default members that decide the event colour, and a read-only flag.
 
 ## §6 Routines, chores, tasks
