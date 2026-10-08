@@ -48,6 +48,7 @@ const en = {
     readOnly: "Read only", from: "From {source}", who: "Who", where: "Where", when: "When",
     today: "Today", previous: "Previous", next: "Next", more: "+{n} more", source: "Calendar",
     birthdays: "Birthdays", importantDay: "Important day",
+    endDate: "End date", lastDay: "Last day", endsLater: "Ends {date}",
   },
   birthdays: {
     title: "Birthdays", soon: "Soon", later: "Later this year", next: "Next up", family: "Family",

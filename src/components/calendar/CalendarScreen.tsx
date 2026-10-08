@@ -9,6 +9,7 @@ import { useToday } from "@/lib/useToday";
 import { useStore } from "@/lib/state/store";
 import { deleteEvent, saveEvent } from "@/lib/services/actions";
 import { addDays, at, dateKey, monthGrid, sameDay, startOfWeek, startOfDay } from "@/lib/dates";
+import { endsNextDay, eventForm, eventTimes, moveStart, type EventForm } from "@/lib/events";
 import { ErrorText } from "../ui/ErrorText";
 import { Button, IconButton } from "../ui/Button";
 import { Segmented, Field, inputCls } from "../ui/Segmented";
@@ -387,25 +388,17 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return <div className="grid grid-cols-[96px_1fr] gap-3"><dt className="text-sm font-bold text-soft">{label}</dt><dd>{children}</dd></div>;
 }
 
-const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-const atTime = (day: string, time: string) => {
-  const [y, m, d] = day.split("-").map(Number);
-  const [h, min] = time.split(":").map(Number);
-  return new Date(y, m - 1, d, h, min);
-};
-
 /** Creates or edits an event in a writable calendar (Kindo's own, or a writable Nextcloud one). */
 function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day: Date; onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, fmt } = useI18n();
   const { getSources, getMembers, run } = useStore();
   const writable = getSources().filter((s) => !s.readOnly);
-  const start = event?.start ?? at(day, 15);
+  const start = at(day, 15);
   const [title, setTitle] = useState(event ? tx(event.title) : "");
   const [who, setWho] = useState(new Set<string>(event?.memberIds ?? []));
-  const [date, setDate] = useState(dateKey(start));
-  const [allDay, setAllDay] = useState(event?.allDay ?? false);
-  const [from, setFrom] = useState(hhmm(start));
-  const [to, setTo] = useState(hhmm(event?.end ?? new Date(start.getTime() + 3_600_000)));
+  // An existing event keeps its length; a new one is an hour in the afternoon.
+  const [when, setWhen] = useState<EventForm>(() => eventForm(event ?? { allDay: false, start, end: new Date(start.getTime() + 3_600_000) }));
+  const { allDay } = when;
   const [location, setLocation] = useState(event?.location ?? "");
   const [sourceId, setSourceId] = useState(event?.sourceId ?? writable.find((s) => s.provider === "local")?.id ?? writable[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -416,9 +409,7 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
     let r;
     if (remove && event) r = await run(() => deleteEvent({ id: event.id }));
     else {
-      const s = allDay ? atTime(date, "00:00") : atTime(date, from);
-      let e = allDay ? addDays(s, 1) : atTime(date, to);
-      if (e <= s) e = new Date(s.getTime() + 3_600_000);
+      const { start: s, end: e } = eventTimes(when);
       r = await run(() => saveEvent({ id: event?.id, sourceId, title, start: s, end: e, allDay, memberIds: [...who], location: location || undefined }));
     }
     setBusy(false);
@@ -440,15 +431,21 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
           <MemberFilter size="sm" members={getMembers()} selected={who} onToggle={(id) => setWho((s) => toggled(s, id))} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("calendar.when")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <label className="flex items-end gap-2 pb-3 font-bold"><input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="h-5 w-5" />{t("common.allDay")}</label>
+          <Field label={t("calendar.when")}><input type="date" className={inputCls} value={when.date} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { date: e.target.value }))} /></Field>
+          <label className="flex items-end gap-2 pb-3 font-bold"><input type="checkbox" checked={allDay} onChange={(e) => setWhen((w) => ({ ...w, allDay: e.target.checked }))} className="h-5 w-5" />{t("common.allDay")}</label>
         </div>
         {!allDay && (
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("calendar.startTime")}><input type="time" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-            <Field label={t("calendar.endTime")}><input type="time" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+            <Field label={t("calendar.startTime")}><input type="time" className={inputCls} value={when.from} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { from: e.target.value }))} /></Field>
+            <Field label={t("calendar.endTime")}><input type="time" className={inputCls} value={when.to} onChange={(e) => setWhen((w) => ({ ...w, to: e.target.value }))} /></Field>
           </div>
         )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={allDay ? t("calendar.lastDay") : t("calendar.endDate")}>
+            <input type="date" className={inputCls} min={when.date} value={when.endDate} onChange={(e) => e.target.value && setWhen((w) => ({ ...w, endDate: e.target.value }))} />
+          </Field>
+          {endsNextDay(when) && <p className="self-end pb-3 text-sm text-soft">{t("calendar.endsLater", { date: fmt.dateMedium(eventTimes(when).end) })}</p>}
+        </div>
         <Field label={t("calendar.where")}><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
         <Field label={t("calendar.source")}>
           <select className={inputCls} value={sourceId} disabled={!!event} onChange={(e) => setSourceId(e.target.value)}>

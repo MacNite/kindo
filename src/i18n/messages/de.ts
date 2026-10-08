@@ -45,6 +45,7 @@ const de: Messages = {
     readOnly: "Nur lesen", from: "Aus {source}", who: "Wer", where: "Wo", when: "Wann",
     today: "Heute", previous: "Zurück", next: "Weiter", more: "+{n} weitere", source: "Kalender",
     birthdays: "Geburtstage", importantDay: "Wichtiger Tag",
+    endDate: "Enddatum", lastDay: "Letzter Tag", endsLater: "Endet am {date}",
   },
   birthdays: {
     title: "Geburtstage", soon: "Bald", later: "Später im Jahr", next: "Als Nächstes", family: "Familie",
