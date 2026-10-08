@@ -49,7 +49,7 @@ export function TasksScreen() {
                 <span className="h-7 w-7 shrink-0 rounded-full border-2 border-line" />
                 <span className="flex-1">
                   <span className="block text-lg leading-snug">{tx(x.title)}</span>
-                  <span className={cn("text-sm", overdue ? "font-bold text-[#B4443C] dark:text-[#E98A80]" : "text-soft")}>
+                  <span className={cn("text-sm", overdue ? "font-bold text-danger" : "text-soft")}>
                     {x.due ? (overdue ? t("tasks.overdue") : t("tasks.due", { date: fmt.relDay(x.due, today) })) : t("tasks.noDue")}
                   </span>
                 </span>

@@ -60,7 +60,7 @@ export function CalendarScreen() {
               <IconButton label={t("calendar.next")} onClick={() => step(1)}><ChevronRight /></IconButton>
             </div>
           )}
-          <Segmented value={view} onChange={setView} label="View" options={[
+          <Segmented value={view} onChange={setView} label={t("calendar.view")} options={[
             { value: "month", label: t("calendar.month") }, { value: "week", label: t("calendar.week") }, { value: "agenda", label: t("calendar.agenda") },
             { value: "birthdays", label: t("calendar.birthdays") },
           ]} />
@@ -338,7 +338,7 @@ function DayList({ day, filter, onSelect, holidays = true }: { day: Date; filter
   );
 }
 
-/** School holidays from the household's feeds: a quiet band, not an event (§5, §20 D41). */
+/** School holidays from the household's feeds: a quiet band, not an event (§5, §20 D20). */
 function HolidayBand({ day }: { day: Date }) {
   const { t } = useI18n();
   const { holidaysOn } = useStore();
@@ -459,5 +459,3 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
     </Dialog>
   );
 }
-
-export { SourceList };

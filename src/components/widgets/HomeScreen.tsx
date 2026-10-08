@@ -10,7 +10,7 @@ import { useToday } from "@/lib/useToday";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { WIDGETS, WeatherNow, DatesList } from "./Widgets";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Avatar, ColorRail } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
 import { RewardAmount } from "../ui/RewardAmount";
@@ -55,7 +55,7 @@ function DesktopHome() {
         <div className="flex items-center gap-6">
           <WeatherNow />
           <div className="flex gap-2">
-            <Link href="/wall"><Button variant="outline" size="md"><Monitor size={18} />{t("home.openWall")}</Button></Link>
+            <LinkButton href="/wall" variant="outline" size="md"><Monitor size={18} />{t("home.openWall")}</LinkButton>
             <Button variant={editing ? "primary" : "outline"} onClick={() => setEditing((e) => !e)}>
               {editing ? <Check size={18} /> : <SlidersHorizontal size={18} />}{editing ? t("home.doneCustomizing") : t("home.customize")}
             </Button>

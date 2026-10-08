@@ -6,7 +6,7 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useHome } from "@/lib/state/useHome";
 import { domainOf, powerParts, type EnergyFlow, type SwitchState } from "@/lib/home";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Panel, PageHeader } from "../ui/Panel";
 import { cn } from "../ui/cn";
@@ -29,7 +29,7 @@ export function HomeControlScreen() {
         <PageHeader title={t("homeControl.title")} />
         <Panel>
           <p className="max-w-prose text-soft">{t("homeControl.notSetUp")}</p>
-          {viewer.isAdmin && <Link href="/settings?section=integrations" className="mt-4 inline-block"><Button variant="outline">{t("homeControl.setUp")}<ChevronRight size={16} /></Button></Link>}
+          {viewer.isAdmin && <LinkButton href="/settings?section=integrations" variant="outline" className="mt-4">{t("homeControl.setUp")}<ChevronRight size={16} /></LinkButton>}
         </Panel>
       </>
     );

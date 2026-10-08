@@ -8,10 +8,11 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useCameraStream, useTalk } from "@/lib/state/useCamera";
 import { activeRing } from "@/lib/services/cameras";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { ErrorText } from "../ui/ErrorText";
 import { Panel, PageHeader } from "../ui/Panel";
 import { cn } from "../ui/cn";
+import { useOverlay } from "../ui/useOverlay";
 
 /** How often a still picture is refreshed while it's on screen. */
 const PICTURE_MS = 10_000;
@@ -109,7 +110,7 @@ export function CamerasScreen() {
       {cameras.length === 0 ? (
         <Panel>
           <p className="max-w-prose text-soft">{t("cameras.notSetUp")}</p>
-          {viewer.isAdmin && <Link href="/settings?section=integrations" className="mt-4 inline-block"><Button variant="outline">{t("cameras.setUp")}<ChevronRight size={16} /></Button></Link>}
+          {viewer.isAdmin && <LinkButton href="/settings?section=integrations" variant="outline" className="mt-4">{t("cameras.setUp")}<ChevronRight size={16} /></LinkButton>}
         </Panel>
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -126,7 +127,7 @@ export function CamerasScreen() {
  * sound, and Talk where the camera has a speaker. Closing it ends everything:
  * the stream, the microphone and the talk lease.
  */
-export function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: CameraInfo; onClose: () => void; ringing?: boolean; onTouch?: () => void }) {
+function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: CameraInfo; onClose: () => void; ringing?: boolean; onTouch?: () => void }) {
   const { t } = useI18n();
   const talk = useTalk(camera.id);
   const { media, state, error, retry } = useCameraStream(camera.id, { mic: talk.mic, screen: talk.mic ? talk.screen : undefined });
@@ -152,13 +153,8 @@ export function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: Came
     if (video.current && !needsTap) video.current.muted = talk.speaking;
   }, [talk.speaking, needsTap]);
 
-  const close = useRef(onClose);
-  close.current = onClose;
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const root = useRef<HTMLDivElement>(null);
+  useOverlay(true, { root, onClose, layer: 110 });
 
   const unmute = () => {
     const v = video.current;
@@ -169,8 +165,8 @@ export function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: Came
 
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={camera.name} data-testid="live-camera" onPointerDown={onTouch}
-      className="fixed inset-0 z-[110] flex flex-col bg-black text-white">
+    <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={camera.name} data-testid="live-camera" onPointerDown={onTouch}
+      className="fixed inset-0 z-[110] flex flex-col bg-black text-white outline-none">
       <header className="flex items-center gap-3 p-4 sm:p-6">
         {ringing && <span className="grid h-12 w-12 shrink-0 animate-pulse place-items-center rounded-full bg-star text-ink"><BellRing size={24} aria-hidden /></span>}
         <div className="min-w-0 flex-1">
@@ -229,7 +225,7 @@ function TalkControls({ talk }: { talk: ReturnType<typeof useTalk> }) {
       <>
         <Button size="lg" variant="outline" disabled={talk.state === "starting"} onClick={() => void talk.start()}
           className="h-16 !border-white/40 px-8 text-xl !text-white hover:!bg-white/15"><Mic size={26} />{talk.state === "starting" ? t("cameras.connecting") : t("cameras.talk")}</Button>
-        <ErrorText code={talk.error} className="!text-[#F2B8B0]" />
+        <ErrorText code={talk.error} className="!text-danger-on-dark" />
       </>
     );
   }
@@ -243,7 +239,7 @@ function TalkControls({ talk }: { talk: ReturnType<typeof useTalk> }) {
           onKeyDown={(e) => (e.key === " " || e.key === "Enter") && !e.repeat && talk.speak(true)} onKeyUp={(e) => (e.key === " " || e.key === "Enter") && talk.speak(false)}
           onContextMenu={(e) => e.preventDefault()}
           className={cn("flex h-24 min-w-64 touch-none select-none items-center justify-center gap-3 rounded-full px-10 text-2xl font-bold transition-colors",
-            talk.speaking ? "bg-[#C2453B] text-white" : "bg-white text-ink")}>
+            talk.speaking ? "bg-danger-solid text-white" : "bg-white text-ink")}>
           <Mic size={32} aria-hidden />{talk.speaking ? t("cameras.talking") : t("cameras.holdToTalk")}
         </button>
         <Button size="lg" variant="ghost" onClick={talk.stop} className="!text-white hover:!bg-white/15">{t("cameras.stopTalk")}</Button>
@@ -263,6 +259,8 @@ export function DoorbellWatcher() {
   const { cameras, ringTick } = useStore();
   const [ring, setRing] = useState<Ring | null>(null);
   const [touched, setTouched] = useState(0);
+  const ringId = useRef<string | null>(null);
+  ringId.current = ring?.id ?? null;
   const hasDoorbell = cameras.some((c) => c.doorbell);
 
   useEffect(() => {
@@ -270,7 +268,10 @@ export function DoorbellWatcher() {
     let live = true;
     const check = () => activeRing({}).then((r) => {
       if (live && r.ok && r.data && !dismissedRings().includes(r.data.id)) {
-        setRing((old) => (old?.id === r.data!.id ? old : r.data));
+        // Asking again about the same ring keeps it, and the time someone last touched it.
+        if (ringId.current === r.data.id) return;
+        ringId.current = r.data.id;
+        setRing(r.data);
         setTouched(0);
       }
     }, () => {});

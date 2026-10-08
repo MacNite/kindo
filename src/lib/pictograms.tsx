@@ -238,6 +238,13 @@ export const PICTOGRAMS: Pictogram[] = [
 const byId = new Map(PICTOGRAMS.map((p) => [p.id, p]));
 export const getPictogram = (id: string) => byId.get(id);
 
+/**
+ * What a step is called where words are needed (screen readers, tooltips):
+ * its own name, else its picture's (a built-in pictogram's name, or the emoji).
+ */
+export const stepName = (step: { label: Text; pictogram: string }, tx: (t: Text) => string) =>
+  tx(step.label).trim() || (step.pictogram.startsWith("emoji:") ? step.pictogram.slice(6) : tx(getPictogram(step.pictogram)?.label ?? ""));
+
 export const PICTO_CATEGORIES: PictoCategory[] = ["morning", "care", "household", "evening", "outdoor", "school"];
 
 /** Emoji set offered as an alternative to built-in pictograms. */

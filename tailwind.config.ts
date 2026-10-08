@@ -16,6 +16,11 @@ const config: Config = {
         line: "rgb(var(--line) / <alpha-value>)",
         star: "rgb(var(--star) / <alpha-value>)",
         ok: "rgb(var(--ok) / <alpha-value>)",
+        danger: {
+          DEFAULT: "rgb(var(--danger) / <alpha-value>)",
+          solid: "rgb(var(--danger-solid) / <alpha-value>)",
+          "on-dark": "rgb(var(--danger-on-dark) / <alpha-value>)",
+        },
       },
       fontFamily: {
         display: ["'Bricolage Grotesque'", "ui-sans-serif", "system-ui", "sans-serif"],

@@ -50,7 +50,8 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       where: { end: { gte: addDays(today, -EVENTS_BEFORE_DAYS) }, start: { lte: addDays(today, EVENTS_AFTER_DAYS) } },
       orderBy: { start: "asc" },
     }),
-    db.photoAlbum.findMany({ orderBy: [{ server: "asc" }, { name: "asc" }] }),
+    // One synced photo per album, for its picture in Photos.
+    db.photoAlbum.findMany({ orderBy: [{ server: "asc" }, { name: "asc" }], include: { photos: { where: { remoteId: { not: null } }, select: { id: true }, take: 1 } } }),
     db.holidayRange.findMany({ where: { end: { gte: sinceDay } }, orderBy: { start: "asc" } }),
     db.connection.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
@@ -112,7 +113,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       background: s.background || undefined, connectionId: s.connectionId ?? undefined, lastSyncAt: s.lastSyncAt ?? undefined,
     })),
     events: events.map(fromStoredEvent),
-    albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight })),
+    albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight, cover: a.photos[0]?.id })),
     holidays: holidays.map((h) => ({ start: h.start, end: h.end, summary: h.summary })),
     weather: household.demo ? demoWeather(today) : null,
     integrations: integrationsFor(household.demo, connections, sources),

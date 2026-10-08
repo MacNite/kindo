@@ -6,7 +6,7 @@ import { addDays } from "./dates";
  * with an exclusive end (like iCalendar's DTEND), and each device turns them
  * back into its own local midnight, so "Tuesday" stays Tuesday in every zone.
  */
-export const localDayToUtc = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+const localDayToUtc = (d: Date) => new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 export const utcToLocalDay = (d: Date) => new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 
 /** Normalises an event from the device's view (local midnights) for storage. */

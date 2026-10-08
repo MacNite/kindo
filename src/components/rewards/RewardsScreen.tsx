@@ -1,7 +1,7 @@
 "use client";
 import type { CSSProperties } from "react";
-import { useState } from "react";
-import { Coins, Euro, Pencil, Plus, PowerOff, Star, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Banknote, Coins, Pencil, Plus, PowerOff, Star, Trash2 } from "lucide-react";
 import type { Reward, RewardMode } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -17,7 +17,7 @@ import { RewardAmount } from "../ui/RewardAmount";
 import { cn } from "../ui/cn";
 
 const MODES: { id: RewardMode; Icon: typeof Star }[] = [
-  { id: "off", Icon: PowerOff }, { id: "stars", Icon: Star }, { id: "tokens", Icon: Coins }, { id: "money", Icon: Euro },
+  { id: "off", Icon: PowerOff }, { id: "stars", Icon: Star }, { id: "tokens", Icon: Coins }, { id: "money", Icon: Banknote },
 ];
 
 export function RewardModePicker() {
@@ -52,6 +52,12 @@ export function RewardsScreen() {
   const { t, tx, fmt } = useI18n();
   const { rewardMode, balances, redeem, approvals, resolveApproval, children, getMember, data } = useStore();
   const [flash, setFlash] = useState<string | null>(null);
+  // Rises in (500 ms), stays a moment, goes; a new one starts the time again.
+  useEffect(() => {
+    if (!flash) return;
+    const id = setTimeout(() => setFlash(null), 2300);
+    return () => clearTimeout(id);
+  }, [flash]);
   const [editing, setEditing] = useState<Reward | "new" | null>(null);
   const REWARDS = data.rewards;
 
@@ -159,7 +165,7 @@ export function RewardsScreen() {
       )}
       {editing && <RewardEditor reward={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
       {flash && (
-        <div role="status" onAnimationEnd={() => setTimeout(() => setFlash(null), 1800)}
+        <div role="status"
           className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 animate-rise rounded-full bg-ink px-5 py-3 font-bold text-surface md:bottom-8">{flash}</div>
       )}
     </div>

@@ -1,15 +1,16 @@
 "use client";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { IconButton } from "./Button";
+import { useOverlay } from "./useOverlay";
 
 /**
  * Bottom sheet on phones, centred dialog on larger screens. Modal: rendered
  * into <body>, everything else is made inert while open, focus moves to the
  * panel (not the first input, so touch screens don't pop up a keyboard) and
- * returns to the opener on close.
+ * returns to the opener on close. Only the topmost overlay answers Escape.
  */
 export function Dialog({ open, onClose, title, children, footer, wide, top }: {
   open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean;
@@ -20,29 +21,7 @@ export function Dialog({ open, onClose, title, children, footer, wide, top }: {
   const root = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const close = useRef(onClose);
-  close.current = onClose;
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close.current();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  useEffect(() => {
-    const el = root.current;
-    if (!open || !el) return;
-    const opener = document.activeElement as HTMLElement | null;
-    // Inert the rest of the page; skip elements that already were (e.g. under a parent dialog).
-    const others = Array.from(document.body.children).filter((c): c is HTMLElement => c !== el && c instanceof HTMLElement && !c.inert);
-    others.forEach((c) => (c.inert = true));
-    panel.current?.focus();
-    return () => {
-      others.forEach((c) => (c.inert = false));
-      opener?.focus?.();
-    };
-  }, [open]);
+  useOverlay(open, { root, focus: panel, onClose, layer: top ? 130 : 50 });
 
   if (!open || typeof document === "undefined") return null;
   return createPortal(

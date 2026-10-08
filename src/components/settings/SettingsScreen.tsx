@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
@@ -20,7 +19,7 @@ import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
 import { PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { cn } from "../ui/cn";
 
@@ -73,7 +72,7 @@ export function SettingsScreen() {
           ))}
         </nav>
         <div className={cn("min-w-0", !section && "max-md:hidden")}>
-          <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden">← {t("common.back")}</button>
+          <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden"><span aria-hidden>← </span>{t("common.back")}</button>
           <h2 className="mb-4 font-display text-2xl font-bold">{t(`settings.sections.${active}`)}</h2>
           <Section id={active} code={params.get("code") ?? undefined} />
         </div>
@@ -154,7 +153,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
       return <RewardModePicker />;
 
     case "photos":
-      return <Link href="/photos"><Button variant="outline">{t("nav.photos")}<ChevronRight size={16} /></Button></Link>;
+      return <LinkButton href="/photos" variant="outline">{t("nav.photos")}<ChevronRight size={16} /></LinkButton>;
 
     case "dashboard":
       return (
@@ -162,12 +161,12 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
           <Card>
             <p className="font-bold">{t("settings.dashboard.layout")}</p>
             <p className="mb-4 text-sm text-soft">{t("settings.dashboard.layoutHint")}</p>
-            <Link href="/"><Button variant="outline">{t("settings.dashboard.openLayout")}</Button></Link>
+            <LinkButton href="/" variant="outline">{t("settings.dashboard.openLayout")}</LinkButton>
           </Card>
           <Card>
             <p className="font-bold">{t("settings.dashboard.kiosk")}</p>
             <p className="mb-4 text-sm text-soft">{t("settings.dashboard.kioskHint")}</p>
-            <Link href="/wall"><Button variant="outline">{t("settings.dashboard.openKiosk")}</Button></Link>
+            <LinkButton href="/wall" variant="outline">{t("settings.dashboard.openKiosk")}</LinkButton>
           </Card>
           <div className="md:col-span-2"><WallTilesCard /></div>
           <div className="md:col-span-2"><PinCard /></div>

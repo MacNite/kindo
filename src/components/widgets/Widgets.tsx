@@ -108,7 +108,7 @@ function AgendaWidget() {
 }
 
 // ── Upcoming ────────────────────────────────────────────────────────────────
-export function UpcomingList({ limit = 6 }: { limit?: number }) {
+function UpcomingList({ limit = 6 }: { limit?: number }) {
   const today = useToday();
   const { tx, fmt } = useI18n();
   const { upcoming, getMember } = useStore();

@@ -11,7 +11,7 @@ import { DAY, addDays, dateKey, startOfDay } from "./dates";
 const EPOCH_MONDAY = new Date(2024, 0, 1);
 
 /** Whole calendar days between two dates, immune to DST (23h/25h days). */
-export const calendarDays = (from: Date, to: Date) =>
+const calendarDays = (from: Date, to: Date) =>
   Math.round((Date.UTC(to.getFullYear(), to.getMonth(), to.getDate()) - Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())) / DAY);
 
 export const parseDay = (s: string) => {
@@ -112,7 +112,7 @@ const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const ymd = (s: string) => s.replaceAll("-", "");
 
 /** The start date (DTSTART) a recurrence's rule is anchored on. */
-export function recurrenceStart(r: Recurrence): string {
+function recurrenceStart(r: Recurrence): string {
   if (r.kind === "once") return r.date;
   if (r.kind === "weekly") {
     if (r.from) return r.from;
@@ -202,7 +202,7 @@ export function householdDayKeyIn(now: Date, timeZone: string, dayStartsAt = "00
 }
 
 export interface DayTimes { dayStartsAt: string; morningUntil: string; afternoonUntil: string }
-export const DEFAULT_TIMES: DayTimes = { dayStartsAt: "03:00", morningUntil: "11:00", afternoonUntil: "17:00" };
+const DEFAULT_TIMES: DayTimes = { dayStartsAt: "03:00", morningUntil: "11:00", afternoonUntil: "17:00" };
 
 /** Which routine the wall shows "now". Before the day starts it is still last evening. */
 export function currentPeriod(now: Date, times: DayTimes = DEFAULT_TIMES): "morning" | "afternoon" | "evening" {

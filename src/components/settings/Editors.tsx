@@ -1,6 +1,5 @@
 "use client";
 import { useState, type CSSProperties } from "react";
-import Link from "next/link";
 import { Cake, CalendarHeart, ChevronRight, GraduationCap, Heart, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { ImportantDate, ImportantDateKind, Member, Role } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -9,15 +8,14 @@ import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
 import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
 import { Dialog } from "../ui/Dialog";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
 import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { MemberPicker } from "../ui/MemberPicker";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
+import { MEMBER_COLORS, colorName } from "../ui/memberColors";
 
-/** Calm, distinct member colours that read on both themes (§3, §16). */
-export const MEMBER_COLORS = ["#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B", "#C2477A", "#2A8C9E", "#B4443C", "#5B6A6D"];
 /** Avatar choices: friendly animals first, then a few favourite things. Kept apart from task pictures. */
 const AVATAR_EMOJI = [
   "🦊", "🐻", "🦄", "🐴", "🦖", "🐼", "🐸", "🦁", "🐯", "🐨", "🐰", "🐶", "🐱", "🐵", "🐷", "🐧",
@@ -58,7 +56,7 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
         <Field label={t("settings.members.color")}>
           <div className="flex flex-wrap gap-2" role="radiogroup">
             {MEMBER_COLORS.map((c) => (
-              <button type="button" key={c} role="radio" aria-checked={color === c} aria-label={c} onClick={() => setColor(c)}
+              <button type="button" key={c} role="radio" aria-checked={color === c} aria-label={t(colorName(c) ?? "settings.members.color")} onClick={() => setColor(c)}
                 className={cn("h-10 w-10 rounded-full", color === c && "ring-4 ring-ink/30 ring-offset-2 ring-offset-surface")} style={{ background: c }} />
             ))}
           </div>
@@ -209,7 +207,7 @@ export function RoutineSettings() {
           <ErrorText code={state.error} />
         </div>
         <p className="text-sm text-soft">
-          {h.holidaysError ? <span className="font-bold text-[#B4443C] dark:text-[#E98A80]">{t("settings.routines.syncFailed", { error: h.holidaysError })}</span>
+          {h.holidaysError ? <span className="font-bold text-danger">{t("settings.routines.syncFailed", { error: h.holidaysError })}</span>
             : h.holidaysSyncedAt ? t("settings.routines.synced", { when: `${fmt.dateMedium(h.holidaysSyncedAt)} ${fmt.time(h.holidaysSyncedAt)}`, n: data.holidays.length })
             : h.holidayIcsUrls.length ? t("settings.routines.notSynced") : t("settings.routines.noFeeds")}
         </p>
@@ -219,7 +217,7 @@ export function RoutineSettings() {
           </ul>
         )}
       </div>
-      <Link href="/routines"><Button variant="outline">{t("nav.routines")}<ChevronRight size={16} /></Button></Link>
+      <LinkButton href="/routines" variant="outline">{t("nav.routines")}<ChevronRight size={16} /></LinkButton>
     </div>
   );
 }

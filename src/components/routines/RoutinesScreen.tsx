@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { Maximize2, Moon, Plus, Sun, Sunrise, ShieldCheck, Trash2, X } from "lucide-react";
 import type { ActionResult, Member, Period, Recurrence, Routine, TaskItem, TaskValue } from "@/lib/types";
@@ -7,9 +6,9 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { addRoutineSteps, deleteChore, deleteRoutineStep, saveChore, saveRoutineStep } from "@/lib/services/actions";
 import { DEFAULT_ROUTINE_POINTS, routineStepValue } from "@/lib/ledger";
-import { getPictogram } from "@/lib/pictograms";
+import { getPictogram, stepName } from "@/lib/pictograms";
 import { recurrenceKey } from "@/lib/recurrence";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { PageHeader } from "../ui/Panel";
 import { Segmented, Switch, Field, inputCls } from "../ui/Segmented";
 import { Avatar } from "../ui/Avatar";
@@ -59,7 +58,7 @@ export function RoutinesScreen() {
     <div>
       <PageHeader title={t("routines.title")} subtitle={t("routines.subtitle")}
         actions={kids.map((k) => (
-          <Link key={k.id} href={`/kids/${k.id}`}><Button variant="outline" size="md"><Maximize2 size={16} />{k.name}</Button></Link>
+          <LinkButton key={k.id} href={`/kids/${k.id}`} variant="outline" size="md"><Maximize2 size={16} />{k.name}</LinkButton>
         ))} />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Segmented value={tab} onChange={setTab} options={[
@@ -117,7 +116,7 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {r.items.map((it) => (
-                  <button key={it.id} onClick={() => onEdit({ kind: "step", memberId: member.id, item: it, recurrence: r.recurrence, period: r.period })} title={tx(it.label)}
+                  <button key={it.id} onClick={() => onEdit({ kind: "step", memberId: member.id, item: it, recurrence: r.recurrence, period: r.period })} title={stepName(it, tx)}
                     className="tint m-text relative flex aspect-square flex-col items-center justify-center gap-1 rounded-tile hover:ring-2 hover:ring-[var(--m)]">
                     <Pictogram id={it.pictogram} className="h-7 w-7" />
                     <span className="line-clamp-1 px-1 text-[11px] font-bold text-soft">{tx(it.label)}</span>

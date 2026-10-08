@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -8,6 +8,7 @@ import { useToday } from "@/lib/useToday";
 import { collectBirthdays, initials, upcomingBirthdays, wheelRings, type UpcomingBirthday } from "@/lib/birthdays";
 import { Avatar } from "../ui/Avatar";
 import { cn } from "../ui/cn";
+import { useOverlay } from "../ui/useOverlay";
 
 /** Within this many days a birthday counts as "soon". */
 const SOON_DAYS = 30;
@@ -16,7 +17,7 @@ const SLEEPS_FROM = 14;
 const NEUTRAL = "rgb(var(--soft))";
 
 /** Everyone on the birthday wheel, soonest first (§12, D46). `filter` keeps people and whatever belongs to them. */
-export function useBirthdays(filter?: Set<string>) {
+function useBirthdays(filter?: Set<string>) {
   const today = useToday();
   const { tx } = useI18n();
   const { data } = useStore();
@@ -54,7 +55,7 @@ function useWords() {
 const colorOf = (b: { memberId?: string }, getMember: (id?: string) => Member | undefined) => getMember(b.memberId)?.color ?? NEUTRAL;
 
 /** A person's own picture; anyone else gets their initials in the colour of the person they belong to. */
-export function BirthdayAvatar({ b, size = "md" }: { b: UpcomingBirthday; size?: "sm" | "md" }) {
+function BirthdayAvatar({ b, size = "md" }: { b: UpcomingBirthday; size?: "sm" | "md" }) {
   const { getMember } = useStore();
   const m = getMember(b.memberId);
   if (b.origin === "member" && m) return <Avatar member={m} size={size} />;
@@ -77,7 +78,7 @@ const point = (f: number, r: number) => {
  * The year as a circle, January at the top, each birthday a dot (D46). A tap
  * on a dot selects it; the arc runs from today to the selected birthday.
  */
-export function BirthdayWheel({ list, selected, onSelect, compact = false }: {
+function BirthdayWheel({ list, selected, onSelect, compact = false }: {
   list: UpcomingBirthday[]; selected?: UpcomingBirthday; onSelect: (id: string) => void; compact?: boolean;
 }) {
   const today = useToday();
@@ -244,7 +245,7 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
           {selected.turns && <p className="font-bold" style={{ color: colorOf(selected, getMember) }}>{words.turns(selected)}</p>}
           <p className={cn("num font-display font-semibold", large ? "text-xl" : "text-lg")}>{words.when(selected)}</p>
           {sleeps > 0 && (
-            <p className="mt-1 flex flex-wrap gap-1" aria-label={words.sleeps(sleeps)} title={words.sleeps(sleeps)}>
+            <p className="mt-1 flex flex-wrap gap-1" role="img" aria-label={words.sleeps(sleeps)} title={words.sleeps(sleeps)}>
               {Array.from({ length: sleeps }, (_, i) => <span key={i} className="h-3 w-3 rounded-full bg-star" />)}
             </p>
           )}
@@ -270,13 +271,11 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
 /** The wall display's full-screen birthday wheel, opened from the button below the lanes (D46). */
 export function BirthdaysFullscreen({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
-  useEffect(() => {
-    const esc = (e: globalThis.KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
-  }, [onClose]);
+  const root = useRef<HTMLDivElement>(null);
+  // Not inert underneath: the photo frame comes up over it and must still wake on a touch.
+  useOverlay(true, { root, onClose, layer: 40, inert: false });
   return (
-    <div role="dialog" aria-modal="true" aria-label={t("birthdays.title")} className="fixed inset-0 z-40 flex flex-col gap-5 overflow-hidden bg-bg p-6 max-lg:overflow-y-auto">
+    <div ref={root} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t("birthdays.title")} className="fixed inset-0 z-40 flex flex-col gap-5 overflow-hidden bg-bg p-6 outline-none max-lg:overflow-y-auto">
       <header className="flex shrink-0 items-center justify-between gap-4">
         <h1 className="font-display text-4xl font-bold tracking-tight">{t("birthdays.title")}</h1>
         <button onClick={onClose} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><X size={26} />{t("common.close")}</button>

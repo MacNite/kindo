@@ -6,6 +6,7 @@ import { Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
 import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
+import { stepName } from "@/lib/pictograms";
 
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
@@ -43,7 +44,7 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
           <HoldToLeave />
           <Avatar member={member} size="xl" className="max-sm:!h-16 max-sm:!w-16 max-sm:!text-3xl" />
           <h1 className="m-text font-display text-6xl font-extrabold tracking-tight sm:text-8xl">{member.name}</h1>
-          <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5" role="radiogroup" aria-label="Time of day">
+          <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5" role="radiogroup" aria-label={t("routines.period")}>
             {(["morning", "afternoon", "evening"] as const).map((p) => {
               const I = PERIOD_ICON[p];
               return (
@@ -57,7 +58,7 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
         </header>
 
         {/* Progress as dots, not numbers */}
-        <div className="flex items-center gap-3" aria-label={t("common.ofTotal", { done: doneCount, total: items.length })}>
+        <div className="flex items-center gap-3" role="img" aria-label={t("common.ofTotal", { done: doneCount, total: items.length })}>
           {items.map((i) => (
             <span key={i.id} className={cn("h-5 flex-1 rounded-full transition-colors duration-500", isDone(i.id) ? "m-bg" : "bg-surface")} />
           ))}
@@ -84,7 +85,7 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
 
         {helping.length > 0 && (
           <section className="mt-2">
-            <div className="m-text mb-3 flex items-center gap-2" aria-label={t("home.chores")}>
+            <div className="m-text mb-3 flex items-center gap-2" role="heading" aria-level={2} aria-label={t("home.chores")}>
               <Home className="h-7 w-7" strokeWidth={2.25} />
             </div>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
@@ -110,7 +111,7 @@ export function TaskCard({ item, done, onToggle, small, next, showReward = true 
       onClick={() => { onToggle(); setAnim(true); }}
       onAnimationEnd={() => setAnim(false)}
       aria-pressed={done}
-      aria-label={tx(item.label)}
+      aria-label={stepName(item, tx)}
       className={cn(
         "relative flex aspect-square flex-col items-center justify-center rounded-[clamp(20px,3vw,36px)] transition-colors duration-300",
         anim && "animate-settle",

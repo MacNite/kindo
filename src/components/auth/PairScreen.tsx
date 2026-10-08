@@ -42,7 +42,7 @@ export function PairScreen() {
       <p className="max-w-lg text-lg text-soft">{t("pair.hint")}</p>
       {pairing && (
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-12">
-          <p aria-label={t("pair.code")} data-testid="pairing-code" className="num font-display text-7xl font-semibold tracking-[0.15em]">{pairing.code.slice(0, 3)} {pairing.code.slice(3)}</p>
+          <p role="group" aria-label={t("pair.code")} data-testid="pairing-code" className="num font-display text-7xl font-semibold tracking-[0.15em]">{pairing.code.slice(0, 3)} {pairing.code.slice(3)}</p>
           <div className="h-44 w-44 rounded-panel bg-white p-3 [&>svg]:h-full [&>svg]:w-full" aria-hidden dangerouslySetInnerHTML={{ __html: pairing.qr }} />
         </div>
       )}

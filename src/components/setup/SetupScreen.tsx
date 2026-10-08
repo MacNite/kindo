@@ -10,8 +10,9 @@ import { Button } from "../ui/Button";
 import { Field, inputCls } from "../ui/Segmented";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
+import { MEMBER_COLORS, colorName } from "../ui/memberColors";
 
-const COLORS = ["#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B", "#C2477A", "#2A8C9E"];
+const COLORS = MEMBER_COLORS.slice(0, 6);
 
 /**
  * First run: name the household and its first admin, or start with the demo
@@ -35,7 +36,7 @@ export function SetupScreen({ claim = false, sso = null }: { claim?: boolean; ss
     e.preventDefault();
     setBusy(true);
     const avatar: Member["avatar"] = { kind: "initial" };
-    const r = await setup({ demo, household: demo || claim ? "Household" : household, timezone, member: { name: demo ? "Demo" : name || "Admin", color, avatar }, email, password: sso ? undefined : password });
+    const r = await setup({ demo, household: demo || claim ? t("setup.defaultHousehold") : household, timezone, member: { name: demo ? t("setup.defaultName") : name || t("setup.defaultName"), color, avatar }, email, password: sso ? undefined : password });
     if (r.ok) window.location.assign(r.data.signedIn ? "/" : "/login");
     else {
       setBusy(false);
@@ -66,7 +67,7 @@ export function SetupScreen({ claim = false, sso = null }: { claim?: boolean; ss
           <Field label={t("settings.members.color")}>
             <div className="flex gap-2">
               {COLORS.map((c) => (
-                <button type="button" key={c} aria-label={c} aria-pressed={c === color} onClick={() => setColor(c)} style={{ "--m": c, background: c } as CSSProperties}
+                <button type="button" key={c} aria-label={t(colorName(c) ?? "settings.members.color")} aria-pressed={c === color} onClick={() => setColor(c)} style={{ "--m": c, background: c } as CSSProperties}
                   className={cn("h-10 w-10 rounded-full", c === color && "ring-4 ring-ink/30 ring-offset-2 ring-offset-surface")} />
               ))}
             </div>

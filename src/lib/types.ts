@@ -212,7 +212,11 @@ export interface UpcomingDate extends ImportantDate {
 }
 
 // ── Photos ──────────────────────────────────────────────────────────────────
-export interface PhotoAlbum { id: string; server: string; name: string; count: number; selected: boolean; weight: number }
+export interface PhotoAlbum {
+  id: string; server: string; name: string; count: number; selected: boolean; weight: number;
+  /** A synced photo of the album to show as its picture (`/api/photos/<cover>`); unset for the demo's drawn albums and albums not synced yet. */
+  cover?: string;
+}
 /** A photo in the rotation. `src` is a proxied image; demo photos are drawn from `seed` instead. */
 export interface Photo { id: string; albumId: string; seed?: number; src?: string; takenAt?: Date; place?: string }
 

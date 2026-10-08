@@ -7,7 +7,7 @@ import { useStore } from "@/lib/state/store";
 import { addCalDav, addFrigate, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
 import { useSearchParams } from "next/navigation";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Field, Switch, inputCls } from "../ui/Segmented";
 import { MemberFilter } from "../ui/MemberFilter";
@@ -23,7 +23,8 @@ const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, im
 const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: "caldav", immich: "immich", google: "google", ics: "ics", homeassistant: "homeassistant", frigate: "frigate" };
 
 /** Extra integration-specific pieces (forms, details) registered by later steps. */
-export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode>> = {
+/** Every kind of connection has a form to add one; the type keeps it that way. */
+const ADD_FORMS: Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode> = {
   caldav: ({ onClose }) => <CalDavForm onClose={onClose} />,
   immich: ({ onClose }) => <ImmichForm onClose={onClose} />,
   ics: ({ onClose }) => <IcsForm onClose={onClose} />,
@@ -83,7 +84,7 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
         <ul className="flex flex-col divide-y divide-line rounded-card bg-sunken px-3">
           {mine.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center gap-2 py-2.5">
-              <span className={cn("h-2.5 w-2.5 rounded-full", c.status === "ok" ? "bg-ok" : c.status === "error" ? "bg-[#B4443C]" : "bg-line")} />
+              <span className={cn("h-2.5 w-2.5 rounded-full", c.status === "ok" ? "bg-ok" : c.status === "error" ? "bg-danger" : "bg-line")} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold">{c.name}{c.username && <span className="font-normal text-soft">, {c.username}</span>}</span>
                 <span className="block text-sm text-soft">
@@ -104,10 +105,9 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
       )}
       <ErrorText code={error} />
       <div>
-        {Form ? <Button size="sm" variant={mine.length ? "outline" : "primary"} onClick={() => setAdding(true)}><Plus size={14} />{mine.length ? t("integrations.addAnother") : t("common.configure")}</Button>
-          : <Button size="sm" variant="outline" disabled title={t("common.planned")}>{t("common.configure")}</Button>}
+        <Button size="sm" variant={mine.length ? "outline" : "primary"} onClick={() => setAdding(true)}><Plus size={14} />{mine.length ? t("integrations.addAnother") : t("common.configure")}</Button>
       </div>
-      {adding && Form && <Form onClose={() => setAdding(false)} />}
+      {adding && <Form onClose={() => setAdding(false)} />}
     </div>
   );
 }
@@ -219,7 +219,7 @@ function GoogleConnect({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.google")}
       footer={<><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        {data.features.google && <a href="/api/integrations/google/start"><Button variant="primary">{t("integrations.googleContinue")}</Button></a>}</>}>
+        {data.features.google && <LinkButton href="/api/integrations/google/start" native variant="primary">{t("integrations.googleContinue")}</LinkButton>}</>}>
       <p className="text-soft">{data.features.google ? t("integrations.googleHint") : t("integrations.google_notConfigured")}</p>
     </Dialog>
   );
