@@ -23,6 +23,8 @@ export function sniffImageType(b: Buffer): string {
 }
 
 export function diskCache(dir: string, maxBytes: number): DiskCache {
+  // NaN or nothing would make every file "too much": prune would empty the cache on each write.
+  if (!Number.isFinite(maxBytes) || maxBytes <= 0) throw new Error(`photo cache size must be a positive number of bytes, not ${maxBytes}`);
   let pruning = false;
   const prune = async () => {
     if (pruning) return;

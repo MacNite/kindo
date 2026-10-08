@@ -99,6 +99,9 @@ model Household {
   holidayIcsUrls   String[]   @default([])
   holidaysSyncedAt DateTime?
   holidaysError    String?
+  /// The last failed holiday sync and how many failed in a row: retries back off (src/server/holidays.ts).
+  holidaysFailedAt DateTime?
+  holidaysFailures Int        @default(0)
   /// Hash of the PIN that unlocks settings on a paired wall display (§19.4).
   settingsPinHash  String?
   /// Loaded from the bundled demo family (§20 D11).

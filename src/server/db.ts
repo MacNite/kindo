@@ -9,7 +9,6 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-export type Db = PrismaClient;
 /** A client or an interactive transaction: what the service functions accept. */
 export type Tx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
 

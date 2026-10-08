@@ -5,6 +5,7 @@ import { nextCookies } from "better-auth/next-js";
 import { prisma } from "./db";
 import { deriveKey } from "./crypto";
 import { env } from "./env";
+import { AUTH_COOKIE_PREFIX } from "./cookie-names";
 
 /**
  * Logins (§19.4): email and password, and single sign-on through an OpenID
@@ -32,7 +33,7 @@ function createAuth() {
     // provider is the household's own, so the local email needs no separate check.
     account: { accountLinking: { enabled: true, trustedProviders: ["oidc"], requireLocalEmailVerified: false } },
     session: { expiresIn: 60 * 60 * 24 * 30, updateAge: 60 * 60 * 24 },
-    advanced: { useSecureCookies: e.secureCookies, cookiePrefix: "kindo" },
+    advanced: { useSecureCookies: e.secureCookies, cookiePrefix: AUTH_COOKIE_PREFIX },
     telemetry: { enabled: false },
     plugins: [
       ...(e.oidc
@@ -56,6 +57,3 @@ function createAuth() {
 type Auth = ReturnType<typeof createAuth>;
 const g = globalThis as unknown as { kindoAuth?: Auth };
 export const getAuth = (): Auth => (g.kindoAuth ??= createAuth());
-
-/** The cookie prefix, for the middleware's cheap "is there a session at all" check. */
-export const AUTH_COOKIE_PREFIX = "kindo";

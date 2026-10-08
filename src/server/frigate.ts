@@ -4,6 +4,7 @@ import { request as httpRequest, type IncomingHttpHeaders } from "node:http";
 import type { Duplex } from "node:stream";
 import type { Connection } from "@prisma/client";
 import { STREAM_NAME, type CameraSetup } from "@/lib/cameras";
+import type { Tx } from "./db";
 import { decryptSecret } from "./crypto";
 import { UserError } from "./errors";
 
@@ -42,6 +43,9 @@ export function frigateTarget(c: Pick<Connection, "url" | "username" | "secret" 
 }
 
 export const frigateCameras = (c: Pick<Connection, "config"> | null | undefined): CameraSetup[] => ((c?.config ?? {}) as FrigateStoredConfig).cameras ?? [];
+
+/** The household's Frigate connection (one per household; the newest, should an old one linger). */
+export const frigateConnection = (db: Tx) => db.connection.findFirst({ where: { kind: "frigate" }, orderBy: { createdAt: "desc" } });
 
 // ── HTTP with an optional pinned certificate ─────────────────────────────────
 interface Res { status: number; headers: IncomingHttpHeaders; body: Buffer }
@@ -117,7 +121,7 @@ function openSocket(u: URL, fingerprint: string | undefined, timeoutMs: number):
 }
 
 /** One request to Frigate: a fixed path on the configured address, bounded in time and size, no redirects. */
-export async function frigateRequest(t: Pick<FrigateTarget, "url" | "fingerprint">, path: string, { method = "GET", headers = {}, body, timeoutMs = 10_000, maxBytes = 2 * 1024 * 1024 }: Req = {}): Promise<Res> {
+async function frigateRequest(t: Pick<FrigateTarget, "url" | "fingerprint">, path: string, { method = "GET", headers = {}, body, timeoutMs = 10_000, maxBytes = 2 * 1024 * 1024 }: Req = {}): Promise<Res> {
   let u: URL;
   try {
     u = new URL(path, t.url.replace(/\/*$/, "/"));

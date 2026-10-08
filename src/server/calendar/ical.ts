@@ -24,8 +24,11 @@ export interface ParsedEvent {
   icon?: string;
 }
 
-/** Upper bound on occurrences per series, so a daily rule without end can't run away. */
+/** Upper bound on occurrences per series inside the window, so a rule without end can't run away. */
 const MAX_OCCURRENCES = 1500;
+/** Upper bound on steps through one series, before and in the window, for rules that can't skip ahead. */
+const MAX_STEPS = 50_000;
+const DAY_MS = 86_400_000;
 
 const dateOf = (t: ICAL.Time) => (t.isDate ? new Date(Date.UTC(t.year, t.month - 1, t.day)) : t.toJSDate());
 
@@ -62,6 +65,33 @@ function details(ev: ICAL.Event, start: ICAL.Time, end: ICAL.Time, recurring: bo
   };
 }
 
+/**
+ * Where to start stepping through a daily or weekly series: a whole number of
+ * its periods after DTSTART, shortly before the window. The occurrences from
+ * there on are the same, so a series that began years ago costs no more than
+ * a new one. Undefined (start at DTSTART) for rules that count occurrences or
+ * have extra dates: those are walked from the start, up to MAX_STEPS.
+ */
+function skipAhead(master: ICAL.Event, from: Date): ICAL.Time | undefined {
+  const comp = master.component;
+  const rules = comp.getAllProperties("rrule");
+  if (rules.length !== 1 || comp.hasProperty("rdate")) return undefined;
+  const rule = rules[0].getFirstValue() as ICAL.Recur;
+  if (rule.count) return undefined;
+  const periodDays = (rule.freq === "DAILY" ? 1 : rule.freq === "WEEKLY" ? 7 : 0) * (rule.interval || 1);
+  if (!periodDays) return undefined;
+  const start = master.startDate;
+  const length = Math.max(0, master.endDate.toJSDate().getTime() - start.toJSDate().getTime());
+  // A margin for long occurrences and time zones: starting a little early is harmless.
+  const gap = from.getTime() - start.toJSDate().getTime() - length - 2 * periodDays * DAY_MS;
+  const periods = Math.floor(gap / (periodDays * DAY_MS));
+  if (periods <= 0) return undefined;
+  const shifted = start.clone();
+  // Moves the wall-clock date, so a 16:30 class stays at 16:30 across daylight saving.
+  shifted.adjust(periods * periodDays, 0, 0, 0);
+  return shifted;
+}
+
 /** Parses one iCalendar document and returns the events that touch [from, to). */
 export function parseCalendar(text: string, window: { from: Date; to: Date }): ParsedEvent[] {
   const cal = new ICAL.Component(ICAL.parse(text));
@@ -95,12 +125,17 @@ export function parseCalendar(text: string, window: { from: Date; to: Date }): P
       continue;
     }
     for (const ex of exceptions) master.relateException(ex);
-    const it = master.iterator();
-    for (let i = 0, next = it.next(); next && i < MAX_OCCURRENCES; i++, next = it.next()) {
+    const it = master.iterator(skipAhead(master, window.from));
+    let found = 0;
+    for (let i = 0, next = it.next(); next && i < MAX_STEPS && found < MAX_OCCURRENCES; i++, next = it.next()) {
       const occ = master.getOccurrenceDetails(next);
       const e = details(occ.item, occ.startDate, occ.endDate, true);
-      if (e.start >= window.to) break;
-      if (touches(e)) out.push(e);
+      // A moved occurrence (RECURRENCE-ID) can come back into the window: the series' own date ends the loop.
+      if (e.start >= window.to && next.toJSDate() >= window.to) break;
+      if (touches(e)) {
+        out.push(e);
+        found++;
+      }
     }
   }
   return out.sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -146,5 +181,53 @@ export function buildEventIcs(e: EventToWrite, now = new Date()): string {
   if (e.memberIds.length) v.updatePropertyWithValue("x-kindo-members", e.memberIds.join(" "));
   if (e.icon) v.updatePropertyWithValue("x-kindo-icon", e.icon);
   cal.addSubcomponent(v);
+  return cal.toString();
+}
+
+/**
+ * Applies Kindo's edit to the event as its server has it: title, times,
+ * place and people change, everything else (description, alarms, attendees,
+ * categories, other apps' properties, the time zone) stays as it was. A time
+ * that moves is written in the event's own time zone when the calendar
+ * carries it, in UTC otherwise.
+ */
+export function updateEventIcs(text: string, e: EventToWrite, now = new Date()): string {
+  const cal = new ICAL.Component(ICAL.parse(text));
+  registerTimezones(cal);
+  const vevents = cal.getAllSubcomponents("vevent");
+  const v = vevents.find((c) => !c.hasProperty("recurrence-id") && c.getFirstPropertyValue("uid") === e.uid) ?? vevents.find((c) => !c.hasProperty("recurrence-id"));
+  if (!v) throw new Error("no VEVENT to update");
+  const ev = new ICAL.Event(v);
+  const parsed = () => details(ev, ev.startDate, ev.endDate, false);
+  const timeFor = (d: Date, zone: ICAL.Timezone | undefined) => {
+    if (e.allDay) return icalDate(d);
+    const utc = ICAL.Time.fromJSDate(d, true);
+    return zone && zone !== ICAL.Timezone.utcTimezone && zone !== ICAL.Timezone.localTimezone ? utc.convertToZone(zone) : utc;
+  };
+
+  ev.summary = e.title;
+  let moved = false;
+  const before = parsed();
+  if (before.allDay !== e.allDay || before.start.getTime() !== e.start.getTime()) {    ev.startDate = timeFor(e.start, ev.startDate.zone);
+    moved = true;
+  }
+  // After the start: an event with a DURATION moves its end along with it.
+  const after = parsed();
+  const endIsDate = v.hasProperty("dtend") ? ev.endDate.isDate : e.allDay;
+  if (endIsDate !== e.allDay || after.end.getTime() !== e.end.getTime()) {
+    ev.endDate = timeFor(e.end, ev.startDate.zone);
+    moved = true;
+  }
+  if (e.location) ev.location = e.location;
+  else v.removeAllProperties("location");
+  if (e.memberIds.length) v.updatePropertyWithValue("x-kindo-members", e.memberIds.join(" "));
+  else v.removeAllProperties("x-kindo-members");
+  if (e.icon) v.updatePropertyWithValue("x-kindo-icon", e.icon);
+
+  const stamp = ICAL.Time.fromJSDate(now, true);
+  v.updatePropertyWithValue("dtstamp", stamp);
+  if (v.hasProperty("last-modified")) v.updatePropertyWithValue("last-modified", stamp);
+  // RFC 5545: a new time is a new revision, so invitees' apps take it.
+  if (moved) v.updatePropertyWithValue("sequence", Number(v.getFirstPropertyValue("sequence") ?? 0) + 1);
   return cal.toString();
 }

@@ -1,7 +1,7 @@
 import { ZodError, type z } from "zod";
 import type { ActionResult } from "@/lib/types";
 import { prisma, type Tx } from "../db";
-import { UserError } from "../errors";
+import { UserError, expectedError } from "../errors";
 import { errorMessage, log } from "../log";
 import { notify, type Topic } from "../realtime";
 import { requireActor, type Actor, type Level } from "../actor";
@@ -39,7 +39,8 @@ export function act<Schema extends z.ZodType, R>(schema: Schema, fn: (db: Tx, in
  * resolve, a certificate, a sign-in proxy in the way). Nobody else does:
  * it may name addresses inside the house.
  */
-export function failure(e: unknown, admin = false): { ok: false; error: string; detail?: string } {
+export function failure(err: unknown, admin = false): { ok: false; error: string; detail?: string } {
+  const e = expectedError(err);
   if (e instanceof UserError) return { ok: false, error: e.code, ...(admin && e.code === "remote" && e.message !== e.code ? { detail: e.message.slice(0, 300) } : {}) };
   if (e instanceof ZodError) return { ok: false, error: "invalid" };
   log.error("action failed", { error: errorMessage(e), stack: e instanceof Error ? e.stack : undefined });

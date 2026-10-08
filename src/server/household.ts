@@ -221,7 +221,7 @@ export async function setDayTimes(db: Tx, input: In<"dayTimes">) {
 /** Saves the holiday feeds. Changing them makes the next job tick fetch them again. */
 export async function setHolidayFeeds(db: Tx, input: In<"holidayFeeds">) {
   const urls = [...new Set(input.urls.map((u) => u.trim()).filter(Boolean))];
-  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null } });
+  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null, holidaysFailedAt: null, holidaysFailures: 0 } });
   if (!urls.length) await db.holidayRange.deleteMany();
 }
 
@@ -383,8 +383,8 @@ export async function saveEvent(db: Tx, input: In<"event">) {
     if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
     if (existing.sourceId !== input.sourceId) throw new UserError("invalid", "events don't move between calendars");
     if (existing.source.connectionId) {
-      await updateRemoteEvent(db, existing, e);
-      return input.id;
+      // Its id follows its start: a moved event comes back under a new one.
+      return updateRemoteEvent(db, existing, e);
     }
     await db.event.update({ where: { id: input.id }, data: toStoredEvent(e) });
     return input.id;

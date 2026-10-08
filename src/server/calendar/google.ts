@@ -1,7 +1,8 @@
 import type { CalendarSource, Connection, Event as EventRow } from "@prisma/client";
 import { decryptSecret } from "../crypto";
+import { env } from "../env";
 import { UserError } from "../errors";
-import { fetchChecked } from "../http";
+import { fetchChecked, readJson } from "../http";
 import type { RemoteCalendar, RemoteEvent } from "./caldav";
 import type { EventToWrite } from "./ical";
 import type { CalendarProvider } from "./sync";
@@ -12,14 +13,11 @@ import type { CalendarProvider } from "./sync";
  * encrypted; access tokens live in memory only.
  */
 export const GOOGLE_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/calendar.events"];
-const apiBase = () => process.env.GOOGLE_API_BASE ?? "https://www.googleapis.com";
-export const oauthBase = () => process.env.GOOGLE_OAUTH_BASE ?? "https://oauth2.googleapis.com";
-export const authorizeUrl = () => process.env.GOOGLE_AUTHORIZE_URL ?? "https://accounts.google.com/o/oauth2/v2/auth";
+const apiBase = () => env().GOOGLE_API_BASE.replace(/\/+$/, "");
+const oauthBase = () => env().GOOGLE_OAUTH_BASE.replace(/\/+$/, "");
+export const authorizeUrl = () => env().GOOGLE_AUTHORIZE_URL;
 
-export function googleClient() {
-  const id = process.env.GOOGLE_CLIENT_ID, secret = process.env.GOOGLE_CLIENT_SECRET;
-  return id && secret ? { id, secret } : null;
-}
+export const googleClient = () => env().google;
 
 /** Exchanges the code from the consent screen for a refresh token and the account's email. */
 export async function exchangeCode(code: string, redirectUri: string) {
@@ -29,7 +27,7 @@ export async function exchangeCode(code: string, redirectUri: string) {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ code, client_id: client.id, client_secret: client.secret, redirect_uri: redirectUri, grant_type: "authorization_code" }),
   });
-  const body = (await res.json()) as { refresh_token?: string; access_token?: string; id_token?: string; error?: string };
+  const body = await readJson<{ refresh_token?: string; access_token?: string; id_token?: string; error?: string }>(res);
   if (!res.ok || !body.refresh_token) throw new UserError("remote", `Google: ${body.error ?? "no refresh token"}`);
   let email = "Google";
   try {
@@ -50,7 +48,7 @@ async function accessToken(c: Connection): Promise<string> {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ refresh_token: decryptSecret(c.secret!), client_id: client.id, client_secret: client.secret, grant_type: "refresh_token" }),
   });
-  const body = (await res.json()) as { access_token?: string; expires_in?: number; error?: string };
+  const body = await readJson<{ access_token?: string; expires_in?: number; error?: string }>(res);
   if (!res.ok || !body.access_token) throw new UserError("remote", `Google: ${body.error ?? `HTTP ${res.status}`}`);
   tokens.set(c.id, { token: body.access_token, until: Date.now() + (body.expires_in ?? 3600) * 1000 });
   return body.access_token;
@@ -61,10 +59,29 @@ async function api<T>(c: Connection, path: string, init: RequestInit = {}): Prom
     ...init, headers: { Authorization: `Bearer ${await accessToken(c)}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
   if (res.status === 204) return undefined as T;
-  if (res.status === 403) throw new UserError("readOnly", "Google: no write access");
+  if (res.status === 403) {
+    const reasons = await errorReasons(res);
+    // Google answers 403 for too many requests too: that is "try later", not "read-only".
+    if (reasons.some((r) => RATE_LIMITED.has(r))) throw new UserError("remote", "Google: too many requests, trying again later");
+    throw new UserError("readOnly", "Google: no write access");
+  }
+  if (res.status === 429) throw new UserError("remote", "Google: too many requests, trying again later");
   if (res.status === 412) throw new UserError("conflict", "Google: changed elsewhere");
   if (!res.ok) throw new UserError("remote", `Google: HTTP ${res.status}`);
-  return (await res.json()) as T;
+  return readJson<T>(res);
+}
+
+/** Google's 403 reasons that mean "slow down" (usage limits), not "not allowed". */
+const RATE_LIMITED = new Set(["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded", "RATE_LIMIT_EXCEEDED"]);
+
+/** The `reason`s in a Google API error body (`error.errors[].reason`, `error.details[].reason`). */
+async function errorReasons(res: Response): Promise<string[]> {
+  try {
+    const body = await readJson<{ error?: { errors?: { reason?: string }[]; details?: { reason?: string }[]; status?: string } }>(res);
+    return [...(body.error?.errors ?? []), ...(body.error?.details ?? [])].map((e) => e.reason ?? "").concat(body.error?.status ?? "").filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 type GDate = { date?: string; dateTime?: string };
@@ -74,8 +91,9 @@ interface GEvent {
 }
 const toDate = (d: GDate) => (d.date ? new Date(`${d.date}T00:00:00Z`) : new Date(d.dateTime!));
 
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
 function body(e: EventToWrite) {
-  const ymd = (d: Date) => d.toISOString().slice(0, 10);
   return {
     summary: e.title, location: e.location,
     start: e.allDay ? { date: ymd(e.start) } : { dateTime: e.start.toISOString() },
@@ -85,10 +103,40 @@ function body(e: EventToWrite) {
   };
 }
 
+/**
+ * An edit as a PATCH: only the fields that differ from what Kindo shows, so
+ * Google keeps what other apps set (description, reminders, attendees,
+ * colour, other private properties). Null clears a field.
+ */
+export function patchBody(row: Pick<EventRow, "title" | "start" | "end" | "allDay" | "location" | "memberIds">, e: EventToWrite) {
+  const out: Record<string, unknown> = {};
+  const title = typeof row.title === "string" ? row.title : JSON.stringify(row.title);
+  if (title !== e.title) out.summary = e.title;
+  if ((row.location ?? "") !== (e.location ?? "")) out.location = e.location || null;
+  if (row.allDay !== e.allDay || row.start.getTime() !== e.start.getTime() || row.end.getTime() !== e.end.getTime()) {
+    // Both kinds named, so a timed event can become a whole day and back.
+    const when = (d: Date) => (e.allDay ? { date: ymd(d), dateTime: null } : { dateTime: d.toISOString(), date: null });
+    out.start = when(e.start);
+    out.end = when(e.end);
+  }
+  if (row.memberIds.join(" ") !== e.memberIds.join(" ")) out.extendedProperties = { private: { kindoMembers: e.memberIds.join(" ") } };
+  return out;
+}
+
 export const googleProvider: CalendarProvider = {
   async listCalendars(c): Promise<RemoteCalendar[]> {
-    const r = await api<{ items: { id: string; summary: string; accessRole: string; backgroundColor?: string }[] }>(c, "/users/me/calendarList?minAccessRole=reader");
-    return r.items.map((i) => ({ remoteId: i.id, name: i.summary, color: i.backgroundColor, readOnly: !["owner", "writer"].includes(i.accessRole) }));
+    type Item = { id: string; summary: string; accessRole: string; backgroundColor?: string };
+    const items: Item[] = [];
+    let page: string | undefined;
+    // A page at a time: an account with many subscribed calendars has more than one.
+    do {
+      const q = new URLSearchParams({ minAccessRole: "reader" });
+      if (page) q.set("pageToken", page);
+      const r = await api<{ items?: Item[]; nextPageToken?: string }>(c, `/users/me/calendarList?${q}`);
+      items.push(...(r.items ?? []));
+      page = r.nextPageToken;
+    } while (page);
+    return items.map((i) => ({ remoteId: i.id, name: i.summary, color: i.backgroundColor, readOnly: !["owner", "writer"].includes(i.accessRole) }));
   },
   async fetchEvents(c, s: CalendarSource, window): Promise<RemoteEvent[]> {
     const out: RemoteEvent[] = [];
@@ -114,8 +162,10 @@ export const googleProvider: CalendarProvider = {
     await api(c, `/calendars/${encodeURIComponent(s.remoteId!)}/events`, { method: "POST", body: JSON.stringify(body(e)) });
   },
   async update(c, s, row: EventRow, e) {
+    const patch = patchBody(row, e);
+    if (!Object.keys(patch).length) return;
     await api(c, `/calendars/${encodeURIComponent(s.remoteId!)}/events/${encodeURIComponent(row.href!)}`, {
-      method: "PUT", body: JSON.stringify(body(e)), headers: row.etag ? { "If-Match": row.etag } : {},
+      method: "PATCH", body: JSON.stringify(patch), headers: row.etag ? { "If-Match": row.etag } : {},
     });
   },
   async remove(c, s, row: EventRow) {

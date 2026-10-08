@@ -4,6 +4,7 @@ import { inTx, type Tx } from "../db";
 import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
 import { id } from "../validation";
+import { retryDelayMs } from "../jobs";
 import { caldavAccount } from "../calendar/sync";
 import { fetchBirthdays, listAddressBooks } from "./carddav";
 
@@ -19,6 +20,9 @@ export interface ContactsConfig {
   /** New contacts show on the wheel at once; otherwise someone ticks them. */
   autoShow: boolean;
   syncedAt?: string;
+  /** The last failed read and how many failed in a row: the job backs off. */
+  failedAt?: string;
+  failures?: number;
 }
 const CONTACT_MINUTES = 60;
 
@@ -34,7 +38,7 @@ export const B = {
 };
 type In<K extends keyof typeof B> = z.output<(typeof B)[K]>;
 
-export const contactsConfig = (conn: Pick<Connection, "config">) => (conn.config as { contacts?: ContactsConfig } | null)?.contacts;
+const contactsConfig = (conn: Pick<Connection, "config">) => (conn.config as { contacts?: ContactsConfig } | null)?.contacts;
 const withContacts = (conn: Connection, contacts: ContactsConfig) => ({ ...(conn.config as object), contacts }) as unknown as Prisma.InputJsonValue;
 
 async function caldavConnection(db: Tx, connectionId: string) {
@@ -56,7 +60,16 @@ export async function syncContacts(db: Tx, conn: Connection, now = new Date()) {
     await db.contactBirthday.deleteMany({ where: { connectionId: conn.id } });
     return;
   }
-  const found = new Map((await fetchBirthdays(caldavAccount(conn), cfg.books)).map((c) => [c.uid, c]));
+  let found: Map<string, Awaited<ReturnType<typeof fetchBirthdays>>[number]>;
+  try {
+    found = new Map((await fetchBirthdays(caldavAccount(conn), cfg.books)).map((c) => [c.uid, c]));
+  } catch (e) {
+    // Remembered so the job backs off instead of asking a server that is down every minute.
+    const latest = await db.connection.findUnique({ where: { id: conn.id } });
+    const last = latest && contactsConfig(latest);
+    if (last) await db.connection.update({ where: { id: conn.id }, data: { config: withContacts(latest, { ...last, failedAt: now.toISOString(), failures: (last.failures ?? 0) + 1 }) } });
+    throw e;
+  }
   await inTx(db, async (tx) => {
     const known = await tx.contactBirthday.findMany({ where: { connectionId: conn.id } });
     const gone = known.filter((k) => !found.has(k.uid)).map((k) => k.id);
@@ -67,7 +80,7 @@ export async function syncContacts(db: Tx, conn: Connection, now = new Date()) {
       else if (old.name !== c.name || old.date !== c.date) await tx.contactBirthday.update({ where: { id: old.id }, data: { name: c.name, date: c.date } });
     }
     const latest = await tx.connection.findUniqueOrThrow({ where: { id: conn.id } });
-    await tx.connection.update({ where: { id: conn.id }, data: { config: withContacts(latest, { ...cfg, syncedAt: now.toISOString() }) } });
+    await tx.connection.update({ where: { id: conn.id }, data: { config: withContacts(latest, { ...cfg, syncedAt: now.toISOString(), failedAt: undefined, failures: undefined }) } });
   });
 }
 
@@ -77,7 +90,9 @@ export async function dueContactConnections(db: Tx, now = new Date()) {
   return all.filter((c) => {
     const cfg = contactsConfig(c);
     if (!cfg?.books.length) return false;
-    return !cfg.syncedAt || now.getTime() - new Date(cfg.syncedAt).getTime() >= CONTACT_MINUTES * 60_000;
+    const interval = CONTACT_MINUTES * 60_000;
+    if (cfg.failedAt && cfg.failures) return now.getTime() - new Date(cfg.failedAt).getTime() >= retryDelayMs(cfg.failures, interval);
+    return !cfg.syncedAt || now.getTime() - new Date(cfg.syncedAt).getTime() >= interval;
   });
 }
 
