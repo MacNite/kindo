@@ -21,7 +21,9 @@ export async function fetchChecked(url: string, { timeoutMs = 20_000, maxBytes =
   try {
     res = await fetch(u, { ...init, redirect: init.redirect ?? "follow", signal: init.signal ?? AbortSignal.timeout(timeoutMs) });
   } catch (e) {
-    throw new UserError("remote", `${u.host}: ${e instanceof Error ? e.message : String(e)}`);
+    // Node's fetch says only "fetch failed"; the cause names it (ECONNREFUSED, ENOTFOUND, a certificate error).
+    const cause = e instanceof Error && e.cause instanceof Error ? ` (${(e.cause as NodeJS.ErrnoException).code ?? e.cause.message})` : "";
+    throw new UserError("remote", `${u.host}: ${e instanceof Error ? e.message : String(e)}${cause}`);
   }
   const length = Number(res.headers.get("content-length") ?? 0);
   if (length > maxBytes) throw new UserError("remote", `${u.host}: response too large`);
