@@ -13,13 +13,20 @@ export const isSwitchable = (entityId: string): boolean => (SWITCHABLE_DOMAINS a
 /** A switch the admin added to Kindo, with the name the family sees. */
 export interface HomeControl { entityId: string; name: string }
 
-/** The power sensors behind the solar view. Only `solar` is required. */
+/**
+ * The power sensors behind the solar view. Only `solar` is required. Without
+ * a `house` sensor, the house is worked out from solar and the grid.
+ */
 export interface EnergySensors {
   solar: string;
+  /** Power fed into the grid, never negative. */
+  feedIn?: string;
+  /** Power drawn from the grid, never negative. */
+  draw?: string;
   house?: string;
-  /** Signed grid power. Without it, the grid is worked out as house minus solar. */
+  /** Signed grid power (older setups). Feed-in and draw sensors win over it. */
   grid?: string;
-  /** The grid sensor counts feed-in as positive (many inverters do). */
+  /** The signed grid sensor counts feed-in as positive (many inverters do). */
   gridInvert?: boolean;
 }
 
@@ -51,10 +58,31 @@ export function toWatts(state: string | undefined, unit?: string): number | null
   return f === undefined ? null : n * f;
 }
 
-/** Solar, house and grid in watts, deriving the grid from the other two when there is no grid sensor. */
-export function energyFlow(solar: number | null, house: number | null, grid: number | null, gridInvert = false): EnergyFlow {
-  const g = grid !== null ? (gridInvert ? -grid : grid) : solar !== null && house !== null ? house - solar : null;
-  return { solar, house, grid: g };
+/** Sensor readings in watts: `undefined` when no sensor is set up, `null` when it has nothing usable. */
+export interface EnergyReadings {
+  solar: number | null;
+  feedIn?: number | null;
+  draw?: number | null;
+  house?: number | null;
+  grid?: number | null;
+  gridInvert?: boolean;
+}
+
+/**
+ * Solar, house and grid in watts. The grid comes from the feed-in and draw
+ * sensors (one not set up counts as nothing), else the signed grid sensor, else
+ * house minus solar. The house comes from its sensor when it has a reading,
+ * else solar plus grid.
+ */
+export function energyFlow(r: EnergyReadings): EnergyFlow {
+  const { solar } = r;
+  const meters = [r.feedIn, r.draw].filter((x) => x !== undefined);
+  const fromMeters = meters.length === 0 ? undefined : meters.includes(null) ? null : (r.draw ?? 0) - (r.feedIn ?? 0);
+  const signed = r.grid === undefined ? undefined : r.grid === null ? null : r.gridInvert ? -r.grid : r.grid;
+  const measured = fromMeters !== undefined ? fromMeters : signed;
+  const house = r.house ?? (solar !== null && measured != null ? Math.max(0, solar + measured) : null);
+  const grid = measured !== undefined ? measured : solar !== null && r.house != null ? r.house - solar : null;
+  return { solar, house, grid };
 }
 
 /** States that mean "on" for the switchable domains. */

@@ -152,8 +152,10 @@ const de: Messages = {
     switches: "Schalter", noSwitches: "Noch keine Schalter.", nameOf: "Name für {entity}", removeSwitch: "{name} entfernen", addSwitch: "Lampe oder Schalter hinzufügen", search: "Nach Namen suchen",
     loading: "Frage Home Assistant…", nothingFound: "Nichts gefunden.", none: "Keiner",
     energy: "Solar", solar: "Solarleistung", solarHint: "Nötig für die Solaranzeige: was die Module gerade erzeugen (W oder kW).",
-    house: "Hausverbrauch", houseHint: "Optional: was das Haus gerade verbraucht.",
-    grid: "Netzleistung", gridHint: "Optional: Leistung ins oder aus dem Netz. Ohne diesen Sensor rechnet Kindo sie aus Solar und Verbrauch aus.",
+    feedIn: "Einspeisung", feedInHint: "Optional: was gerade ins Netz geht.",
+    draw: "Bezug", drawHint: "Optional: was gerade aus dem Netz kommt.",
+    house: "Hausverbrauch", houseHint: "Wird aus Solar, Einspeisung und Bezug berechnet, außer du wählst einen Sensor dafür.", calculate: "Berechnen",
+    grid: "Netzleistung", gridHint: "Ältere Einrichtung: ein Sensor für Leistung ins und aus dem Netz. Einspeisung und Bezug ersetzen ihn.",
     gridInvert: "Einspeisung ist positiv", gridInvertHint: "Einschalten, wenn dieser Sensor beim Einspeisen eine positive Zahl zeigt.",
   },
   kids: {

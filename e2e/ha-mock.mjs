@@ -2,7 +2,8 @@
  * A stand-in Home Assistant: the REST API (states, services) and the
  * WebSocket API. One presence entity whose state tests set through
  * `POST /__state` ("on" / "off"), two lights, a plug, a lock Kindo must
- * never switch, and solar and house power sensors (`POST /__power`).
+ * never switch, and solar, house, feed-in and grid draw power sensors
+ * (`POST /__power`).
  */
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -18,6 +19,8 @@ const initial = () => ({
   "lock.front_door": { state: "locked", attributes: { friendly_name: "Front door" } },
   "sensor.solar_power": { state: "3.2", attributes: { friendly_name: "Inverter output", unit_of_measurement: "kW", device_class: "power" } },
   "sensor.house_power": { state: "1200", attributes: { friendly_name: "Smart meter", unit_of_measurement: "W", device_class: "power" } },
+  "sensor.grid_feed_in": { state: "2000", attributes: { friendly_name: "Meter feed-in", unit_of_measurement: "W", device_class: "power" } },
+  "sensor.grid_draw": { state: "0", attributes: { friendly_name: "Meter draw", unit_of_measurement: "W", device_class: "power" } },
   "sensor.outside_temperature": { state: "14", attributes: { friendly_name: "Outside", unit_of_measurement: "°C", device_class: "temperature" } },
 });
 
@@ -48,6 +51,8 @@ export function startHaMock(port = 0) {
       const p = await body(req);
       if (p.solar !== undefined) set("sensor.solar_power", String(p.solar));
       if (p.house !== undefined) set("sensor.house_power", String(p.house));
+      if (p.feedIn !== undefined) set("sensor.grid_feed_in", String(p.feedIn));
+      if (p.draw !== undefined) set("sensor.grid_draw", String(p.draw));
       return res.writeHead(200).end();
     }
     if (url.pathname === "/__reset" && req.method === "POST") {

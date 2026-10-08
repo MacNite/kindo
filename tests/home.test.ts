@@ -39,7 +39,7 @@ describe.skipIf(!TEST_DB)("Home control (§21)", () => {
   it("offers lights and switches, and only power sensors for solar", async () => {
     const c = await H.listChoices(db, { id });
     expect(c.switches.map((s) => s.entityId)).toEqual(["switch.coffee", "light.kitchen", "light.living_room"]);
-    expect(c.sensors.map((s) => s.entityId)).toEqual(["sensor.solar_power", "sensor.house_power"]);
+    expect(c.sensors.map((s) => s.entityId)).toEqual(["sensor.solar_power", "sensor.grid_draw", "sensor.grid_feed_in", "sensor.house_power"]);
   });
 
   it("refuses to save anything but lights, switches, fans and helpers", async () => {
@@ -57,6 +57,14 @@ describe.skipIf(!TEST_DB)("Home control (§21)", () => {
     expect(s?.switches.map((x) => [x.name, x.on, x.available])).toEqual([["Kitchen", true, true], ["Coffee", true, true]]);
     expect(s?.energy).toEqual({ solar: 3200, house: 1200, grid: -2000 });
     expect(s?.reachable).toBe(true);
+  });
+
+  it("works the house out from solar, feed-in and grid draw", async () => {
+    const controls = [{ entityId: "light.kitchen", name: "Kitchen" }, { entityId: "switch.coffee", name: "Coffee" }];
+    await expect(H.saveSetup(db, { id, controls, energy: { solar: "sensor.solar_power", feedIn: "sensor.solar_power" } })).rejects.toMatchObject({ code: "invalid" });
+    await H.saveSetup(db, { id, controls, energy: { solar: "sensor.solar_power", feedIn: "sensor.grid_feed_in", draw: "sensor.grid_draw" } });
+    expect((await H.readHome(db, Date.now() + 20_000))?.energy).toEqual({ solar: 3200, house: 1200, grid: -2000 });
+    await H.saveSetup(db, { id, controls, energy: { solar: "sensor.solar_power", house: "sensor.house_power" } });
   });
 
   it("switches only what the admin picked", async () => {

@@ -155,8 +155,10 @@ const en = {
     switches: "Switches", noSwitches: "No switches yet.", nameOf: "Name for {entity}", removeSwitch: "Remove {name}", addSwitch: "Add a light or switch", search: "Search by name",
     loading: "Asking Home Assistant…", nothingFound: "Nothing found.", none: "None",
     energy: "Solar", solar: "Solar power", solarHint: "Needed for the solar view: what the panels produce right now (W or kW).",
-    house: "House consumption", houseHint: "Optional: what the house uses right now.",
-    grid: "Grid power", gridHint: "Optional: power to or from the grid. Without it, Kindo works it out from solar and house.",
+    feedIn: "Feed-in", feedInHint: "Optional: power going into the grid right now.",
+    draw: "Grid draw", drawHint: "Optional: power coming from the grid right now.",
+    house: "House consumption", houseHint: "Calculated from solar, feed-in and grid draw, unless you pick a sensor for it.", calculate: "Calculate",
+    grid: "Grid power", gridHint: "Older setup: one sensor for power to and from the grid. Feed-in and grid draw take its place.",
     gridInvert: "Feed-in counts as positive", gridInvertHint: "Turn on if this sensor shows a positive number while you feed into the grid.",
   },
   kids: {
