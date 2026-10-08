@@ -49,7 +49,7 @@ export function WeatherNow({ large }: { large?: boolean }) {
       <WeatherIcon sky={w.sky} className={large ? "h-16 w-16" : "h-12 w-12"} strokeWidth={1.5} />
       <div>
         <p className={cn("num font-display font-semibold leading-none", large ? "text-5xl" : "text-4xl")}>{w.now}°</p>
-        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}>{t(`sky.${w.sky}`)}, {t("weather.range", { high: w.high, low: w.low })}</p>
+        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}>{t(`sky.${w.sky}`)}, <span className="whitespace-nowrap">{t("weather.range", { high: w.high, low: w.low })}</span></p>
       </div>
       <span className="sr-only">{fmt.dateLong(today)}</span>
     </div>
@@ -235,14 +235,14 @@ function ShoppingWidget() {
       <ul className="flex flex-col gap-1">
         {open.slice(0, 6).map((s) => (
           <li key={s.id}>
-            <button onClick={() => toggleShopping(s.id)} className="flex w-full items-center gap-3 py-1 text-left">
+            <button onClick={() => toggleShopping(s.id)} className="flex w-full items-center gap-3 py-1 text-left coarse:min-h-11">
               <span className="h-5 w-5 shrink-0 rounded-md border-2 border-line" />
               <span className="truncate">{tx(s.name)}</span>
             </button>
           </li>
         ))}
       </ul>
-      {open.length > 6 && <Link href="/shopping" className="mt-2 inline-block text-sm font-bold text-soft">+{open.length - 6}</Link>}
+      {open.length > 6 && <Link href="/shopping" className="hit mt-2 inline-block text-sm font-bold text-soft">+{open.length - 6}</Link>}
     </Panel>
   );
 }
@@ -300,7 +300,7 @@ function PhotosWidget() {
       {p ? <Photo photo={p} className="absolute inset-0 h-full w-full" /> : <p className="p-5 text-soft">{t("photos.none")}</p>}
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/45 to-transparent p-4 text-white">
         <div className="text-sm">{p && <><p className="font-bold">{p.place}</p><p className="opacity-85">{p.takenAt && `${fmt.dateMedium(p.takenAt)}, `}{album?.name}</p></>}</div>
-        <Link href="/screensaver" aria-label={t("photos.start")} className="grid h-10 w-10 place-items-center rounded-full bg-white/25 backdrop-blur"><Play size={18} fill="currentColor" /></Link>
+        <Link href="/screensaver" aria-label={t("photos.start")} className="grid h-10 w-10 place-items-center rounded-full bg-white/25 backdrop-blur coarse:h-11 coarse:w-11"><Play size={18} fill="currentColor" /></Link>
       </div>
     </section>
   );

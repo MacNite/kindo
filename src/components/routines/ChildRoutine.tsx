@@ -48,11 +48,11 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
   return (
     <div style={{ "--m": member.color } as CSSProperties} className="tint min-h-dvh">
       <div className="mx-auto flex min-h-dvh max-w-[1400px] flex-col gap-6 p-5 sm:p-8">
-        <header className="flex items-center gap-4">
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <HoldToLeave />
           <Avatar member={member} size="xl" className="max-sm:!h-16 max-sm:!w-16 max-sm:!text-3xl" />
-          <h1 className="m-text font-display text-6xl font-extrabold tracking-tight sm:text-8xl">{member.name}</h1>
-          <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5" role="radiogroup" aria-label={t("routines.period")}>
+          <h1 className="m-text min-w-0 break-words font-display text-[clamp(2.5rem,13vw,3.75rem)] font-extrabold leading-tight tracking-tight sm:text-8xl">{member.name}</h1>
+          <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5 max-sm:ml-0 max-sm:w-full max-sm:justify-between" role="radiogroup" aria-label={t("routines.period")}>
             {(["morning", "afternoon", "evening"] as const).map((p) => {
               const I = PERIOD_ICON[p];
               return (

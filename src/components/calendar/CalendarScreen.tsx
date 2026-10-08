@@ -349,7 +349,7 @@ function DayList({ day, filter, onSelect, holidays = true }: { day: Date; filter
         const I = S ? PROVIDER_ICON[S.provider] : Cloud;
         return (
           <li key={e.id}>
-            <button onClick={() => onSelect(e)} className={cn("flex w-full items-stretch gap-3 rounded-tile p-2 text-left hover:bg-sunken", e.background && "opacity-60")}>
+            <button onClick={() => onSelect(e)} className={cn("flex w-full items-stretch gap-3 rounded-tile p-2 text-left hover:bg-sunken coarse:min-h-11", e.background && "opacity-60")}>
               <span className="num w-[86px] shrink-0 text-sm text-soft">{e.allDay ? t("common.allDay") : `${fmt.time(e.start)}–${fmt.time(e.end)}`}</span>
               <ColorRail colors={colors(e, getMember)} />
               <span className="min-w-0 flex-1">

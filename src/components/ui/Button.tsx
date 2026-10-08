@@ -12,7 +12,7 @@ const V: Record<Variant, string> = {
   outline: "border border-line text-ink hover:bg-sunken",
 };
 const S: Record<Size, string> = {
-  sm: "h-9 px-3 text-sm gap-1.5 rounded-full",
+  sm: "h-9 coarse:h-11 px-3 text-sm gap-1.5 rounded-full",
   md: "h-11 px-4 text-[15px] gap-2 rounded-full",
   lg: "h-14 px-6 text-lg gap-2.5 rounded-full",
 };
@@ -40,6 +40,6 @@ export function LinkButton({ href, variant = "quiet", size = "md", className, na
 }
 
 export function IconButton({ label, className, size = "md", ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; size?: "sm" | "md" | "lg" }) {
-  const s = size === "sm" ? "h-9 w-9" : size === "lg" ? "h-14 w-14" : "h-11 w-11";
+  const s = size === "sm" ? "h-9 w-9 coarse:h-11 coarse:w-11" : size === "lg" ? "h-14 w-14" : "h-11 w-11";
   return <button aria-label={label} title={label} className={cn("inline-grid place-items-center rounded-full text-ink hover:bg-sunken transition-colors disabled:opacity-30", s, className)} {...p} />;
 }

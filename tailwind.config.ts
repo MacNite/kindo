@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 // Design tokens live as CSS variables in src/app/globals.css so light/dark
 // themes swap without touching components.
@@ -39,6 +40,9 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Touch screens (phones, tablets, the wall): `coarse:` raises hit areas to 44 px (§6).
+    plugin(({ addVariant }) => addVariant("coarse", "@media (pointer: coarse)")),
+  ],
 };
 export default config;
