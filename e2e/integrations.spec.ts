@@ -40,3 +40,24 @@ test("Home Assistant presence wakes the wall and lets it go back to photos (§13
   await request.post(`${HA}/__state`, { data: { state: "on" } });
   await expect(saver).toBeHidden({ timeout: 15_000 });
 });
+
+test("school holidays from the feed show in the calendar (§5, D41)", async ({ page }) => {
+  const { assertNoErrors } = await prepare(page);
+  await page.goto("/settings?section=routines");
+  const feeds = page.getByLabel("School holidays from");
+  await feeds.fill(`${SERVICES}/feeds/holidays.ics`);
+  await page.getByRole("button", { name: "Save and fetch" }).click();
+  await expect(page.getByText(/Fetched .*: 1 holiday periods/)).toBeVisible({ timeout: 20_000 });
+
+  await page.goto("/calendar");
+  await expect(page.getByTitle("School holidays: Testferien").first()).toBeVisible();
+  await page.getByRole("radio", { name: "Agenda" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Testferien" })).toHaveCount(1);
+  assertNoErrors();
+
+  // Leave the school days as the other tests expect them.
+  await page.goto("/settings?section=routines");
+  await feeds.fill("");
+  await page.getByRole("button", { name: "Save and fetch" }).click();
+  await expect(page.getByText("No feeds: every Monday to Friday counts as a school day.")).toBeVisible();
+});

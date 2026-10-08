@@ -41,7 +41,7 @@ const en = {
     chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
   },
   calendar: {
-    recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
+    holiday: "School holidays", recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
     editEvent: "Edit event", eventTitle: "Title", titlePlaceholder: "e.g. Swimming lesson", startTime: "From", endTime: "Until",
     month: "Month", week: "Week", agenda: "Agenda", sources: "Calendars", newEvent: "New event",
     readOnly: "Read only", from: "From {source}", who: "Who", where: "Where", when: "When",

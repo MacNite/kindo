@@ -37,11 +37,13 @@ describe.skipIf(!TEST_DB)("school holidays (§7, §19.3)", () => {
 
   it("fetches the feeds and stores the holidays as date ranges", async () => {
     await setHolidayFeeds(db, { urls: [`${base}/ferien.ics`] });
-    expect(await holidaysDue(db)).toBe(true);
-    const n = await syncHolidays(db, new Date(2026, 9, 7));
+    const now = new Date(2026, 9, 7);
+    expect(await holidaysDue(db, now)).toBe(true);
+    const n = await syncHolidays(db, now);
     expect(n).toBeGreaterThanOrEqual(3);
     expect(await db.holidayRange.findFirst({ where: { summary: "Herbstferien" } })).toMatchObject({ start: "2026-10-26", end: "2026-10-30" });
-    expect(await holidaysDue(db)).toBe(false);
+    // Against the same clock as the sync: the real one would make this fail a day after the fixture date.
+    expect(await holidaysDue(db, now)).toBe(false);
     const snap = await loadSnapshot(db, VIEWER, new Date(2026, 9, 7));
     expect(snap?.holidays.map((h) => h.summary)).toContain("Herbstferien");
   });
