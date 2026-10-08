@@ -23,7 +23,8 @@ const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, im
 const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: "caldav", immich: "immich", google: "google", ics: "ics", homeassistant: "homeassistant", frigate: "frigate" };
 
 /** Extra integration-specific pieces (forms, details) registered by later steps. */
-export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode>> = {
+/** Every kind of connection has a form to add one; the type keeps it that way. */
+const ADD_FORMS: Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode> = {
   caldav: ({ onClose }) => <CalDavForm onClose={onClose} />,
   immich: ({ onClose }) => <ImmichForm onClose={onClose} />,
   ics: ({ onClose }) => <IcsForm onClose={onClose} />,
@@ -104,10 +105,9 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
       )}
       <ErrorText code={error} />
       <div>
-        {Form ? <Button size="sm" variant={mine.length ? "outline" : "primary"} onClick={() => setAdding(true)}><Plus size={14} />{mine.length ? t("integrations.addAnother") : t("common.configure")}</Button>
-          : <Button size="sm" variant="outline" disabled title={t("common.planned")}>{t("common.configure")}</Button>}
+        <Button size="sm" variant={mine.length ? "outline" : "primary"} onClick={() => setAdding(true)}><Plus size={14} />{mine.length ? t("integrations.addAnother") : t("common.configure")}</Button>
       </div>
-      {adding && Form && <Form onClose={() => setAdding(false)} />}
+      {adding && <Form onClose={() => setAdding(false)} />}
     </div>
   );
 }

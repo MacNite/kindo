@@ -338,7 +338,7 @@ function DayList({ day, filter, onSelect, holidays = true }: { day: Date; filter
   );
 }
 
-/** School holidays from the household's feeds: a quiet band, not an event (§5, §20 D41). */
+/** School holidays from the household's feeds: a quiet band, not an event (§5, §20 D20). */
 function HolidayBand({ day }: { day: Date }) {
   const { t } = useI18n();
   const { holidaysOn } = useStore();

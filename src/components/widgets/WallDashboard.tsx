@@ -21,7 +21,7 @@ import { useGreeting } from "./HomeScreen";
  * Always-on kitchen display. Readable from a few metres: one clock, one
  * column of household context (which tiles, and in which order, is set in
  * Settings → Dashboard), and a lane per person.
- * Idle → photo frame; touch → back. Presence sensing can later call setSaver.
+ * Idle → photo frame; touch → back. Home Assistant presence wakes it or brings the photos back.
  */
 export function WallDashboard() {
   const today = useToday();
