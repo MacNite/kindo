@@ -20,6 +20,7 @@ const OFFLINE_ACTIONS: { [K in OfflineOp["name"]]: (input: Extract<OfflineOp, { 
   addShoppingItem: A.addShoppingItem,
   setShoppingDone: A.setShoppingDone,
   clearDoneShopping: A.clearDoneShopping,
+  deleteShoppingItem: A.deleteShoppingItem,
 };
 const isOffline = () => typeof navigator !== "undefined" && navigator.onLine === false;
 /** A queued change waiting to be sent, with its IndexedDB key once stored. */
@@ -305,6 +306,9 @@ function useHousehold(initial: HouseholdWire) {
       { name: "addShoppingItem", input: { id, listId, name, memberId } },
     );
   };
+  const deleteShopping = (id: string) =>
+    mutate((d) => ({ ...d, shoppingItems: d.shoppingItems.filter((i) => i.id !== id) }), () => A.deleteShoppingItem({ id }),
+      { name: "deleteShoppingItem", input: { id } });
   const clearDone = (listId: string) =>
     mutate((d) => ({ ...d, shoppingItems: d.shoppingItems.filter((i) => !(i.listId === listId && i.done)) }), () => A.clearDoneShopping({ listId }),
       { name: "clearDoneShopping", input: { listId } });
@@ -364,7 +368,7 @@ function useHousehold(initial: HouseholdWire) {
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,
     rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode, setRoutineRewards,
-    shopping: data.shoppingItems, shoppingLists: data.shoppingLists, toggleShopping, setShoppingDone, addShopping, clearDone,
+    shopping: data.shoppingItems, shoppingLists: data.shoppingLists, toggleShopping, setShoppingDone, addShopping, deleteShopping, clearDone,
     tasks: data.tasks, toggleTask, addTask, deleteTask,
     widgets: data.household.widgets, moveWidget, updateWidget,
     wallTiles: data.household.wallTiles, moveWallTile, showWallTile, home: data.home, homeTick,

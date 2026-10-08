@@ -99,6 +99,7 @@ const de: Messages = {
   shopping: {
     queued: "Offline: {n} Änderungen werden gesendet, sobald du wieder online bist.", offlineNow: "Offline: Die Liste funktioniert trotzdem, Änderungen werden später gesendet.",
     newList: "Neue Liste",
+    editList: "Liste bearbeiten", deleteList: "Liste löschen", deleteListConfirm: "Die Liste „{name}“ mit allem darauf löschen?", removeItem: "„{name}“ entfernen",
     title: "Einkauf", add: "Zu {list} hinzufügen", items: "{n} offen", clearDone: "Abgehakte entfernen",
     inTrolley: "Im Wagen ({n})", whoAdds: "Für",
     cat_produce: "Obst & Gemüse", cat_dairy: "Milchprodukte", cat_bakery: "Backwaren", cat_pantry: "Vorrat", cat_frozen: "Tiefkühl",

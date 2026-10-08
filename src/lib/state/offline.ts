@@ -11,7 +11,8 @@ import { guessCategory } from "../shopping";
 export type OfflineOp =
   | { name: "addShoppingItem"; input: { id: string; listId: string; name: string; memberId?: string } }
   | { name: "setShoppingDone"; input: { id: string; done: boolean } }
-  | { name: "clearDoneShopping"; input: { listId: string } };
+  | { name: "clearDoneShopping"; input: { listId: string } }
+  | { name: "deleteShoppingItem"; input: { id: string } };
 
 /** Applies queued operations to a snapshot, the same way the optimistic updates did. */
 export function applyQueued(d: HouseholdData, ops: OfflineOp[]): HouseholdData {
@@ -23,6 +24,8 @@ export function applyQueued(d: HouseholdData, ops: OfflineOp[]): HouseholdData {
       items = [item, ...items];
     } else if (op.name === "setShoppingDone") {
       items = items.map((i) => (i.id === op.input.id ? { ...i, done: op.input.done } : i));
+    } else if (op.name === "deleteShoppingItem") {
+      items = items.filter((i) => i.id !== op.input.id);
     } else {
       items = items.filter((i) => !(i.listId === op.input.listId && i.done));
     }

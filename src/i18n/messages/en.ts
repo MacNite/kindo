@@ -102,6 +102,7 @@ const en = {
   shopping: {
     queued: "Offline: {n} changes will be sent once you're back online.", offlineNow: "Offline: the list still works, changes are sent later.",
     newList: "New list",
+    editList: "Edit list", deleteList: "Delete list", deleteListConfirm: "Delete the list “{name}” and everything on it?", removeItem: "Remove “{name}”",
     title: "Shopping", add: "Add to {list}", items: "{n} to buy", clearDone: "Clear ticked items",
     inTrolley: "In the trolley ({n})", whoAdds: "For",
     cat_produce: "Fruit & veg", cat_dairy: "Dairy", cat_bakery: "Bakery", cat_pantry: "Pantry", cat_frozen: "Frozen",

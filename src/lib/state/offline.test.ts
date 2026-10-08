@@ -18,6 +18,7 @@ describe("offline shopping (§19.7)", () => {
       { name: "clearDoneShopping", input: { listId: "g" } },
     ];
     expect(applyQueued(base, ops).shoppingItems.map((i) => i.id)).toEqual(["eggs"]);
+    expect(applyQueued(base, [{ name: "deleteShoppingItem", input: { id: "milk" } }]).shoppingItems.map((i) => i.id)).toEqual(["bread"]);
   });
 
   it("doesn't add an item twice when the snapshot already has it", () => {
