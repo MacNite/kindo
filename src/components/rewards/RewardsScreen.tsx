@@ -2,7 +2,7 @@
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { Coins, Euro, Pencil, Plus, PowerOff, Star, Trash2 } from "lucide-react";
-import type { Reward, RewardMode, Text } from "@/lib/types";
+import type { Member, Reward, RewardMode, Text } from "@/lib/types";
 import { editText } from "@/lib/text";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -54,6 +54,17 @@ export function RewardsScreen() {
   const { rewardMode, balances, redeem, approvals, resolveApproval, children, getMember, data } = useStore();
   const [flash, setFlash] = useState<string | null>(null);
   const [editing, setEditing] = useState<Reward | "new" | null>(null);
+  // Spending points isn't idempotent: one redemption at a time, so a double tap spends once.
+  const [redeeming, setRedeeming] = useState(false);
+  const spend = async (m: Member, r: Reward) => {
+    if (redeeming) return;
+    setRedeeming(true);
+    try {
+      if ((await redeem(m.id, r)).ok) setFlash(t("rewards.redeemed", { reward: tx(r.title) }));
+    } finally {
+      setRedeeming(false);
+    }
+  };
   const REWARDS = data.rewards;
 
   return (
@@ -96,7 +107,7 @@ export function RewardsScreen() {
                               </span>
                             )}
                           </span>
-                          {can ? <Button size="sm" variant="primary" onClick={async () => { if ((await redeem(m.id, r)).ok) setFlash(t("rewards.redeemed", { reward: tx(r.title) })); }}>{t("rewards.redeem")}</Button>
+                          {can ? <Button size="sm" variant="primary" disabled={redeeming} onClick={() => spend(m, r)}>{t("rewards.redeem")}</Button>
                             : <span className="num text-sm text-soft">{t("rewards.needMore", { n: fmt.num(r.cost - bal) })}</span>}
                         </li>
                       );
@@ -174,14 +185,22 @@ function RewardEditor({ reward, onClose }: { reward: Reward | null; onClose: () 
   const [title, setTitle] = useState<Text>(reward?.title ?? "");
   const [cost, setCost] = useState(reward?.cost ?? 50);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const done = (r: { ok: boolean; error?: string }) => (r.ok ? onClose() : setError(r.error ?? "server"));
+  // A new reward has no id yet: a second tap must not add it twice.
+  const save = async () => {
+    setBusy(true);
+    const r = await run(() => saveReward({ id: reward?.id, emoji, title, cost }));
+    setBusy(false);
+    done(r);
+  };
   return (
     <Dialog open onClose={onClose} title={reward ? t("rewards.edit") : t("rewards.add")}
       footer={<>
         {reward && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => deleteReward({ id: reward.id })))}><Trash2 size={16} />{t("common.delete")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={!tx(title).trim()} onClick={async () => done(await run(() => saveReward({ id: reward?.id, emoji, title, cost })))}>{t("common.save")}</Button>
+        <Button variant="primary" disabled={busy || !tx(title).trim()} onClick={save}>{t("common.save")}</Button>
       </>}>
       <div className="grid grid-cols-[88px_1fr] gap-4">
         <Field label={t("rewards.emoji")}><input className={cn(inputCls, "text-center text-2xl")} value={emoji} maxLength={8} onChange={(e) => setEmoji(e.target.value)} /></Field>
