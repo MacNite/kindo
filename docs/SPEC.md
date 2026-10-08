@@ -62,7 +62,7 @@ The engine (`src/lib/recurrence.ts`) answers "does it occur on this date", "ever
 
 ## §8 Pictograms
 
-There is a built-in library in one visual language (Lucide, plus custom icons drawn on the same grid), organised in categories: morning, household, evening, outdoors, school & play.
+There is a built-in library in one visual language (Lucide, plus custom icons drawn on the same grid), organised in categories: morning, personal care, household, evening, outdoors, school & play. Personal care holds washing, teeth, hair, toilet and small first aid (D43).
 
 Emoji and uploaded photos are supported as alternatives (`emoji:` and `img:` prefixes). Upload is planned.
 

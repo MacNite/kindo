@@ -278,6 +278,8 @@ function useHousehold(initial: HouseholdWire) {
     const id = uid();
     return mutate((d) => ({ ...d, tasks: [{ id, title, memberId, due, done: false }, ...d.tasks] }), () => A.addTask({ id, title, memberId, due }));
   };
+  const deleteTask = (id: string) =>
+    mutate((d) => ({ ...d, tasks: d.tasks.filter((t) => t.id !== id) }), () => A.deleteTask({ id }));
 
   // ── Dashboard ─────────────────────────────────────────────────────────────
   const setWidgets = (next: (w: WidgetConfig[]) => WidgetConfig[]) => {
@@ -323,7 +325,7 @@ function useHousehold(initial: HouseholdWire) {
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,
     rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode, setRoutineRewards,
     shopping: data.shoppingItems, shoppingLists: data.shoppingLists, toggleShopping, setShoppingDone, addShopping, clearDone,
-    tasks: data.tasks, toggleTask, addTask,
+    tasks: data.tasks, toggleTask, addTask, deleteTask,
     widgets: data.household.widgets, moveWidget, updateWidget,
     wallTiles: data.household.wallTiles, moveWallTile, showWallTile, home: data.home, homeTick,
     albums: data.albums, updateAlbum, idleMinutes: data.household.idleMinutes, setIdleMinutes,
