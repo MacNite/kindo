@@ -1,5 +1,5 @@
 import type { Connection } from "@prisma/client";
-import { decryptSecret, sha256 } from "../crypto";
+import { decryptSecret } from "../crypto";
 import { fetchText, normaliseFeedUrl } from "../http";
 import { parseCalendar } from "./ical";
 import type { CalendarProvider } from "./sync";
@@ -20,10 +20,10 @@ export async function readFeed(url: string) {
 }
 
 export const icsProvider: CalendarProvider = {
-  // One calendar per feed; its "change marker" is the content's hash, computed when fetched.
+  // One calendar per feed. No change marker in the listing: the sync compares what it fetched (syncSource).
   listCalendars: async (c) => [{ remoteId: ICS_REMOTE_ID, name: c.name, readOnly: true }],
   fetchEvents: async (c, _s, window) => {
     const text = await readFeed(feedUrl(c));
-    return parseCalendar(text, window).map((e) => ({ ...e, href: "", etag: sha256(text).slice(0, 16) }));
+    return parseCalendar(text, window).map((e) => ({ ...e, href: "" }));
   },
 };

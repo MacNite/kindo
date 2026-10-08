@@ -127,6 +127,11 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     expect(autumn).toMatchObject({ memberIds: ["lena"], background: true, allDay: true });
     // Kindo's own member assignment in the feed wins over the calendar's people.
     expect(source.events.find((e) => e.title === "Football practice")?.memberIds).toEqual(["lena", "max"]);
+    // The same feed again: nothing is rewritten. A change of the calendar's people is.
+    expect(await syncConnection(db, conn, { force: true })).toBe(false);
+    await C.updateSource(db, { id: source.id, name: "School", defaultMemberIds: ["max"], readOnly: true, background: true });
+    expect(await syncConnection(db, conn, { force: true })).toBe(true);
+    expect((await db.event.findFirstOrThrow({ where: { sourceId: source.id, title: { equals: "Herbstferien" } } })).memberIds).toEqual(["max"]);
   });
 
   it("connects a Google account: calendars, events, read-only where Google says so", async () => {

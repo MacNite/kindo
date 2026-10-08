@@ -84,15 +84,22 @@ export async function syncSource(db: Tx, conn: Connection, source: SourceRow, op
   const events = await p.fetchEvents(conn, source, window);
   const members = new Set((await db.member.findMany({ select: { id: true } })).map((m) => m.id));
   const rows = toRows(source, events, members);
+  // Without a marker from the listing (ICS feeds, Google), what was fetched is the marker:
+  // the same events as last time leave the stored ones alone.
+  const state = opts.state ?? `content:${sha256(JSON.stringify(rows)).slice(0, 32)}`;
   // Replace the calendar's events in one go: screens never see it half synced.
-  await inTx(db, async (tx) => {
+  return inTx(db, async (tx) => {
     // One writer per calendar: a second sync (Settings and the background job at once) waits for the first.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`kindo:sync:${source.id}`}, 0))`;
-    await tx.event.deleteMany({ where: { sourceId: source.id } });
-    if (rows.length) await tx.event.createMany({ data: rows });
-    await tx.calendarSource.update({ where: { id: source.id }, data: { syncState: opts.state ?? null, lastSyncAt: now } });
+    const stored = await tx.calendarSource.findUnique({ where: { id: source.id }, select: { syncState: true } });
+    const unchanged = !opts.state && stored?.syncState === state;
+    if (!unchanged) {
+      await tx.event.deleteMany({ where: { sourceId: source.id } });
+      if (rows.length) await tx.event.createMany({ data: rows });
+    }
+    await tx.calendarSource.update({ where: { id: source.id }, data: { syncState: state, lastSyncAt: now } });
+    return !unchanged;
   });
-  return true;
 }
 
 /** Syncs every calendar of a connection and records how it went. Returns whether anything changed. */
