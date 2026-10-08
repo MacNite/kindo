@@ -49,7 +49,7 @@ export function WeatherNow({ large }: { large?: boolean }) {
       <WeatherIcon sky={w.sky} className={large ? "h-16 w-16" : "h-12 w-12"} strokeWidth={1.5} />
       <div>
         <p className={cn("num font-display font-semibold leading-none", large ? "text-5xl" : "text-4xl")}>{w.now}°</p>
-        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}>{t(`sky.${w.sky}`)}, {t("weather.range", { high: w.high, low: w.low })}</p>
+        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}>{t(`sky.${w.sky}`)}, <span className="whitespace-nowrap">{t("weather.range", { high: w.high, low: w.low })}</span></p>
       </div>
       <span className="sr-only">{fmt.dateLong(today)}</span>
     </div>
