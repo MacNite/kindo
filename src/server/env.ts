@@ -1,10 +1,13 @@
 import { z } from "zod";
+import { log } from "./log";
 
 /**
  * Server configuration from the environment. Parsed once per process.
  * Everything here stays on the server (§17).
  */
 const bool = z.enum(["true", "false", "1", "0", ""]).optional().transform((v) => v === "true" || v === "1");
+/** Like `bool`, but unset means on. */
+const boolOn = z.enum(["true", "false", "1", "0", ""]).optional().transform((v) => v === undefined || v === "" || v === "true" || v === "1");
 const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
 const optionalString = z.preprocess((v) => (v === "" ? undefined : v), z.string().optional());
 
@@ -26,10 +29,12 @@ const schema = z.object({
   OIDC_CLIENT_ID: optionalString,
   OIDC_CLIENT_SECRET: optionalString,
   OIDC_NAME: z.string().default("authentik"),
+  /** `false` leaves single sign-on as the only way to sign in. Ignored while single sign-on isn't set up (§20 D42). */
+  KINDO_PASSWORD_LOGIN: boolOn,
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });
 
-export type Env = z.infer<typeof schema> & { secretKey: string; secureCookies: boolean; oidc: boolean; trustedOrigins: string[] };
+export type Env = z.infer<typeof schema> & { secretKey: string; secureCookies: boolean; oidc: boolean; passwordLogin: boolean; trustedOrigins: string[] };
 let cached: Env | undefined;
 
 export function env(): Env {
@@ -50,12 +55,16 @@ export function env(): Env {
   const trustedOrigins = [e.APP_URL, ...(e.KINDO_TRUSTED_ORIGINS?.split(",") ?? [])]
     .map((o) => o?.trim().replace(/\/$/, ""))
     .filter((o): o is string => Boolean(o));
+  const oidc = Boolean(e.OIDC_ISSUER && e.OIDC_CLIENT_ID && e.OIDC_CLIENT_SECRET);
+  // Never lock everyone out: without single sign-on, passwords stay the way in.
+  if (!e.KINDO_PASSWORD_LOGIN && !oidc) log.warn("KINDO_PASSWORD_LOGIN=false is ignored: single sign-on isn't set up (OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET)");
   return (cached = {
     ...e,
     secretKey,
     // Secure cookies only over HTTPS: a family LAN on plain HTTP must still be able to sign in.
     secureCookies: e.APP_URL?.startsWith("https://") ?? false,
-    oidc: Boolean(e.OIDC_ISSUER && e.OIDC_CLIENT_ID && e.OIDC_CLIENT_SECRET),
+    oidc,
+    passwordLogin: e.KINDO_PASSWORD_LOGIN || !oidc,
     trustedOrigins,
   });
 }

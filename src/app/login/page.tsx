@@ -14,5 +14,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
   if ((await setupState(prisma)) !== "done") redirect("/setup");
   const { next, error } = await searchParams;
   if (await getActor()) redirect(safeNext(next));
-  return <LoginScreen next={safeNext(next)} oidc={env().oidc ? env().OIDC_NAME : null} error={error ? "sso" : null} />;
+  return <LoginScreen next={safeNext(next)} oidc={env().oidc ? env().OIDC_NAME : null} password={env().passwordLogin} error={error ? "sso" : null} />;
 }

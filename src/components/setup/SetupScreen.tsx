@@ -13,8 +13,12 @@ import { cn } from "../ui/cn";
 
 const COLORS = ["#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B", "#C2477A", "#2A8C9E"];
 
-/** First run: name the household and its first admin, or start with the demo family (§20 D11). */
-export function SetupScreen({ claim = false }: { claim?: boolean }) {
+/**
+ * First run: name the household and its first admin, or start with the demo
+ * family (§20 D11). With `sso` (password sign-in turned off, §20 D42) the admin
+ * gives only their email and signs in through single sign-on afterwards.
+ */
+export function SetupScreen({ claim = false, sso = null }: { claim?: boolean; sso?: string | null }) {
   const { t, language } = useI18n();
   const { setPrefs } = usePrefs();
   const [household, setHousehold] = useState("");
@@ -31,8 +35,8 @@ export function SetupScreen({ claim = false }: { claim?: boolean }) {
     e.preventDefault();
     setBusy(true);
     const avatar: Member["avatar"] = { kind: "initial" };
-    const r = await setup({ demo, household: demo || claim ? "Household" : household, timezone, member: { name: demo ? "Demo" : name || "Admin", color, avatar }, email, password });
-    if (r.ok) window.location.assign("/");
+    const r = await setup({ demo, household: demo || claim ? "Household" : household, timezone, member: { name: demo ? "Demo" : name || "Admin", color, avatar }, email, password: sso ? undefined : password });
+    if (r.ok) window.location.assign(r.data.signedIn ? "/" : "/login");
     else {
       setBusy(false);
       setError(r.error);
@@ -68,12 +72,14 @@ export function SetupScreen({ claim = false }: { claim?: boolean }) {
             </div>
           </Field>
         </>}
-        <Field label={t("login.email")}>
+        <Field label={t("login.email")} hint={sso ? t("setup.ssoHint", { name: sso }) : undefined}>
           <input required type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
         </Field>
-        <Field label={t("login.password")} hint={t("setup.passwordHint")}>
-          <input required type="password" minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-        </Field>
+        {!sso && (
+          <Field label={t("login.password")} hint={t("setup.passwordHint")}>
+            <input required type="password" minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+          </Field>
+        )}
         {!claim && (
           <label className="flex items-start gap-3 rounded-card bg-sunken p-4">
             <input type="checkbox" className="mt-1 h-5 w-5" checked={demo} onChange={(e) => setDemo(e.target.checked)} />
@@ -82,7 +88,7 @@ export function SetupScreen({ claim = false }: { claim?: boolean }) {
         )}
         {!claim && <p className="text-sm text-soft">{t("setup.timezone", { zone: timezone })}</p>}
         <ErrorText code={error} />
-        <Button type="submit" variant="primary" size="lg" disabled={busy || password.length < 8 || !email.includes("@") || (!demo && !claim && (!household.trim() || !name.trim()))}>{t("setup.start")}</Button>
+        <Button type="submit" variant="primary" size="lg" disabled={busy || (!sso && password.length < 8) || !email.includes("@") || (!demo && !claim && (!household.trim() || !name.trim()))}>{t("setup.start")}</Button>
       </form>
     </main>
   );

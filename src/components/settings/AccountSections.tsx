@@ -5,7 +5,7 @@ import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import {
-  approvePairing, changePassword, createLogin, getAccountAdmin, removeLogin, revokeDevice, setLoginPassword, setPin, signOut,
+  approvePairing, changePassword, createLogin, getAccountAdmin, getLoginOptions, removeLogin, revokeDevice, setLoginPassword, setPin, signOut,
 } from "@/lib/services/accounts";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
@@ -15,10 +15,14 @@ import { ErrorText } from "../ui/ErrorText";
 type Done = { ok: boolean; error?: string };
 const Card = ({ children }: { children: React.ReactNode }) => <div className="flex flex-col gap-4 rounded-panel bg-surface p-5">{children}</div>;
 
-/** The signed-in person's own login: password and signing out. */
+/** The signed-in person's own login: password and signing out. No password without password sign-in (§20 D42). */
 export function AccountSection() {
   const { t } = useI18n();
   const { viewer, getMember, run } = useStore();
+  const [passwordLogin, setPasswordLogin] = useState(false);
+  useEffect(() => {
+    void getLoginOptions().then((r) => setPasswordLogin(r.ok && r.data.passwordLogin));
+  }, []);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [state, setState] = useState<{ error?: string; saved?: boolean }>({});
@@ -38,7 +42,7 @@ export function AccountSection() {
         <p><span className="font-bold">{viewer.name}</span>{email && <span className="text-soft">, {email}</span>}</p>
         <Button variant="outline" className="self-start" onClick={async () => { await signOut(); window.location.assign("/login"); }}><LogOut size={16} />{t("account.signOut")}</Button>
       </Card>
-      <form onSubmit={save}>
+      {passwordLogin && <form onSubmit={save}>
         <Card>
           <p className="font-bold">{t("account.changePassword")}</p>
           <Field label={t("account.currentPassword")}><input type="password" autoComplete="current-password" className={inputCls} value={current} onChange={(e) => setCurrent(e.target.value)} /></Field>
@@ -49,12 +53,12 @@ export function AccountSection() {
             <ErrorText code={state.error} />
           </div>
         </Card>
-      </form>
+      </form>}
     </div>
   );
 }
 
-interface AdminData { oidc: string | null; devices: { id: string; name: string; createdAt: Date; lastSeenAt?: Date }[] }
+interface AdminData { oidc: string | null; passwordLogin: boolean; devices: { id: string; name: string; createdAt: Date; lastSeenAt?: Date }[] }
 
 function useAdminData() {
   const [data, setData] = useState<AdminData | null>(null);
@@ -157,22 +161,30 @@ export function LoginEditor({ member, onClose }: { member: Member; onClose: () =
   const [error, setError] = useState<string | null>(null);
   const done = (r: Done) => (r.ok ? onClose() : setError(r.error ?? "server"));
   const has = Boolean(member.account);
+  // Without password sign-in a login is just an email for single sign-on (§20 D42).
+  const passwords = data?.passwordLogin ?? true;
   return (
     <Dialog open onClose={onClose} title={has ? t("logins.edit", { name: member.name }) : t("logins.create", { name: member.name })}
       footer={<>
         {has && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => removeLogin({ memberId: member.id })))}><Trash2 size={16} />{t("logins.remove")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={has ? password.length < 8 : !email.includes("@") || (password.length > 0 && password.length < 8) || (!password && !data?.oidc)}
-          onClick={async () => done(await run(() => (has ? setLoginPassword({ memberId: member.id, password }) : createLogin({ memberId: member.id, email, password: password || undefined }))))}>
-          {t("common.save")}
-        </Button>
+        {(passwords || !has) && (
+          <Button variant="primary" disabled={!data || (has ? password.length < 8 : !email.includes("@") || (password.length > 0 && password.length < 8) || (!password && !data.oidc))}
+            onClick={async () => done(await run(() => (has ? setLoginPassword({ memberId: member.id, password }) : createLogin({ memberId: member.id, email, password: password || undefined }))))}>
+            {t("common.save")}
+          </Button>
+        )}
       </>}>
       <div className="flex flex-col gap-4">
-        <Field label={t("login.email")}><input type="email" className={inputCls} value={email} disabled={has} onChange={(e) => setEmail(e.target.value)} /></Field>
-        <Field label={has ? t("account.newPassword") : t("login.password")} hint={has ? t("logins.resetHint") : data?.oidc ? t("logins.ssoHint", { name: data.oidc }) : t("setup.passwordHint")}>
-          <input type="password" autoComplete="new-password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
+        <Field label={t("login.email")} hint={!passwords && data?.oidc ? t("logins.ssoOnlyHint", { name: data.oidc }) : undefined}>
+          <input type="email" className={inputCls} value={email} disabled={has} onChange={(e) => setEmail(e.target.value)} />
         </Field>
+        {passwords && (
+          <Field label={has ? t("account.newPassword") : t("login.password")} hint={has ? t("logins.resetHint") : data?.oidc ? t("logins.ssoHint", { name: data.oidc }) : t("setup.passwordHint")}>
+            <input type="password" autoComplete="new-password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+        )}
       </div>
     </Dialog>
   );

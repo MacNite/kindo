@@ -13,7 +13,8 @@ import { env } from "./env";
  *
  * Nobody signs themselves up: an admin creates logins for adults
  * (src/server/accounts.ts), and single sign-on only signs in people whose
- * email already has a login.
+ * email already has a login. With KINDO_PASSWORD_LOGIN=false single sign-on
+ * is the only way in (§20 D42).
  */
 function createAuth() {
   const e = env();
@@ -23,7 +24,9 @@ function createAuth() {
     baseURL: e.APP_URL,
     trustedOrigins: e.trustedOrigins,
     database: prismaAdapter(prisma, { provider: "postgresql" }),
-    emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 8 },
+    emailAndPassword: { enabled: e.passwordLogin, disableSignUp: true, minPasswordLength: 8 },
+    // Better Auth only checks `enabled` when signing in; close the other password routes too.
+    disabledPaths: e.passwordLogin ? [] : ["/sign-in/email", "/change-password", "/request-password-reset", "/reset-password", "/verify-password"],
     // Single sign-on links to the login an admin created for that email. Every
     // local login was created by the household's admin (nobody signs up) and the
     // provider is the household's own, so the local email needs no separate check.
