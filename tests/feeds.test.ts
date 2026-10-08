@@ -86,7 +86,12 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
   beforeAll(async () => {
     db = await resetTestDatabase();
     await db.$transaction((tx) => seedDemo(tx), { timeout: 60_000 });
-    feed = createServer((req, res) => (req.url === "/school.ics" ? res.writeHead(200, { "content-type": "text/calendar" }).end(ics) : res.writeHead(200).end("<html>not a calendar</html>")));
+    let flaky = 0;
+    feed = createServer((req, res) => {
+      // Answers once, then fails: the check passes and the first sync fails.
+      if (req.url === "/flaky.ics") return flaky++ ? res.writeHead(500).end() : res.writeHead(200, { "content-type": "text/calendar" }).end(ics);
+      return req.url === "/school.ics" ? res.writeHead(200, { "content-type": "text/calendar" }).end(ics) : res.writeHead(200).end("<html>not a calendar</html>");
+    });
     feedUrl = await listen(feed);
     const base = await listen(google.server);
     process.env.GOOGLE_API_BASE = base;
@@ -103,6 +108,10 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
 
   it("subscribes to a feed: read-only, its people's colours, the address kept secret", async () => {
     await expect(C.addIcs(db, { name: "Nope", url: `${feedUrl}/page.html`, defaultMemberIds: [], background: false })).rejects.toMatchObject({ code: "remote" });
+    // A first sync that fails leaves nothing behind, so trying again doesn't add a second feed.
+    await expect(C.addIcs(db, { name: "Flaky", url: `${feedUrl}/flaky.ics`, defaultMemberIds: [], background: false })).rejects.toMatchObject({ code: "remote" });
+    expect(await db.connection.count({ where: { kind: "ics" } })).toBe(0);
+    expect(await db.calendarSource.count({ where: { provider: "ics", connectionId: { not: null } } })).toBe(0);
     const id = await C.addIcs(db, { name: "School", url: `${feedUrl}/school.ics`, defaultMemberIds: ["lena"], background: true });
     const conn = await db.connection.findUniqueOrThrow({ where: { id }, include: { sources: { include: { events: true } } } });
     expect(conn.secret).not.toContain("school.ics");

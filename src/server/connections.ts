@@ -47,6 +47,20 @@ const json = (v: unknown) => v as Prisma.InputJsonValue;
 
 interface Config { ignored?: string[] }
 
+/**
+ * The first read of a connection just added. If it fails, the connection
+ * goes again (its calendars and events with it), so trying again doesn't
+ * leave a second one behind.
+ */
+async function firstSync(db: Tx, connectionId: string, run: () => Promise<unknown>) {
+  try {
+    await run();
+  } catch (e) {
+    await db.connection.deleteMany({ where: { id: connectionId } }).catch(() => {});
+    throw e;
+  }
+}
+
 /** Adds the calendars a connection has that Kindo doesn't know yet (and that nobody removed). */
 export async function discoverCalendars(db: Tx, conn: Connection) {
   const p = providerFor(conn.kind);
@@ -77,7 +91,7 @@ export async function addCalDav(db: Tx, input: In<"addCalDav">) {
       secret: encryptSecret(input.password), status: "pending",
     },
   });
-  await discoverCalendars(db, conn);
+  await firstSync(db, conn.id, () => discoverCalendars(db, conn));
   return conn.id;
 }
 
@@ -104,7 +118,7 @@ export async function addIcs(db: Tx, input: In<"addIcs">) {
       background: input.background, connectionId: conn.id, remoteId: ICS_REMOTE_ID, sortOrder: await db.calendarSource.count(),
     },
   });
-  await syncConnection(db, conn, { force: true });
+  await firstSync(db, conn.id, () => syncConnection(db, conn, { force: true }));
   return conn.id;
 }
 
@@ -142,7 +156,7 @@ export async function addImmich(db: Tx, input: In<"addImmich">) {
   const conn = await db.connection.create({
     data: { kind: "immich", name: input.name, url: input.url, secret: encryptSecret(input.apiKey), status: "pending" },
   });
-  await syncPhotos(db, conn);
+  await firstSync(db, conn.id, () => syncPhotos(db, conn));
   return conn.id;
 }
 
