@@ -65,7 +65,7 @@ export function ShoppingScreen() {
           <span className="mr-1 text-sm text-soft">{t("shopping.whoAdds")}</span>
           {getMembers().map((m) => (
             <button type="button" key={m.id} onClick={() => setForWho((w) => (w === m.id ? undefined : m.id))} aria-pressed={forWho === m.id} aria-label={m.name}
-              className={cn("rounded-full transition-opacity", forWho === m.id ? "opacity-100" : "opacity-40")}><Avatar member={m} size="xs" ring={forWho === m.id} /></button>
+              className={cn("rounded-full transition-opacity coarse:-mx-1 coarse:grid coarse:h-11 coarse:w-11 coarse:place-items-center", forWho === m.id ? "opacity-100" : "opacity-40")}><Avatar member={m} size="xs" ring={forWho === m.id} /></button>
           ))}
         </div>
       </form>
@@ -98,10 +98,10 @@ export function ShoppingScreen() {
         {done.length > 0 && (
           <section>
             <div className="flex items-center justify-between px-2">
-              <button onClick={() => setShowDone((v) => !v)} className="flex items-center gap-1.5 text-sm font-bold text-soft">
+              <button onClick={() => setShowDone((v) => !v)} className="flex items-center gap-1.5 text-sm font-bold text-soft coarse:min-h-11">
                 <ChevronDown size={16} className={cn("transition-transform", !showDone && "-rotate-90")} />{t("shopping.inTrolley", { n: done.length })}
               </button>
-              <button onClick={() => listId && clearDone(listId)} className="text-sm font-bold text-soft hover:text-ink">{t("shopping.clearDone")}</button>
+              <button onClick={() => listId && clearDone(listId)} className="text-sm font-bold text-soft hover:text-ink coarse:min-h-11">{t("shopping.clearDone")}</button>
             </div>
             {showDone && (
               <ul className="mt-1.5 overflow-hidden rounded-panel bg-surface/60">

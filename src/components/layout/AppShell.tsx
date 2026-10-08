@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh md:flex">
       {/* Side rail: icons on tablets, labels on desktop */}
       <aside className="sticky top-0 hidden h-dvh shrink-0 flex-col gap-1 px-3 py-5 md:flex md:w-[84px] lg:w-[232px]">
-        <Link href="/" className="mb-5 flex items-center gap-2.5 px-2.5">
+        <Link href="/" className="mb-5 flex items-center gap-2.5 px-2.5 coarse:min-h-11">
           <Logo />
           <span className="hidden font-display text-xl font-bold tracking-tight lg:inline">{t("app.name")}</span>
         </Link>
@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="min-w-0 flex-1">
         {/* Phone header */}
         <header className="sticky top-0 z-30 flex items-center justify-between bg-bg/90 px-4 pb-2 pt-[max(env(safe-area-inset-top),12px)] backdrop-blur md:hidden">
-          <Link href="/" className="flex items-center gap-2"><Logo /><span className="font-display text-lg font-bold">{t("app.name")}</span></Link>
+          <Link href="/" className="flex items-center gap-2 coarse:min-h-11"><Logo /><span className="font-display text-lg font-bold">{t("app.name")}</span></Link>
           <QuickPrefs compact />
         </header>
         <main className="mx-auto w-full max-w-[1500px] px-4 pb-28 pt-2 md:px-6 md:pb-10 md:pt-6 lg:px-8">{children}</main>

@@ -13,11 +13,11 @@ export function QuickPrefs({ compact }: { compact?: boolean }) {
       <div className="inline-flex rounded-full bg-sunken p-0.5 text-sm font-bold" role="radiogroup" aria-label="Language">
         {(["de", "en"] as const).map((l) => (
           <button key={l} role="radio" aria-checked={prefs.language === l} onClick={() => setPrefs({ language: l })}
-            className={cn("h-8 w-10 rounded-full uppercase", prefs.language === l ? "bg-surface text-ink" : "text-soft")}>{l}</button>
+            className={cn("h-8 w-10 rounded-full uppercase coarse:h-11 coarse:w-11", prefs.language === l ? "bg-surface text-ink" : "text-soft")}>{l}</button>
         ))}
       </div>
       <button onClick={() => setPrefs({ theme: next[prefs.theme] })} aria-label={`Theme: ${prefs.theme}`} title={`Theme: ${prefs.theme}`}
-        className="grid h-9 w-9 place-items-center rounded-full text-soft hover:bg-sunken hover:text-ink">
+        className="grid h-9 w-9 place-items-center rounded-full text-soft hover:bg-sunken hover:text-ink coarse:h-11 coarse:w-11">
         <ThemeIcon size={18} />
       </button>
     </div>

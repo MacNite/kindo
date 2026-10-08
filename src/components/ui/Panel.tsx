@@ -11,7 +11,7 @@ export function Panel({ title, action, href, children, className, bodyClassName,
       {(title || action) && (
         <header className="mb-3 flex items-baseline justify-between gap-3">
           {title && (href
-            ? <Link href={href} className="font-display text-lg font-semibold tracking-tight hover:underline underline-offset-4">{title}</Link>
+            ? <Link href={href} className="hit font-display text-lg font-semibold tracking-tight hover:underline underline-offset-4">{title}</Link>
             : <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>)}
           {action}
         </header>
