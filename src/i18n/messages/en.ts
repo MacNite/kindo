@@ -124,7 +124,7 @@ const en = {
     expectedTitle: "Routines", expectedBody: "Brushing teeth, getting dressed, making the bed. These are part of the day. While a child gets used to them they can earn points too: switch it on per child under Routines.",
     extraTitle: "Chores and extra help", extraBody: "Any chore can earn a reward, if you like only once a parent says yes. Washing the car, helping in the garden, tidying the garage.",
     disabledBody: "Rewards are switched off. Routines still work, just without points.",
-    redeemed: "{reward} chosen", rate: "1 point = {value}",
+    balanceOf: "What {name} has collected", redeemed: "{reward} chosen", rate: "1 point = {value}",
   },
   dates: {
     none: "No dates yet.",

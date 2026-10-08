@@ -9,6 +9,7 @@ import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
 import { addDays } from "@/lib/dates";
 import { Avatar } from "../ui/Avatar";
+import { RewardAmount } from "../ui/RewardAmount";
 import { Pictogram } from "../ui/Pictogram";
 import { cn } from "../ui/cn";
 
@@ -48,13 +49,15 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
   const today = useToday();
   const { t, tx, fmt } = useI18n();
   const now = useNow();
-  const { isDone, toggleTaskItem, routineFor, eventsForMember, choresOn, routineDay, periodAt } = useStore();
+  const { isDone, toggleTaskItem, routineFor, eventsForMember, choresOn, routineDay, periodAt, rewardMode, balances } = useStore();
   const period = periodAt(now);
   const routine = routineFor(member.id, period, routineDay);
   const events = eventsForMember(member.id, today);
   const chores = choresOn(routineDay).filter((c) => c.memberId === member.id);
   const left = routine ? routine.items.filter((i) => !isDone(i.id)).length : 0;
   const isChild = member.role === "child";
+  // What a child has collected, readable from across the kitchen (§9).
+  const showBalance = isChild && rewardMode !== "off";
   const tomorrow = eventsForMember(member.id, addDays(today, 1)).filter((e) => !e.background);
 
   return (
@@ -77,6 +80,13 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
         )}
       </header>
 
+      {showBalance && (
+        <p aria-label={t("rewards.balanceOf", { name: member.name })}
+          className={cn("mt-3 self-start rounded-full bg-star/15", wall ? "px-4 py-1.5" : "px-3 py-1")}>
+          <RewardAmount points={balances[member.id] ?? 0} iconSize={wall ? 30 : 20} className={cn("font-display", wall ? "gap-2 text-3xl" : "text-xl")} />
+        </p>
+      )}
+
       {routine && (
         <div className={cn("mt-4 rounded-card tint", wall ? "p-4" : "p-3")}>
           <p className={cn("m-text mb-2 font-bold", wall ? "text-lg" : "text-sm")}>{t(`period.${period}`)}</p>
@@ -89,6 +99,10 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
                     done ? "m-bg text-white" : "bg-surface m-text")}>
                   <Pictogram id={i.pictogram} className={wall ? "h-9 w-9" : "h-6 w-6"} />
                   {done && <Check className="absolute right-1 top-1 h-3.5 w-3.5" strokeWidth={3.5} />}
+                  {i.value.kind === "extra" && i.value.points > 0 && (
+                    <RewardAmount points={i.value.points} plus iconSize={wall ? 16 : 11}
+                      className={cn("absolute bottom-1 right-1 rounded-full bg-surface text-ink shadow-sm", wall ? "px-1.5 text-sm" : "px-1 text-[11px]")} />
+                  )}
                 </button>
               );
             })}
@@ -106,7 +120,10 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
                 <span className={cn("grid shrink-0 place-items-center rounded-full border-2 m-border", wall ? "h-9 w-9" : "h-7 w-7", done && "m-bg !border-transparent text-white")}>
                   {done ? <Check size={wall ? 18 : 14} strokeWidth={3} /> : <Pictogram id={c.item.pictogram} className={wall ? "h-5 w-5 m-text" : "h-4 w-4 m-text"} strokeWidth={2} />}
                 </span>
-                <span className={cn(done && "line-through decoration-2")}>{tx(c.item.label)}</span>
+                <span className={cn("min-w-0 flex-1", done && "line-through decoration-2")}>{tx(c.item.label)}</span>
+                {c.item.value.kind === "extra" && c.item.value.points > 0 && (
+                  <RewardAmount points={c.item.value.points} plus iconSize={wall ? 20 : 14} className={cn("shrink-0", done ? "text-soft" : "text-ink")} />
+                )}
               </button>
             </li>
           );

@@ -121,7 +121,7 @@ const de: Messages = {
     expectedTitle: "Routinen", expectedBody: "Zähne putzen, anziehen, Bett machen. Das gehört zum Tag. Solange sich ein Kind daran gewöhnt, kann es dafür Punkte geben: unter Routinen pro Kind einschaltbar.",
     extraTitle: "Haushalt und Extra-Hilfe", extraBody: "Jede Aufgabe kann belohnt werden, auf Wunsch erst nach dem OK eines Elternteils. Auto waschen, im Garten helfen, Garage aufräumen.",
     disabledBody: "Belohnungen sind ausgeschaltet. Routinen funktionieren weiter, nur ohne Punkte.",
-    redeemed: "{reward} ausgesucht", rate: "1 Punkt = {value}",
+    balanceOf: "Was {name} gesammelt hat", redeemed: "{reward} ausgesucht", rate: "1 Punkt = {value}",
   },
   dates: {
     none: "Noch keine Termine.",
