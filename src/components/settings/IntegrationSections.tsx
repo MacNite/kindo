@@ -282,7 +282,7 @@ function FrigateForm({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.frigate")}
       footer={<><ErrorText code={error?.code} detail={error?.detail} className="mr-auto max-w-sm self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={busy || !url || !username || !password} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
+        <Button variant="primary" disabled={busy || !url || !username !== !password} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-soft">{t("integrations.frigateHint")}</p>
         <Field label={t("integrations.serverUrl")} hint={t("integrations.frigateUrlHint")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://frigate.local:8971" /></Field>

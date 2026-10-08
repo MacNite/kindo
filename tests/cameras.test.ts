@@ -178,6 +178,21 @@ describe.skipIf(!TEST_DB)("Cameras and the doorbell (§22)", () => {
     expect(ring).toMatchObject({ cameraId: "door" });
   });
 
+  it("connects without a user to Frigate's unauthenticated port, and wants both or neither", async () => {
+    expect(K.K.addFrigate.safeParse({ url: frigate.url, username: "kindo", password: "", trustCertificate: false }).success).toBe(false);
+    const open = createServer((req, res) => (req.url === "/api/config"
+      ? res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ cameras: { door: {} }, go2rtc: { streams: { door: [] } } }))
+      : res.writeHead(404).end()));
+    await new Promise<void>((r) => open.listen(0, "127.0.0.1", r));
+    try {
+      const url = `http://127.0.0.1:${(open.address() as { port: number }).port}`;
+      const openId = await K.addFrigate(db, { url, username: "", password: "", trustCertificate: false });
+      expect((await K.listChoices(db, { id: openId })).cameras).toEqual(["door"]);
+    } finally {
+      open.close();
+    }
+  });
+
   it("keeps the cameras when Frigate is connected again", async () => {
     id = await K.addFrigate(db, { url: frigate.url, username: FRIGATE_USER, password: FRIGATE_PASSWORD, trustCertificate: false });
     expect((await loadSnapshot(db, VIEWER))?.cameras.map((c) => c.id)).toEqual(["door", "garden"]);

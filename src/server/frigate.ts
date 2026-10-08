@@ -198,6 +198,8 @@ function tokenFrom(headers: IncomingHttpHeaders): string | null {
 }
 
 async function login(t: FrigateTarget): Promise<string> {
+  // Frigate's unauthenticated port (5000), or authentication off: nothing to sign in with.
+  if (!t.username) return "";
   const res = await frigateRequest(t, "api/login", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ user: t.username, password: t.password }),
   });
@@ -241,7 +243,8 @@ export const forgetToken = (t: FrigateTarget) => tokens.delete(tokenKey(t));
  * Frigate's config carry the cameras' passwords; they are never read out.
  */
 export async function listFrigate(t: FrigateTarget): Promise<{ cameras: string[]; streams: string[] }> {
-  const res = await authed(t, "api/config");
+  // The full config of a household with many cameras is large.
+  const res = await authed(t, "api/config", { maxBytes: 32 * 1024 * 1024, timeoutMs: 20_000 });
   const moved = redirected(res);
   if (moved) throw moved;
   if (res.status === 404) throw new UserError("remote", `no Frigate API at ${t.url} (HTTP 404); is this Frigate's address, with the right port?`);

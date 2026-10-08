@@ -119,7 +119,9 @@ function useHousehold(initial: HouseholdWire) {
     let result: ActionResult<T>;
     try {
       result = await call();
-    } catch {
+    } catch (e) {
+      // The call never got an answer: offline, the server restarted, or this page is older than the server (reload).
+      console.error("server action failed", e);
       result = { ok: false, error: "network" };
     }
     pending.current--;
