@@ -42,6 +42,35 @@ describe("parseCalendar", () => {
   });
 });
 
+describe("long-running series", () => {
+  const vtimezone = ics.slice(ics.indexOf("BEGIN:VTIMEZONE"), ics.indexOf("END:VTIMEZONE") + "END:VTIMEZONE".length);
+  const calendar = (...lines: string[]) => ["BEGIN:VCALENDAR", "VERSION:2.0", vtimezone, "BEGIN:VEVENT", ...lines, "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+  const days = (d: Date) => Math.round((d.getTime() - window.from.getTime()) / 86_400_000);
+
+  it("still reaches the window for a daily series that began in 2015", () => {
+    const text = calendar("UID:walk@family", "DTSTART;TZID=Europe/Berlin:20150101T073000", "DTEND;TZID=Europe/Berlin:20150101T080000",
+      "RRULE:FREQ=DAILY", "EXDATE;TZID=Europe/Berlin:20261103T073000", "SUMMARY:Dog walk");
+    const walks = parseCalendar(text, window);
+    // 1 Oct to 30 Dec 2026 (the window ends at the start of the 31st), minus the EXDATE.
+    expect(walks).toHaveLength(days(window.to) - 1);
+    expect(walks[0].start.toISOString()).toBe("2026-10-01T05:30:00.000Z"); // 07:30 CEST
+    expect(walks.at(-1)!.start.toISOString()).toBe("2026-12-30T06:30:00.000Z"); // 07:30 CET
+    expect(walks.some((w) => w.start.toISOString().startsWith("2026-11-03"))).toBe(false);
+  });
+
+  it("keeps a fortnightly rhythm and its weekdays when skipping ahead", () => {
+    const text = calendar("UID:bins@family", "DTSTART;VALUE=DATE:20120103", "RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,FR", "SUMMARY:Bins");
+    const bins = parseCalendar(text, window);
+    const first = new Date(Date.UTC(2012, 0, 3));
+    for (const b of bins) {
+      const offset = Math.round((b.start.getTime() - first.getTime()) / 86_400_000);
+      // Tuesdays (offset 0) and Fridays (offset 3) of every other week from the first.
+      expect([0, 3]).toContain(offset % 14);
+    }
+    expect(bins).toHaveLength(13);
+  });
+});
+
 describe("holidayRanges", () => {
   it("turns holiday events into inclusive date ranges", () => {
     const ranges = holidayRanges(parseCalendar(ics, window).filter((e) => e.uid.endsWith("@school")));

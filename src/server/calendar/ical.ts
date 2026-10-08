@@ -24,8 +24,11 @@ export interface ParsedEvent {
   icon?: string;
 }
 
-/** Upper bound on occurrences per series, so a daily rule without end can't run away. */
+/** Upper bound on occurrences per series inside the window, so a rule without end can't run away. */
 const MAX_OCCURRENCES = 1500;
+/** Upper bound on steps through one series, before and in the window, for rules that can't skip ahead. */
+const MAX_STEPS = 50_000;
+const DAY_MS = 86_400_000;
 
 const dateOf = (t: ICAL.Time) => (t.isDate ? new Date(Date.UTC(t.year, t.month - 1, t.day)) : t.toJSDate());
 
@@ -62,6 +65,33 @@ function details(ev: ICAL.Event, start: ICAL.Time, end: ICAL.Time, recurring: bo
   };
 }
 
+/**
+ * Where to start stepping through a daily or weekly series: a whole number of
+ * its periods after DTSTART, shortly before the window. The occurrences from
+ * there on are the same, so a series that began years ago costs no more than
+ * a new one. Undefined (start at DTSTART) for rules that count occurrences or
+ * have extra dates: those are walked from the start, up to MAX_STEPS.
+ */
+function skipAhead(master: ICAL.Event, from: Date): ICAL.Time | undefined {
+  const comp = master.component;
+  const rules = comp.getAllProperties("rrule");
+  if (rules.length !== 1 || comp.hasProperty("rdate")) return undefined;
+  const rule = rules[0].getFirstValue() as ICAL.Recur;
+  if (rule.count) return undefined;
+  const periodDays = (rule.freq === "DAILY" ? 1 : rule.freq === "WEEKLY" ? 7 : 0) * (rule.interval || 1);
+  if (!periodDays) return undefined;
+  const start = master.startDate;
+  const length = Math.max(0, master.endDate.toJSDate().getTime() - start.toJSDate().getTime());
+  // A margin for long occurrences and time zones: starting a little early is harmless.
+  const gap = from.getTime() - start.toJSDate().getTime() - length - 2 * periodDays * DAY_MS;
+  const periods = Math.floor(gap / (periodDays * DAY_MS));
+  if (periods <= 0) return undefined;
+  const shifted = start.clone();
+  // Moves the wall-clock date, so a 16:30 class stays at 16:30 across daylight saving.
+  shifted.adjust(periods * periodDays, 0, 0, 0);
+  return shifted;
+}
+
 /** Parses one iCalendar document and returns the events that touch [from, to). */
 export function parseCalendar(text: string, window: { from: Date; to: Date }): ParsedEvent[] {
   const cal = new ICAL.Component(ICAL.parse(text));
@@ -95,12 +125,17 @@ export function parseCalendar(text: string, window: { from: Date; to: Date }): P
       continue;
     }
     for (const ex of exceptions) master.relateException(ex);
-    const it = master.iterator();
-    for (let i = 0, next = it.next(); next && i < MAX_OCCURRENCES; i++, next = it.next()) {
+    const it = master.iterator(skipAhead(master, window.from));
+    let found = 0;
+    for (let i = 0, next = it.next(); next && i < MAX_STEPS && found < MAX_OCCURRENCES; i++, next = it.next()) {
       const occ = master.getOccurrenceDetails(next);
       const e = details(occ.item, occ.startDate, occ.endDate, true);
-      if (e.start >= window.to) break;
-      if (touches(e)) out.push(e);
+      // A moved occurrence (RECURRENCE-ID) can come back into the window: the series' own date ends the loop.
+      if (e.start >= window.to && next.toJSDate() >= window.to) break;
+      if (touches(e)) {
+        out.push(e);
+        found++;
+      }
     }
   }
   return out.sort((a, b) => a.start.getTime() - b.start.getTime());
