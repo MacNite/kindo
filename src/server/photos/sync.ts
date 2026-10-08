@@ -76,6 +76,7 @@ export async function getPhoto(db: Tx, assetId: string, size: ThumbSize, c: Disk
   const asset = await db.photoAsset.findUnique({ where: { id: assetId }, include: { album: { include: { connection: true } } } });
   if (!asset?.remoteId || !asset.album.connection) throw notFound("photo");
   const img = await fetchThumbnail(immichServer(asset.album.connection), asset.remoteId, size);
-  await c.put(key, img.body);
+  // A cache that can't be written (a volume the app user doesn't own) costs a refetch next time, not the photo.
+  await c.put(key, img.body).catch((e) => log.warn("photo cache write failed", { dir: process.env.KINDO_CACHE_DIR, error: errorMessage(e) }));
   return img;
 }

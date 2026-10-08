@@ -1,6 +1,7 @@
 import { prisma } from "@/server/db";
 import { getActor } from "@/server/actor";
 import { UserError } from "@/server/errors";
+import { errorMessage, log } from "@/server/log";
 import { getPhoto } from "@/server/photos/sync";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ assetId:
     });
   } catch (e) {
     const status = e instanceof UserError && e.code === "notFound" ? 404 : 502;
-    return new Response(null, { status });
+    log.warn("photo proxy failed", { asset: assetId, size, status, error: errorMessage(e) });
+    return new Response(errorMessage(e), { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   }
 }
