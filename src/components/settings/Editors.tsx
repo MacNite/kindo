@@ -1,6 +1,5 @@
 "use client";
 import { useState, type CSSProperties } from "react";
-import Link from "next/link";
 import { Cake, CalendarHeart, ChevronRight, GraduationCap, Heart, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { ImportantDate, ImportantDateKind, Member, Role } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -9,7 +8,7 @@ import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
 import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
 import { Dialog } from "../ui/Dialog";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
 import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { MemberPicker } from "../ui/MemberPicker";
@@ -218,7 +217,7 @@ export function RoutineSettings() {
           </ul>
         )}
       </div>
-      <Link href="/routines"><Button variant="outline">{t("nav.routines")}<ChevronRight size={16} /></Button></Link>
+      <LinkButton href="/routines" variant="outline">{t("nav.routines")}<ChevronRight size={16} /></LinkButton>
     </div>
   );
 }

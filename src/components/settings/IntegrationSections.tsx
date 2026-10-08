@@ -7,7 +7,7 @@ import { useStore } from "@/lib/state/store";
 import { addCalDav, addFrigate, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
 import { useSearchParams } from "next/navigation";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Field, Switch, inputCls } from "../ui/Segmented";
 import { MemberFilter } from "../ui/MemberFilter";
@@ -219,7 +219,7 @@ function GoogleConnect({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.google")}
       footer={<><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        {data.features.google && <a href="/api/integrations/google/start"><Button variant="primary">{t("integrations.googleContinue")}</Button></a>}</>}>
+        {data.features.google && <LinkButton href="/api/integrations/google/start" native variant="primary">{t("integrations.googleContinue")}</LinkButton>}</>}>
       <p className="text-soft">{data.features.google ? t("integrations.googleHint") : t("integrations.google_notConfigured")}</p>
     </Dialog>
   );

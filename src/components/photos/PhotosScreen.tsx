@@ -1,11 +1,10 @@
 "use client";
-import Link from "next/link";
 import { ArrowRight, Check, Play, Plus, Server, Radar } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { usePhotoPlaylist } from "@/lib/state/photos";
 import { PageHeader, Panel } from "../ui/Panel";
-import { Button } from "../ui/Button";
+import { LinkButton } from "../ui/Button";
 import { Switch } from "../ui/Segmented";
 import { Photo, PhotoPlaceholder } from "../ui/PhotoPlaceholder";
 import { cn } from "../ui/cn";
@@ -23,7 +22,7 @@ export function PhotosScreen() {
   return (
     <div>
       <PageHeader title={t("photos.title")} subtitle={t("photos.subtitle")}
-        actions={<Link href="/screensaver"><Button variant="primary"><Play size={18} fill="currentColor" />{t("photos.start")}</Button></Link>} />
+        actions={<LinkButton href="/screensaver" variant="primary"><Play size={18} fill="currentColor" />{t("photos.start")}</LinkButton>} />
 
       <div className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {photos.slice(0, 6).map((p) => (
@@ -35,7 +34,7 @@ export function PhotosScreen() {
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
-        <Panel title={t("photos.servers")} action={<Link href="/settings?section=integrations"><Button size="sm" variant="ghost"><Plus size={16} />{t("photos.addServer")}</Button></Link>}>
+        <Panel title={t("photos.servers")} action={<LinkButton href="/settings?section=integrations" size="sm" variant="ghost"><Plus size={16} />{t("photos.addServer")}</LinkButton>}>
           <p className="mb-4 text-sm text-soft">{t("photos.poolHint")}</p>
           <div className="flex flex-col gap-5">
             {servers.length === 0 && <p className="text-soft">{t("photos.noServers")}</p>}

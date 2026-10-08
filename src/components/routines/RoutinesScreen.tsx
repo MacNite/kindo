@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { Maximize2, Moon, Plus, Sun, Sunrise, ShieldCheck, Trash2, X } from "lucide-react";
 import type { ActionResult, Member, Period, Recurrence, Routine, TaskItem, TaskValue } from "@/lib/types";
@@ -9,7 +8,7 @@ import { addRoutineSteps, deleteChore, deleteRoutineStep, saveChore, saveRoutine
 import { DEFAULT_ROUTINE_POINTS, routineStepValue } from "@/lib/ledger";
 import { getPictogram, stepName } from "@/lib/pictograms";
 import { recurrenceKey } from "@/lib/recurrence";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { PageHeader } from "../ui/Panel";
 import { Segmented, Switch, Field, inputCls } from "../ui/Segmented";
 import { Avatar } from "../ui/Avatar";
@@ -59,7 +58,7 @@ export function RoutinesScreen() {
     <div>
       <PageHeader title={t("routines.title")} subtitle={t("routines.subtitle")}
         actions={kids.map((k) => (
-          <Link key={k.id} href={`/kids/${k.id}`}><Button variant="outline" size="md"><Maximize2 size={16} />{k.name}</Button></Link>
+          <LinkButton key={k.id} href={`/kids/${k.id}`} variant="outline" size="md"><Maximize2 size={16} />{k.name}</LinkButton>
         ))} />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Segmented value={tab} onChange={setTab} options={[

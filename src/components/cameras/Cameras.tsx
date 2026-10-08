@@ -8,7 +8,7 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useCameraStream, useTalk } from "@/lib/state/useCamera";
 import { activeRing } from "@/lib/services/cameras";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { ErrorText } from "../ui/ErrorText";
 import { Panel, PageHeader } from "../ui/Panel";
 import { cn } from "../ui/cn";
@@ -110,7 +110,7 @@ export function CamerasScreen() {
       {cameras.length === 0 ? (
         <Panel>
           <p className="max-w-prose text-soft">{t("cameras.notSetUp")}</p>
-          {viewer.isAdmin && <Link href="/settings?section=integrations" className="mt-4 inline-block"><Button variant="outline">{t("cameras.setUp")}<ChevronRight size={16} /></Button></Link>}
+          {viewer.isAdmin && <LinkButton href="/settings?section=integrations" variant="outline" className="mt-4">{t("cameras.setUp")}<ChevronRight size={16} /></LinkButton>}
         </Panel>
       ) : (
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
