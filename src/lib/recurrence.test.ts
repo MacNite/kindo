@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  currentPeriod, fromRRule, householdDay, householdDayKeyIn, nextOccurrences, normalizeRecurrence, occurrences, occursOn, sameRecurrence, schoolDaysFrom,
+  DEFAULT_TIMES, currentPeriod, fromRRule, householdDay, householdDayIn, householdDayKeyIn, nextOccurrences, normalizeRecurrence, occurrences, occursOn, sameRecurrence, schoolDaysFrom,
   toICalLines, toRRule,
 } from "./recurrence";
 import type { Recurrence } from "./types";
@@ -156,6 +156,16 @@ describe("the household day (§19.3)", () => {
     expect(householdDayKeyIn(new Date(Date.UTC(2026, 6, 7, 22, 30)), "Europe/Berlin", "03:00")).toBe("2026-07-07");
     expect(householdDayKeyIn(new Date(Date.UTC(2026, 6, 7, 22, 30)), "Europe/Berlin", "00:00")).toBe("2026-07-08");
     expect(householdDayKeyIn(new Date(Date.UTC(2026, 6, 7, 22, 30)), "America/New_York", "03:00")).toBe("2026-07-07");
+  });
+
+  it("follows the household's time zone on a device set to another one (D52)", () => {
+    // 06:30 UTC: 08:30 in Berlin (the device here), 02:30 in New York, before its 03:00 reset.
+    const now = new Date(Date.UTC(2026, 6, 8, 6, 30));
+    expect(householdDayIn(now, "America/New_York", "03:00")).toEqual(new Date(2026, 6, 7));
+    expect(householdDayIn(now, "Europe/Berlin", "03:00")).toEqual(new Date(2026, 6, 8));
+    expect(currentPeriod(now, DEFAULT_TIMES, "America/New_York")).toBe("evening");
+    expect(currentPeriod(now, DEFAULT_TIMES, "Europe/Berlin")).toBe("morning");
+    expect(currentPeriod(new Date(Date.UTC(2026, 6, 8, 14, 0)), DEFAULT_TIMES, "America/New_York")).toBe("morning");
   });
 
   it("decides which routine is current", () => {

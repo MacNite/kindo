@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
 import { CalendarHeart, ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Rss, Smartphone, Trash2, TreePalm } from "lucide-react";
 import type { CalendarEvent, CalendarProvider, Member } from "@/lib/types";
@@ -9,6 +9,7 @@ import { useToday } from "@/lib/useToday";
 import { useStore } from "@/lib/state/store";
 import { deleteEvent, saveEvent } from "@/lib/services/actions";
 import { addDays, at, dateKey, monthGrid, sameDay, startOfWeek, startOfDay } from "@/lib/dates";
+import { daySegment, endsNextDay, eventForm, eventTimes, moveStart, type EventForm } from "@/lib/events";
 import { ErrorText } from "../ui/ErrorText";
 import { Button, IconButton } from "../ui/Button";
 import { Segmented, Field, inputCls } from "../ui/Segmented";
@@ -39,11 +40,14 @@ export function CalendarScreen() {
   const [editing, setEditing] = useState<CalendarEvent | "new" | null>(null);
   const [addingDay, setAddingDay] = useState(false);
   const { getMembers } = useStore();
-  const [filter, setFilter] = useState(() => new Set(getMembers().map((m) => m.id)));
+  // Who is switched off, so someone added later shows from the start.
+  const [hidden, setHidden] = useState(() => new Set<string>());
+  const members = getMembers();
+  const filter = useMemo(() => new Set(members.filter((m) => !hidden.has(m.id)).map((m) => m.id)), [members, hidden]);
   const ws = region.weekStartsOn;
 
   const step = (dir: 1 | -1) => setCursor((c) => view === "month" ? new Date(c.getFullYear(), c.getMonth() + dir, 1) : addDays(c, dir * (view === "week" ? 7 : 14)));
-  const toggle = (id: string) => setFilter((f) => toggled(f, id));
+  const toggle = (id: string) => setHidden((h) => toggled(h, id));
 
   const title = view === "birthdays" ? t("birthdays.title") : view === "month" ? fmt.monthYear(cursor)
     : `${fmt.dateMedium(startOfWeek(cursor, ws))} – ${fmt.dateMedium(addDays(startOfWeek(cursor, ws), 6))}`;
@@ -140,25 +144,29 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
             const inMonth = d.getMonth() === cursor.getMonth();
             const isToday = sameDay(d, today);
             return (
-              <button key={d.toISOString()} onClick={() => setPicked(d)}
-                className={cn("flex min-h-[64px] flex-col gap-1 border-b border-r border-line p-1.5 text-left md:min-h-[118px]",
+              // The day is a button of its own under the cell's content, so each event chip
+              // can be a real button too, not one nested in another.
+              <div key={d.toISOString()}
+                className={cn("relative flex min-h-[64px] flex-col gap-1 border-b border-r border-line p-1.5 text-left md:min-h-[118px]",
                   !inMonth && "bg-sunken/50 text-soft", sameDay(d, picked) && "max-md:bg-sunken")}>
-                <span className={cn("num grid h-7 w-7 place-items-center rounded-full text-sm font-bold", isToday && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
-                <span className="flex flex-wrap items-center gap-1 md:hidden">
+                <button type="button" onClick={() => setPicked(d)} aria-label={fmt.dateLong(d)} aria-pressed={sameDay(d, picked)}
+                  className="absolute inset-0 focus-visible:outline-offset-[-2px]" />
+                <span className={cn("num pointer-events-none grid h-7 w-7 place-items-center rounded-full text-sm font-bold", isToday && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
+                <span className="pointer-events-none flex flex-wrap items-center gap-1 md:hidden">
                   {holidaysOn(d).length > 0 && <TreePalm size={12} className="text-soft" aria-label={t("calendar.holiday")} />}
                   {evs.slice(0, 4).map((e) => <span key={e.id} style={evStyle(e, getMember)} className="m-bg h-1.5 w-1.5 rounded-full" />)}
                 </span>
-                <span className="hidden flex-col gap-1 md:flex">
+                <span className="pointer-events-none hidden flex-col gap-1 md:flex">
                   <HolidayBand day={d} />
                   {evs.slice(0, 3).map((e) => (
-                    <span key={e.id} role="button" tabIndex={0} onClick={(ev) => { ev.stopPropagation(); onSelect(e); }} style={evStyle(e, getMember)}
-                      className={cn("truncate rounded-md px-1.5 py-0.5 text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
+                    <button key={e.id} type="button" onClick={() => onSelect(e)} style={evStyle(e, getMember)}
+                      className={cn("pointer-events-auto relative truncate rounded-md px-1.5 py-0.5 text-left text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
                       {!e.allDay && <span className="num font-normal opacity-80">{fmt.time(e.start)} </span>}{tx(e.title)}
-                    </span>
+                    </button>
                   ))}
                   {evs.length > 3 && <span className="px-1.5 text-xs text-soft">{t("calendar.more", { n: evs.length - 3 })}</span>}
                 </span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -181,13 +189,20 @@ function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<stri
   const { eventsOn, getMember } = useStore();
   const start = startOfWeek(cursor, region.weekStartsOn);
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  // On a phone the week is a long list: open it at today, not at the first day of the week.
+  const todayRef = useRef<HTMLElement>(null);
+  const weekKey = dateKey(start);
+  const showsToday = days.some((d) => sameDay(d, today));
+  useEffect(() => {
+    if (showsToday && window.matchMedia("(max-width: 767.98px)").matches) todayRef.current?.scrollIntoView({ block: "start" });
+  }, [showsToday, weekKey]);
 
   return (
     <>
       {/* Phones: a week is a stack of days */}
       <div className="flex flex-col gap-4 md:hidden">
         {days.map((d) => (
-          <section key={d.toISOString()}>
+          <section key={d.toISOString()} ref={sameDay(d, today) ? todayRef : undefined} className="scroll-mt-4">
             <p className={cn("mb-1.5 font-bold", sameDay(d, today) ? "text-ink" : "text-soft")}>{fmt.dateLong(d)}</p>
             <DayList day={d} filter={filter} onSelect={onSelect} />
           </section>
@@ -233,39 +248,52 @@ function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<stri
 function DayColumn({ day, filter, onSelect, now }: { day: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void; now: Date }) {
   const { tx, fmt } = useI18n();
   const { eventsOn, getMember } = useStore();
-  const all = eventsOn(day, filter).filter((e) => !e.allDay);
+  // Each event as the part of it that falls on this day and in the visible hours:
+  // an overnight event ends at the bottom of its first day and continues at the top of the next.
+  const all = eventsOn(day, filter).filter((e) => !e.allDay)
+    .flatMap((e) => { const seg = daySegment(e, day, H0, H1); return seg ? [{ e, ...seg }] : []; });
   // School/Kita become thin colour bars at the left edge so they don't crowd real appointments.
-  const bg = all.filter((e) => e.background);
-  const evs = all.filter((e) => !e.background);
+  const bg = all.filter(({ e }) => e.background);
+  const evs = all.filter(({ e }) => !e.background);
   const inset = bg.length ? bg.length * 7 + 4 : 2;
-  // Overlapping events share width only within their own cluster.
-  const placed: { e: CalendarEvent; lane: number; n: number }[] = [];
-  let cluster: typeof placed = [], lanes: Date[] = [], clusterEnd = 0;
+  const total = (H1 - H0) * HOUR;
+  const MIN = 22;
+  const y = (mins: number) => (mins / 60 - H0) * HOUR;
+  /** Where a segment sits: never above the top, never past the bottom, at least MIN tall for a chip. */
+  const box = (top: number, bottom: number, min = 0) => {
+    const height = Math.max(min, y(bottom) - y(top) - 2);
+    return { top: Math.max(0, Math.min(y(top) + 1, total - height)), height };
+  };
+  // Overlapping events share width only within their own cluster (by what shows, so a chip's minimum height counts too).
+  const shown = (seg: { top: number; bottom: number }) => Math.max(seg.bottom, seg.top + (MIN * 60) / HOUR);
+  const placed: ((typeof evs)[number] & { lane: number; n: number })[] = [];
+  let cluster: typeof placed = [], lanes: number[] = [], clusterEnd = 0;
   const flush = () => { cluster.forEach((c) => (c.n = Math.max(1, lanes.length))); placed.push(...cluster); cluster = []; lanes = []; };
-  for (const e of [...evs].sort((a, b) => a.start.getTime() - b.start.getTime())) {
-    if (cluster.length && e.start.getTime() >= clusterEnd) flush();
-    let lane = lanes.findIndex((end) => end <= e.start);
-    if (lane < 0) { lane = lanes.length; lanes.push(e.end); } else lanes[lane] = e.end;
-    clusterEnd = Math.max(clusterEnd, e.end.getTime());
-    cluster.push({ e, lane, n: 1 });
+  for (const seg of [...evs].sort((a, b) => a.top - b.top || b.bottom - a.bottom)) {
+    if (cluster.length && seg.top >= clusterEnd) flush();
+    let lane = lanes.findIndex((end) => end <= seg.top);
+    if (lane < 0) { lane = lanes.length; lanes.push(shown(seg)); } else lanes[lane] = shown(seg);
+    clusterEnd = Math.max(clusterEnd, shown(seg));
+    cluster.push({ ...seg, lane, n: 1 });
   }
   flush();
-  const y = (d: Date) => ((d.getHours() + d.getMinutes() / 60) - H0) * HOUR;
+  const nowMins = now.getHours() * 60 + now.getMinutes();
   return (
     <div className="relative border-l border-line" style={{ backgroundImage: `repeating-linear-gradient(to bottom, rgb(var(--line)) 0 1px, transparent 1px ${HOUR}px)` }}>
-      {bg.map((e, i) => (
-        <button key={e.id} onClick={() => onSelect(e)} title={tx(e.title)} aria-label={tx(e.title)} style={{ ...evStyle(e, getMember), top: y(e.start) + 1, height: y(e.end) - y(e.start) - 2, left: 3 + i * 7 }}
+      {bg.map(({ e, top, bottom }, i) => (
+        <button key={e.id} onClick={() => onSelect(e)} title={tx(e.title)} aria-label={tx(e.title)} style={{ ...evStyle(e, getMember), ...box(top, bottom, 4), left: 3 + i * 7 }}
           className="m-bg absolute w-[5px] rounded-full opacity-60 hover:opacity-100" />
       ))}
-      {placed.map(({ e, lane, n }) => (
-        <button key={e.id} onClick={() => onSelect(e)} style={{ ...evStyle(e, getMember), top: y(e.start) + 1, height: Math.max(22, y(e.end) - y(e.start) - 2), left: `calc(${inset}px + (100% - ${inset}px) * ${lane / n})`, width: `calc((100% - ${inset}px) / ${n} - 3px)` }}
+      {placed.map(({ e, top, bottom, fromPrev, lane, n }) => (
+        <button key={e.id} onClick={() => onSelect(e)} style={{ ...evStyle(e, getMember), ...box(top, bottom, MIN), left: `calc(${inset}px + (100% - ${inset}px) * ${lane / n})`, width: `calc((100% - ${inset}px) / ${n} - 3px)` }}
           className={cn("absolute overflow-hidden rounded-lg px-1.5 py-1 text-left text-xs leading-tight", "tint-strong", "border-l-[3px] m-border !border-l-[var(--m)]")}>
           <span className="block truncate font-bold">{tx(e.title)}</span>
-          <span className="num block truncate opacity-75">{fmt.time(e.start)}</span>
+          {/* A continuation from the day before shows when it ends instead of when it began. */}
+          <span className="num block truncate opacity-75">{fromPrev ? `… ${fmt.time(e.end)}` : fmt.time(e.start)}</span>
         </button>
       ))}
       {sameDay(day, now) && now.getHours() >= H0 && now.getHours() < H1 && (
-        <span className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-ink" style={{ top: y(now) }}>
+        <span className="pointer-events-none absolute inset-x-0 z-10 h-0.5 bg-ink" style={{ top: y(nowMins) }}>
           <span className="absolute -left-1 -top-[3px] h-2 w-2 rounded-full bg-ink" />
         </span>
       )}
@@ -387,25 +415,17 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return <div className="grid grid-cols-[96px_1fr] gap-3"><dt className="text-sm font-bold text-soft">{label}</dt><dd>{children}</dd></div>;
 }
 
-const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-const atTime = (day: string, time: string) => {
-  const [y, m, d] = day.split("-").map(Number);
-  const [h, min] = time.split(":").map(Number);
-  return new Date(y, m - 1, d, h, min);
-};
-
 /** Creates or edits an event in a writable calendar (Kindo's own, or a writable Nextcloud one). */
 function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day: Date; onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, fmt } = useI18n();
   const { getSources, getMembers, run } = useStore();
   const writable = getSources().filter((s) => !s.readOnly);
-  const start = event?.start ?? at(day, 15);
+  const start = at(day, 15);
   const [title, setTitle] = useState(event ? tx(event.title) : "");
   const [who, setWho] = useState(new Set<string>(event?.memberIds ?? []));
-  const [date, setDate] = useState(dateKey(start));
-  const [allDay, setAllDay] = useState(event?.allDay ?? false);
-  const [from, setFrom] = useState(hhmm(start));
-  const [to, setTo] = useState(hhmm(event?.end ?? new Date(start.getTime() + 3_600_000)));
+  // An existing event keeps its length; a new one is an hour in the afternoon.
+  const [when, setWhen] = useState<EventForm>(() => eventForm(event ?? { allDay: false, start, end: new Date(start.getTime() + 3_600_000) }));
+  const { allDay } = when;
   const [location, setLocation] = useState(event?.location ?? "");
   const [sourceId, setSourceId] = useState(event?.sourceId ?? writable.find((s) => s.provider === "local")?.id ?? writable[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -416,9 +436,7 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
     let r;
     if (remove && event) r = await run(() => deleteEvent({ id: event.id }));
     else {
-      const s = allDay ? atTime(date, "00:00") : atTime(date, from);
-      let e = allDay ? addDays(s, 1) : atTime(date, to);
-      if (e <= s) e = new Date(s.getTime() + 3_600_000);
+      const { start: s, end: e } = eventTimes(when);
       r = await run(() => saveEvent({ id: event?.id, sourceId, title, start: s, end: e, allDay, memberIds: [...who], location: location || undefined }));
     }
     setBusy(false);
@@ -440,15 +458,21 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
           <MemberFilter size="sm" members={getMembers()} selected={who} onToggle={(id) => setWho((s) => toggled(s, id))} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("calendar.when")}><input type="date" className={inputCls} value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-          <label className="flex items-end gap-2 pb-3 font-bold"><input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} className="h-5 w-5" />{t("common.allDay")}</label>
+          <Field label={t("calendar.when")}><input type="date" className={inputCls} value={when.date} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { date: e.target.value }))} /></Field>
+          <label className="flex items-end gap-2 pb-3 font-bold"><input type="checkbox" checked={allDay} onChange={(e) => setWhen((w) => ({ ...w, allDay: e.target.checked }))} className="h-5 w-5" />{t("common.allDay")}</label>
         </div>
         {!allDay && (
           <div className="grid grid-cols-2 gap-3">
-            <Field label={t("calendar.startTime")}><input type="time" className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-            <Field label={t("calendar.endTime")}><input type="time" className={inputCls} value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+            <Field label={t("calendar.startTime")}><input type="time" className={inputCls} value={when.from} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { from: e.target.value }))} /></Field>
+            <Field label={t("calendar.endTime")}><input type="time" className={inputCls} value={when.to} onChange={(e) => setWhen((w) => ({ ...w, to: e.target.value }))} /></Field>
           </div>
         )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={allDay ? t("calendar.lastDay") : t("calendar.endDate")}>
+            <input type="date" className={inputCls} min={when.date} value={when.endDate} onChange={(e) => e.target.value && setWhen((w) => ({ ...w, endDate: e.target.value }))} />
+          </Field>
+          {endsNextDay(when) && <p className="self-end pb-3 text-sm text-soft">{t("calendar.endsLater", { date: fmt.dateMedium(eventTimes(when).end) })}</p>}
+        </div>
         <Field label={t("calendar.where")}><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
         <Field label={t("calendar.source")}>
           <select className={inputCls} value={sourceId} disabled={!!event} onChange={(e) => setSourceId(e.target.value)}>

@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import type { z } from "zod";
-import type { Recurrence, TaskValue, Text } from "@/lib/types";
+import type { Recurrence, RewardMode, TaskValue, Text } from "@/lib/types";
 import { guessCategory } from "@/lib/shopping";
+import { isBlankText } from "@/lib/text";
 import { completionOutcome, routineStepValue } from "@/lib/ledger";
 import { householdDayKeyIn, normalizeRecurrence, sameRecurrence } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
@@ -23,22 +24,23 @@ const json = (v: unknown) => v as Prisma.InputJsonValue;
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 
 // ── Routines and chores: ticking off ────────────────────────────────────────
-interface ItemInfo { pictogram: string; label: Text; value: TaskValue; ownerId: string | null }
+interface ItemInfo { pictogram: string; label: Text; value: TaskValue; ownerId: string | null; mode: RewardMode }
 
 async function findItem(db: Tx, itemId: string): Promise<ItemInfo | null> {
   const step = await db.routineStep.findUnique({
     where: { id: itemId },
     include: { routine: { select: { memberId: true, member: { select: { routineRewards: true, routinePoints: true } } } } },
   });
+  const chore = step ? null : await db.chore.findUnique({ where: { id: itemId } });
+  if (!step && !chore) return null;
+  const h = await db.household.findUnique({ where: { id: 1 }, select: { rewardMode: true } });
+  const mode: RewardMode = h?.rewardMode ?? "off";
   if (step) {
-    const h = await db.household.findUnique({ where: { id: 1 }, select: { rewardMode: true } });
     const { routineRewards: on, routinePoints: points } = step.routine.member;
-    const value = routineStepValue(step.value as TaskValue, { on, points }, h?.rewardMode ?? "off");
-    return { pictogram: step.pictogram, label: step.label as Text, value, ownerId: step.routine.memberId };
+    const value = routineStepValue(step.value as TaskValue, { on, points }, mode);
+    return { pictogram: step.pictogram, label: step.label as Text, value, ownerId: step.routine.memberId, mode };
   }
-  const chore = await db.chore.findUnique({ where: { id: itemId } });
-  if (chore) return { pictogram: chore.pictogram, label: chore.label as Text, value: chore.value as TaskValue, ownerId: chore.memberId };
-  return null;
+  return { pictogram: chore!.pictogram, label: chore!.label as Text, value: chore!.value as TaskValue, ownerId: chore!.memberId, mode };
 }
 
 /**
@@ -60,7 +62,7 @@ export async function setCompletion(db: Tx, input: In<"completion">, now = new D
     if (!item) throw notFound("item");
     // A routine step or assigned chore always belongs to its owner; "anyone" chores to whoever says they did it.
     const memberId = item.ownerId ?? input.memberId ?? null;
-    const outcome = completionOutcome(item.value, memberId !== null);
+    const outcome = completionOutcome(item.value, memberId !== null, item.mode);
     try {
       await tx.completion.create({
         data: {
@@ -142,9 +144,10 @@ export async function deleteReward(db: Tx, input: In<"byId">) {
 // ── Shopping ────────────────────────────────────────────────────────────────
 /** The id comes from the device, so a replayed offline add is a no-op. */
 export async function addShoppingItem(db: Tx, input: In<"shoppingAdd">) {
+  const list = await db.shoppingList.findUnique({ where: { id: input.listId }, select: { name: true } });
   try {
     await db.shoppingItem.create({
-      data: { id: input.id, listId: input.listId, name: json(input.name), qty: input.qty, memberId: input.memberId, category: guessCategory(input.name, input.listId) },
+      data: { id: input.id, listId: input.listId, name: json(input.name), qty: input.qty, memberId: input.memberId, category: guessCategory(input.name, list?.name as Text | undefined) },
     });
   } catch (e) {
     if (isUnique(e)) return;
@@ -345,11 +348,11 @@ export async function deleteChore(db: Tx, input: In<"byId">) {
 // ── Meals and dates ─────────────────────────────────────────────────────────
 /** An empty dinner clears the day. */
 export async function saveMeal(db: Tx, input: In<"meal">) {
-  if (!input.dinner) {
+  if (isBlankText(input.dinner)) {
     await db.meal.deleteMany({ where: { day: input.day } });
     return;
   }
-  const data = { dinner: json(input.dinner), cookId: input.cookId ?? null, note: input.note ? json(input.note) : Prisma.DbNull };
+  const data = { dinner: json(input.dinner), cookId: input.cookId ?? null, note: !isBlankText(input.note) ? json(input.note) : Prisma.DbNull };
   await db.meal.upsert({ where: { day: input.day }, create: { day: input.day, ...data }, update: data });
 }
 

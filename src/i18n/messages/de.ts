@@ -48,6 +48,7 @@ const de: Messages = {
     readOnly: "Nur lesen", who: "Wer", where: "Wo", when: "Wann",
     today: "Heute", previous: "Zurück", next: "Weiter", more: "+{n} weitere", source: "Kalender",
     birthdays: "Geburtstage", importantDay: "Wichtiger Tag",
+    endDate: "Enddatum", lastDay: "Letzter Tag", endsLater: "Endet am {date}",
   },
   birthdays: {
     title: "Geburtstage", soon: "Bald", later: "Später im Jahr", next: "Als Nächstes", family: "Familie",
@@ -96,10 +97,12 @@ const de: Messages = {
     title: "Aufgaben", subtitle: "Einmalige Dinge, die erledigt werden müssen.", add: "Aufgabe hinzufügen", placeholder: "Was ist zu tun?",
     open: "Offen", done: "Erledigt", overdue: "Überfällig", due: "Fällig {date}", noDue: "Ohne Datum", unassigned: "Irgendwer",
     remove: "„{title}“ löschen", removeConfirm: "„{title}“ löschen?",
+    for: "Für", dueDate: "Fällig am",
   },
   shopping: {
     queued: "Offline: {n} Änderungen werden gesendet, sobald du wieder online bist.", offlineNow: "Offline: Die Liste funktioniert trotzdem, Änderungen werden später gesendet.",
     newList: "Neue Liste",
+    editList: "Liste bearbeiten", deleteList: "Liste löschen", deleteListConfirm: "Die Liste „{name}“ mit allem darauf löschen?", removeItem: "„{name}“ entfernen",
     title: "Einkauf", add: "Zu {list} hinzufügen", items: "{n} offen", clearDone: "Abgehakte entfernen",
     inTrolley: "Im Wagen ({n})", whoAdds: "Für",
     cat_produce: "Obst & Gemüse", cat_dairy: "Milchprodukte", cat_bakery: "Backwaren", cat_pantry: "Vorrat", cat_frozen: "Tiefkühl",

@@ -86,7 +86,7 @@ export const S = {
   routineRewards: z.object({ memberId: id, on: z.boolean(), points: z.number().int().min(0).max(10_000) }),
   chore: z.object({ id: id.optional(), memberId: id.nullable(), pictogram, label: text, value: taskValue, recurrence }),
 
-  meal: z.object({ day, dinner: z.string().trim().max(200), cookId: id.nullable().optional(), note: z.string().trim().max(200).optional() }),
+  meal: z.object({ day, dinner: text, cookId: id.nullable().optional(), note: text.optional() }),
   importantDate: z.object({
     id: id.optional(), kind: z.enum(["birthday", "anniversary", "school", "other"]), title: requiredText, date: day, yearly: z.boolean(), memberId: id.nullable().optional(),
   }),

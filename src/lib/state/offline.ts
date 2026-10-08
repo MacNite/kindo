@@ -1,4 +1,4 @@
-import type { HouseholdData, HouseholdWire, ShoppingItem } from "../types";
+import type { ActionResult, HouseholdData, HouseholdWire, ShoppingItem } from "../types";
 import { guessCategory } from "../shopping";
 
 /**
@@ -11,7 +11,8 @@ import { guessCategory } from "../shopping";
 export type OfflineOp =
   | { name: "addShoppingItem"; input: { id: string; listId: string; name: string; memberId?: string } }
   | { name: "setShoppingDone"; input: { id: string; done: boolean } }
-  | { name: "clearDoneShopping"; input: { listId: string } };
+  | { name: "clearDoneShopping"; input: { listId: string } }
+  | { name: "deleteShoppingItem"; input: { id: string } };
 
 /** Applies queued operations to a snapshot, the same way the optimistic updates did. */
 export function applyQueued(d: HouseholdData, ops: OfflineOp[]): HouseholdData {
@@ -19,15 +20,41 @@ export function applyQueued(d: HouseholdData, ops: OfflineOp[]): HouseholdData {
   for (const op of ops) {
     if (op.name === "addShoppingItem") {
       if (items.some((i) => i.id === op.input.id)) continue;
-      const item: ShoppingItem = { id: op.input.id, listId: op.input.listId, name: op.input.name, memberId: op.input.memberId, category: guessCategory(op.input.name, op.input.listId), done: false };
+      const item: ShoppingItem = { id: op.input.id, listId: op.input.listId, name: op.input.name, memberId: op.input.memberId, category: guessCategory(op.input.name, d.shoppingLists?.find((l) => l.id === op.input.listId)?.name), done: false };
       items = [item, ...items];
     } else if (op.name === "setShoppingDone") {
       items = items.map((i) => (i.id === op.input.id ? { ...i, done: op.input.done } : i));
+    } else if (op.name === "deleteShoppingItem") {
+      items = items.filter((i) => i.id !== op.input.id);
     } else {
       items = items.filter((i) => !(i.listId === op.input.listId && i.done));
     }
   }
   return items === d.shoppingItems ? d : { ...d, shoppingItems: items };
+}
+
+/**
+ * Sends a queue oldest first, one at a time, including whatever joins it while
+ * it is being sent, so a change made meanwhile can't overtake an older one.
+ * `next` reads the head of the live queue, `sent` takes it off. Stops, leaving
+ * the rest queued, at the first sign the connection is gone again.
+ */
+export async function drainQueue<T>(
+  next: () => T | undefined,
+  send: (entry: T) => Promise<ActionResult<unknown>>,
+  sent: (entry: T, result: ActionResult<unknown>) => Promise<unknown> | void,
+): Promise<"sent" | "offline"> {
+  for (let entry = next(); entry !== undefined; entry = next()) {
+    let r: ActionResult<unknown>;
+    try {
+      r = await send(entry);
+    } catch {
+      return "offline";
+    }
+    if (!r.ok && r.error === "network") return "offline";
+    await sent(entry, r);
+  }
+  return "sent";
 }
 
 // ── IndexedDB ───────────────────────────────────────────────────────────────
@@ -64,7 +91,8 @@ function run<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore)
   }));
 }
 
-export const enqueue = (op: OfflineOp) => run(QUEUE, "readwrite", (s) => s.add(op));
+/** Stores an operation; resolves to its key (undefined without IndexedDB). */
+export const enqueue = (op: OfflineOp) => run<IDBValidKey>(QUEUE, "readwrite", (s) => s.add(op));
 
 /** The queue in the order it was made, with each entry's key for removal. */
 export async function readQueue(): Promise<{ key: IDBValidKey; op: OfflineOp }[]> {
