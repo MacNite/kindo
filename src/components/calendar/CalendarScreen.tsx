@@ -40,11 +40,14 @@ export function CalendarScreen() {
   const [editing, setEditing] = useState<CalendarEvent | "new" | null>(null);
   const [addingDay, setAddingDay] = useState(false);
   const { getMembers } = useStore();
-  const [filter, setFilter] = useState(() => new Set(getMembers().map((m) => m.id)));
+  // Who is switched off, so someone added later shows from the start.
+  const [hidden, setHidden] = useState(() => new Set<string>());
+  const members = getMembers();
+  const filter = useMemo(() => new Set(members.filter((m) => !hidden.has(m.id)).map((m) => m.id)), [members, hidden]);
   const ws = region.weekStartsOn;
 
   const step = (dir: 1 | -1) => setCursor((c) => view === "month" ? new Date(c.getFullYear(), c.getMonth() + dir, 1) : addDays(c, dir * (view === "week" ? 7 : 14)));
-  const toggle = (id: string) => setFilter((f) => toggled(f, id));
+  const toggle = (id: string) => setHidden((h) => toggled(h, id));
 
   const title = view === "birthdays" ? t("birthdays.title") : view === "month" ? fmt.monthYear(cursor)
     : `${fmt.dateMedium(startOfWeek(cursor, ws))} – ${fmt.dateMedium(addDays(startOfWeek(cursor, ws), 6))}`;
@@ -141,25 +144,29 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
             const inMonth = d.getMonth() === cursor.getMonth();
             const isToday = sameDay(d, today);
             return (
-              <button key={d.toISOString()} onClick={() => setPicked(d)}
-                className={cn("flex min-h-[64px] flex-col gap-1 border-b border-r border-line p-1.5 text-left md:min-h-[118px]",
+              // The day is a button of its own under the cell's content, so each event chip
+              // can be a real button too, not one nested in another.
+              <div key={d.toISOString()}
+                className={cn("relative flex min-h-[64px] flex-col gap-1 border-b border-r border-line p-1.5 text-left md:min-h-[118px]",
                   !inMonth && "bg-sunken/50 text-soft", sameDay(d, picked) && "max-md:bg-sunken")}>
-                <span className={cn("num grid h-7 w-7 place-items-center rounded-full text-sm font-bold", isToday && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
-                <span className="flex flex-wrap items-center gap-1 md:hidden">
+                <button type="button" onClick={() => setPicked(d)} aria-label={fmt.dateLong(d)} aria-pressed={sameDay(d, picked)}
+                  className="absolute inset-0 focus-visible:outline-offset-[-2px]" />
+                <span className={cn("num pointer-events-none grid h-7 w-7 place-items-center rounded-full text-sm font-bold", isToday && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
+                <span className="pointer-events-none flex flex-wrap items-center gap-1 md:hidden">
                   {holidaysOn(d).length > 0 && <TreePalm size={12} className="text-soft" aria-label={t("calendar.holiday")} />}
                   {evs.slice(0, 4).map((e) => <span key={e.id} style={evStyle(e, getMember)} className="m-bg h-1.5 w-1.5 rounded-full" />)}
                 </span>
-                <span className="hidden flex-col gap-1 md:flex">
+                <span className="pointer-events-none hidden flex-col gap-1 md:flex">
                   <HolidayBand day={d} />
                   {evs.slice(0, 3).map((e) => (
-                    <span key={e.id} role="button" tabIndex={0} onClick={(ev) => { ev.stopPropagation(); onSelect(e); }} style={evStyle(e, getMember)}
-                      className={cn("truncate rounded-md px-1.5 py-0.5 text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
+                    <button key={e.id} type="button" onClick={() => onSelect(e)} style={evStyle(e, getMember)}
+                      className={cn("pointer-events-auto relative truncate rounded-md px-1.5 py-0.5 text-left text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
                       {!e.allDay && <span className="num font-normal opacity-80">{fmt.time(e.start)} </span>}{tx(e.title)}
-                    </span>
+                    </button>
                   ))}
                   {evs.length > 3 && <span className="px-1.5 text-xs text-soft">{t("calendar.more", { n: evs.length - 3 })}</span>}
                 </span>
-              </button>
+              </div>
             );
           })}
         </div>
