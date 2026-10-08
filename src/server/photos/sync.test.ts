@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tx } from "../db";
 import { fetchChecked } from "../http";
-import type { DiskCache } from "./cache";
+import { diskCache, type DiskCache } from "./cache";
 import { getPhoto } from "./sync";
 
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0]);
@@ -21,6 +21,13 @@ describe("getPhoto", () => {
     const img = await getPhoto(db, "a1", "preview", cache);
     expect(img.type).toBe("image/jpeg");
     expect(img.body.equals(jpeg)).toBe(true);
+  });
+});
+
+describe("diskCache", () => {
+  it("refuses a size that would empty the cache on every write", () => {
+    expect(() => diskCache("/nonexistent", Number.NaN)).toThrow(/positive/);
+    expect(() => diskCache("/nonexistent", 0)).toThrow(/positive/);
   });
 });
 

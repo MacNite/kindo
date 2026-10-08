@@ -1,5 +1,6 @@
 import { Client } from "pg";
 import { prisma } from "./db";
+import { env } from "./env";
 import { errorMessage, log } from "./log";
 import { notify, type Topic } from "./realtime";
 
@@ -137,7 +138,7 @@ export async function wakeJob(name: string) {
 export const retryDelayMs = (failures: number, intervalMs: number) => Math.min(intervalMs, TICK_MS * 2 ** Math.min(Math.max(1, failures), 20));
 
 export function startJobs() {
-  if (state.started || process.env.KINDO_JOBS === "off") return;
+  if (state.started || !env().jobs) return;
   state.started = true;
   // Wait a little after start so migrations and the first requests come first.
   setTimeout(() => void tick(), 5_000).unref?.();

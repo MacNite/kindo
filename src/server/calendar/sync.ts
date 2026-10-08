@@ -4,6 +4,7 @@ import { addDays } from "@/lib/dates";
 import { allDayForStorage } from "@/lib/events";
 import { inTx, type Tx } from "../db";
 import { decryptSecret, sha256 } from "../crypto";
+import { env } from "../env";
 import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
 import * as caldav from "./caldav";
@@ -19,7 +20,7 @@ import type { EventToWrite } from "./ical";
  * so Kindo never shows an event its calendar doesn't have.
  */
 export const SYNC_WINDOW = { before: 90, after: 400 };
-export const syncMinutes = () => Math.max(1, Number(process.env.KINDO_SYNC_MINUTES ?? 5));
+const syncMinutes = () => env().KINDO_SYNC_MINUTES;
 /** Re-read an unchanged calendar now and then anyway: the window moves with the days. */
 const FULL_RESYNC_MS = 6 * 3_600_000;
 

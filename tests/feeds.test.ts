@@ -9,6 +9,7 @@ import { saveEvent, deleteEvent } from "@/server/household";
 import { syncConnection } from "@/server/calendar/sync";
 import { isPresent, watchHome } from "@/server/homeassistant";
 import { seedDemo } from "@/server/demo/seed";
+import { resetEnvCache } from "@/server/env";
 import { TEST_DB, resetTestDatabase } from "./db";
 
 const ics = readFileSync(new URL("./fixtures/school.ics", import.meta.url), "utf8");
@@ -92,6 +93,7 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     process.env.GOOGLE_OAUTH_BASE = base;
     process.env.GOOGLE_CLIENT_ID = "client";
     process.env.GOOGLE_CLIENT_SECRET = "secret";
+    resetEnvCache(); // the configuration is read once
   }, 60_000);
   afterAll(async () => {
     feed?.close();
@@ -155,8 +157,10 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     const conn = await db.connection.findFirstOrThrow({ where: { kind: "google" } });
     const api = process.env.GOOGLE_API_BASE;
     process.env.GOOGLE_API_BASE = "http://127.0.0.1:9"; // nothing listens there
+    resetEnvCache();
     await expect(syncConnection(db, conn, { force: true })).rejects.toMatchObject({ code: "remote" });
     process.env.GOOGLE_API_BASE = api;
+    resetEnvCache();
     expect((await db.connection.findUniqueOrThrow({ where: { id: conn.id } })).status).toBe("error");
   });
 });

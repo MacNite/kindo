@@ -1,5 +1,6 @@
 import type { CalendarSource, Connection, Event as EventRow } from "@prisma/client";
 import { decryptSecret } from "../crypto";
+import { env } from "../env";
 import { UserError } from "../errors";
 import { fetchChecked } from "../http";
 import type { RemoteCalendar, RemoteEvent } from "./caldav";
@@ -12,14 +13,11 @@ import type { CalendarProvider } from "./sync";
  * encrypted; access tokens live in memory only.
  */
 export const GOOGLE_SCOPES = ["openid", "email", "https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/calendar.events"];
-const apiBase = () => process.env.GOOGLE_API_BASE ?? "https://www.googleapis.com";
-export const oauthBase = () => process.env.GOOGLE_OAUTH_BASE ?? "https://oauth2.googleapis.com";
-export const authorizeUrl = () => process.env.GOOGLE_AUTHORIZE_URL ?? "https://accounts.google.com/o/oauth2/v2/auth";
+const apiBase = () => env().GOOGLE_API_BASE.replace(/\/+$/, "");
+const oauthBase = () => env().GOOGLE_OAUTH_BASE.replace(/\/+$/, "");
+export const authorizeUrl = () => env().GOOGLE_AUTHORIZE_URL;
 
-export function googleClient() {
-  const id = process.env.GOOGLE_CLIENT_ID, secret = process.env.GOOGLE_CLIENT_SECRET;
-  return id && secret ? { id, secret } : null;
-}
+export const googleClient = () => env().google;
 
 /** Exchanges the code from the consent screen for a refresh token and the account's email. */
 export async function exchangeCode(code: string, redirectUri: string) {
