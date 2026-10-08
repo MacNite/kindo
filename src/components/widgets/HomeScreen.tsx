@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { WIDGETS, WeatherNow, DatesList } from "./Widgets";
@@ -26,13 +27,15 @@ export function useGreeting() {
   return t(`greeting.${periodAt(now)}`);
 }
 
+/**
+ * Phones and larger screens get different layouts. Only the one on screen is
+ * rendered: a hidden desktop grid would still read Home Assistant and load
+ * camera pictures every few seconds on a phone. (Screens render on the device
+ * only, D7, so there is no server render to match.)
+ */
 export function HomeScreen() {
-  return (
-    <>
-      <div className="md:hidden"><MobileHome /></div>
-      <div className="hidden md:block"><DesktopHome /></div>
-    </>
-  );
+  const wide = useMediaQuery("(min-width: 768px)");
+  return wide ? <DesktopHome /> : <MobileHome />;
 }
 
 // ── Desktop / tablet ────────────────────────────────────────────────────────
@@ -42,8 +45,12 @@ function DesktopHome() {
   const now = useNow();
   const { widgets, moveWidget, updateWidget, data } = useStore();
   const [editing, setEditing] = useState(false);
-  const visible = widgets.filter((w) => w.enabled);
+  // Without a weather source (data.weather is null) the weather widget stays out of the way,
+  // except while customizing, where it can be hidden for good.
+  const visible = widgets.filter((w) => w.enabled && (editing || w.id !== "weather" || data.weather));
   const hidden = widgets.filter((w) => !w.enabled);
+  // The weather shows once: in its widget, or in the header when the widget is off.
+  const weatherInHeader = !visible.some((w) => w.id === "weather");
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,7 +60,7 @@ function DesktopHome() {
           <h1 className="font-display text-5xl font-bold tracking-tight">{fmt.dateLong(now)}</h1>
         </div>
         <div className="flex items-center gap-6">
-          <WeatherNow />
+          {weatherInHeader && <WeatherNow />}
           <div className="flex gap-2">
             <Link href="/wall"><Button variant="outline" size="md"><Monitor size={18} />{t("home.openWall")}</Button></Link>
             <Button variant={editing ? "primary" : "outline"} onClick={() => setEditing((e) => !e)}>
@@ -129,7 +136,7 @@ function MobileHome() {
       <header>
         <p className="text-soft">{greeting}</p>
         <h1 className="font-display text-3xl font-bold tracking-tight">{fmt.dateLong(now)}</h1>
-        <div className="mt-3"><WeatherNow /></div>
+        {data.weather && <div className="mt-3"><WeatherNow /></div>}
       </header>
 
       {/* Who's doing what: one swipeable row of people */}
