@@ -81,7 +81,7 @@ const en = {
   picker: {
     title: "Choose a picture", builtin: "Pictures", emoji: "Emoji", photo: "Own photo",
     upload: "Upload a photo", uploadHint: "For little ones, a photo of their own toothbrush or bed often works best.",
-    cat_morning: "Morning", cat_household: "Household", cat_evening: "Evening", cat_outdoor: "Outdoors", cat_school: "School & play",
+    cat_morning: "Morning", cat_care: "Personal care", cat_household: "Household", cat_evening: "Evening", cat_outdoor: "Outdoors", cat_school: "School & play",
   },
   tasks: {
     title: "Tasks", subtitle: "One-off things that need doing.", add: "Add a task", placeholder: "What needs doing?",
