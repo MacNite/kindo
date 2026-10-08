@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import { verifyPassword } from "better-auth/crypto";
 import * as Acc from "@/server/accounts";
-import { deleteMember } from "@/server/household";
+import { deleteMember, saveMember } from "@/server/household";
 import { setupHousehold, setupState } from "@/server/setup";
 import { seedDemo } from "@/server/demo/seed";
 import { can, deviceFromToken, type Actor } from "@/server/actor";
@@ -49,6 +49,18 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     expect(anna.user?.email).toBe("anna@example.test");
     expect(await verifyPassword({ hash: anna.user!.accounts[0].password!, password: "a long enough password" })).toBe(true);
     expect(await setupState(db)).toBe("done");
+  });
+
+  it("an admin who can sign in always remains, even next to an admin without a login", async () => {
+    const oma = await saveMember(db, { name: "Oma", role: "admin", color: "#2E8B6E", avatar: { kind: "initial" } });
+    const anna = { id: "anna", name: "Anna", color: "#3B78C2", avatar: { kind: "initial" as const } };
+    await expect(deleteMember(db, { id: "anna" })).rejects.toMatchObject({ code: "invalid" });
+    await expect(saveMember(db, { ...anna, role: "adult" })).rejects.toMatchObject({ code: "invalid" });
+    await expect(Acc.removeLogin(db, { memberId: "anna" })).rejects.toMatchObject({ code: "invalid" });
+    expect(await setupState(db)).toBe("done");
+    // An admin without a login may go, or stop being an admin.
+    await saveMember(db, { id: oma, name: "Oma", role: "adult", color: "#2E8B6E", avatar: { kind: "initial" } });
+    await deleteMember(db, { id: oma });
   });
 
   it("adults get logins, children never do, and an email is used once", async () => {

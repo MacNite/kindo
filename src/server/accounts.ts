@@ -62,11 +62,21 @@ export async function setPassword(db: Tx, input: In<"setPassword">) {
 export async function removeLogin(db: Tx, input: In<"byMember">) {
   const member = await db.member.findUnique({ where: { id: input.memberId } });
   if (!member?.userId) return;
-  if (member.role === "admin") {
-    const otherAdmins = await db.member.count({ where: { role: "admin", userId: { not: null }, id: { not: member.id } } });
-    if (!otherAdmins) throw new UserError("invalid", "the last admin login stays");
-  }
+  await assertAnotherAdminLogin(db, member.id);
   await db.user.delete({ where: { id: member.userId } });
+}
+
+/**
+ * A household always keeps an admin who can sign in. Without one nobody could
+ * change settings, and once no login is left at all, setup would hand the
+ * household to whoever opens it. Refuses to take an admin's role, person or
+ * login away unless another admin with a login remains.
+ */
+export async function assertAnotherAdminLogin(db: Tx, memberId: string) {
+  const me = await db.member.findUnique({ where: { id: memberId }, select: { role: true } });
+  if (me?.role !== "admin") return;
+  const others = await db.member.count({ where: { role: "admin", userId: { not: null }, id: { not: memberId } } });
+  if (!others) throw new UserError("invalid", "the last admin login stays");
 }
 
 // ── Kiosk pairing ───────────────────────────────────────────────────────────
