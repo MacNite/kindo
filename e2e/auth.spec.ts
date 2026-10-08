@@ -88,6 +88,9 @@ test("a wall display is paired with a code, ticks routines, and needs the PIN fo
   await wall.getByRole("dialog").getByRole("button", { name: "Unlock" }).click();
   await expect(wall.getByRole("button", { name: "Family", exact: true })).toBeVisible();
   await expect(wall.getByRole("button", { name: "Lock" })).toBeVisible();
+  // The PIN gives "manage", never admin (§20 D27): no devices or integrations.
+  await expect(wall.getByRole("button", { name: "Devices", exact: true })).toHaveCount(0);
+  await expect(wall.getByRole("button", { name: "Integrations", exact: true })).toHaveCount(0);
 
   // Unpairing ends it.
   await admin.reload();

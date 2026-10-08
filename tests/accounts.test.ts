@@ -16,7 +16,7 @@ describe("who may do what (§19.4)", () => {
     ["admin", user("admin"), [true, true, true, true]],
     ["adult", user("adult"), [true, true, true, false]],
     ["wall display", device(false), [true, true, false, false]],
-    ["wall display unlocked with the PIN", device(true), [true, true, true, true]],
+    ["wall display unlocked with the PIN", device(true), [true, true, true, false]],
     ["nobody", null, [false, false, false, false]],
   ] as const)("%s", (_name, actor, expected) => {
     expect((["view", "tick", "manage", "admin"] as const).map((l) => can(actor, l))).toEqual(expected);
