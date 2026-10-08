@@ -36,12 +36,18 @@ function googleMock() {
     [calendars[1].id]: [{ id: "h1", summary: "Unity day", start: { date: "2026-10-03" }, end: { date: "2026-10-04" } }],
   };
   const log: { method: string; path: string; body?: Record<string, unknown> }[] = [];
+  let limited = false;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://x");
     const json = (b: unknown, status = 200) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(b));
     if (url.pathname === "/token") return json({ access_token: "access-1", expires_in: 3600 });
     if (req.headers.authorization !== "Bearer access-1") return json({ error: "unauthorized" }, 401);
-    if (url.pathname === "/calendar/v3/users/me/calendarList") return json({ items: calendars });
+    // One calendar per page, like an account with many: Kindo must follow nextPageToken.
+    if (url.pathname === "/calendar/v3/users/me/calendarList") {
+      const i = Number(url.searchParams.get("pageToken") ?? 0);
+      return json({ items: [calendars[i]], ...(i + 1 < calendars.length ? { nextPageToken: String(i + 1) } : {}) });
+    }
+    if (limited) return json({ error: { code: 403, errors: [{ reason: "rateLimitExceeded" }], message: "Rate Limit Exceeded" } }, 403);
     const m = url.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
     if (m) {
       const cal = decodeURIComponent(m[1]);
@@ -74,7 +80,7 @@ function googleMock() {
     }
     json({ error: "not found" }, 404);
   });
-  return { server, log };
+  return { server, log, limit: (on: boolean) => void (limited = on) };
 }
 
 describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () => {
@@ -160,6 +166,20 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     expect(google.log.some((l) => l.method === "DELETE")).toBe(true);
     const choir = await db.event.findFirstOrThrow({ where: { title: { equals: "Choir" } } });
     await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "readOnly" });
+  });
+
+  it("tells Google's rate limit apart from missing write access", async () => {
+    const conn = await db.connection.findFirstOrThrow({ where: { kind: "google" } });
+    const family = await db.calendarSource.findFirstOrThrow({ where: { remoteId: "family@group.calendar.google.com" } });
+    google.limit(true);
+    try {
+      await expect(syncConnection(db, conn, { force: true })).rejects.toMatchObject({ code: "remote", message: expect.stringMatching(/too many requests/) });
+      const start = new Date(Date.now() + 3 * 86_400_000);
+      await expect(saveEvent(db, { sourceId: family.id, title: "Swim", start, end: new Date(start.getTime() + 3_600_000), allDay: false, memberIds: [] }))
+        .rejects.toMatchObject({ code: "remote" });
+    } finally {
+      google.limit(false);
+    }
   });
 
   it("a failing account is marked, and the error kept for Settings", async () => {

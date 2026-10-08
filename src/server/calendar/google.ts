@@ -59,10 +59,29 @@ async function api<T>(c: Connection, path: string, init: RequestInit = {}): Prom
     ...init, headers: { Authorization: `Bearer ${await accessToken(c)}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
   });
   if (res.status === 204) return undefined as T;
-  if (res.status === 403) throw new UserError("readOnly", "Google: no write access");
+  if (res.status === 403) {
+    const reasons = await errorReasons(res);
+    // Google answers 403 for too many requests too: that is "try later", not "read-only".
+    if (reasons.some((r) => RATE_LIMITED.has(r))) throw new UserError("remote", "Google: too many requests, trying again later");
+    throw new UserError("readOnly", "Google: no write access");
+  }
+  if (res.status === 429) throw new UserError("remote", "Google: too many requests, trying again later");
   if (res.status === 412) throw new UserError("conflict", "Google: changed elsewhere");
   if (!res.ok) throw new UserError("remote", `Google: HTTP ${res.status}`);
   return readJson<T>(res);
+}
+
+/** Google's 403 reasons that mean "slow down" (usage limits), not "not allowed". */
+const RATE_LIMITED = new Set(["rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded", "RATE_LIMIT_EXCEEDED"]);
+
+/** The `reason`s in a Google API error body (`error.errors[].reason`, `error.details[].reason`). */
+async function errorReasons(res: Response): Promise<string[]> {
+  try {
+    const body = await readJson<{ error?: { errors?: { reason?: string }[]; details?: { reason?: string }[]; status?: string } }>(res);
+    return [...(body.error?.errors ?? []), ...(body.error?.details ?? [])].map((e) => e.reason ?? "").concat(body.error?.status ?? "").filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 type GDate = { date?: string; dateTime?: string };
@@ -106,8 +125,18 @@ export function patchBody(row: Pick<EventRow, "title" | "start" | "end" | "allDa
 
 export const googleProvider: CalendarProvider = {
   async listCalendars(c): Promise<RemoteCalendar[]> {
-    const r = await api<{ items: { id: string; summary: string; accessRole: string; backgroundColor?: string }[] }>(c, "/users/me/calendarList?minAccessRole=reader");
-    return r.items.map((i) => ({ remoteId: i.id, name: i.summary, color: i.backgroundColor, readOnly: !["owner", "writer"].includes(i.accessRole) }));
+    type Item = { id: string; summary: string; accessRole: string; backgroundColor?: string };
+    const items: Item[] = [];
+    let page: string | undefined;
+    // A page at a time: an account with many subscribed calendars has more than one.
+    do {
+      const q = new URLSearchParams({ minAccessRole: "reader" });
+      if (page) q.set("pageToken", page);
+      const r = await api<{ items?: Item[]; nextPageToken?: string }>(c, `/users/me/calendarList?${q}`);
+      items.push(...(r.items ?? []));
+      page = r.nextPageToken;
+    } while (page);
+    return items.map((i) => ({ remoteId: i.id, name: i.summary, color: i.backgroundColor, readOnly: !["owner", "writer"].includes(i.accessRole) }));
   },
   async fetchEvents(c, s: CalendarSource, window): Promise<RemoteEvent[]> {
     const out: RemoteEvent[] = [];
