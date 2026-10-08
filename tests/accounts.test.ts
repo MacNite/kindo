@@ -105,3 +105,28 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     expect(await Acc.checkPin(db, "dev-b", { pin: "2468" }, 70_000)).toBe(true);
   });
 });
+
+describe.skipIf(!TEST_DB)("only single sign-on (§20 D42)", () => {
+  let db: PrismaClient;
+  beforeAll(async () => {
+    db = await resetTestDatabase();
+  }, 60_000);
+  afterAll(() => db?.$disconnect());
+  const input = {
+    demo: false, household: "Müller", timezone: "Europe/Berlin", member: { name: "Anna", color: "#3B78C2", avatar: { kind: "initial" as const } },
+    email: "anna@example.test",
+  };
+
+  it("setup needs a password while password sign-in is on", async () => {
+    await expect(setupHousehold(db, input)).rejects.toMatchObject({ code: "invalid" });
+    expect(await setupState(db)).toBe("new");
+  });
+
+  it("setup without password sign-in gives the admin an email-only login", async () => {
+    await setupHousehold(db, { ...input, password: "ignored password" }, { passwordLogin: false });
+    expect(await setupState(db)).toBe("done");
+    const user = await db.user.findUniqueOrThrow({ where: { email: "anna@example.test" }, include: { accounts: true, member: true } });
+    expect(user.accounts).toHaveLength(0);
+    expect(user.member?.role).toBe("admin");
+  });
+});

@@ -12,7 +12,8 @@ export const setupInput = z.object({
   timezone: z.string().min(1).max(64),
   member: z.object({ name: z.string().trim().min(1).max(40), color, avatar }),
   email: z.string().trim().toLowerCase().email().max(200),
-  password,
+  /** Required unless password sign-in is turned off (§20 D42). */
+  password: password.optional(),
 });
 
 /** Where first-run setup stands: nothing yet, a household without any login (e.g. after an upgrade), or done. */
@@ -25,9 +26,12 @@ export async function setupState(db: Tx): Promise<"new" | "claim" | "done"> {
  * First-run setup (§20 D11, D24): creates the household (or loads the demo
  * family) and the first admin's login. A household that exists without any
  * login, e.g. one created before accounts existed, is claimed by its first
- * admin instead. Refuses once anyone can sign in.
+ * admin instead. Refuses once anyone can sign in. Without password sign-in
+ * (§20 D42) the admin's login takes no password: they sign in through single
+ * sign-on with that email.
  */
-export async function setupHousehold(db: Tx, input: z.output<typeof setupInput>) {
+export async function setupHousehold(db: Tx, input: z.output<typeof setupInput>, { passwordLogin = true } = {}) {
+  if (passwordLogin && !input.password) throw new UserError("invalid", "password required");
   try {
     new Intl.DateTimeFormat("en", { timeZone: input.timezone });
   } catch {
@@ -48,6 +52,6 @@ export async function setupHousehold(db: Tx, input: z.output<typeof setupInput>)
       data: { name: input.member.name, role: "admin", color: input.member.color, avatar: input.member.avatar as Prisma.InputJsonValue },
     })).id;
   }
-  await createLogin(db, { memberId, email: input.email, password: input.password });
+  await createLogin(db, { memberId, email: input.email, password: passwordLogin ? input.password : undefined });
   return { memberId };
 }

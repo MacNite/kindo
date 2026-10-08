@@ -23,7 +23,7 @@ Kindo is **not** a smart-home dashboard. Family organisation comes first.
 
 ## §3 People and accounts
 
-People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email). Wall displays are paired as devices and need no login (§19.4).
+People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email; `KINDO_PASSWORD_LOGIN=false` leaves only single sign-on, §20 D42). Wall displays are paired as devices and need no login (§19.4).
 
 A member has a name, avatar (emoji, photo or initial), colour, role (`admin`, `adult`, `child`), an optional birthday and an optional account.
 
@@ -176,3 +176,4 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D39 | Home Assistant presence: one entity per household, followed over HA's WebSocket API (`subscribe_trigger`) by the instance that runs the jobs; changes are pushed to screens as a `presence` topic on the SSE stream. `on`, `home`, `detected`, `occupied` mean someone is there | No automation to write in HA, and presence reaches the wall within a second without being stored. |
 | D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |
 | D41 | Immich album photos come from `POST /api/search/metadata` (album filter, images only, paged by `nextCursor`, or `nextPage` before v3.2), not from the album response. The API key needs `album.read`, `asset.read` and `asset.view` | Immich v3 dropped `assets` from album responses, so selecting an album emptied it. |
+| D42 | `KINDO_PASSWORD_LOGIN=false` turns password sign-in off: the login page shows only the single sign-on button (no automatic redirect), Better Auth's password routes answer 404, Settings hides every password field and the server refuses to set one, and first-run setup asks only for the admin's email, who then signs in through single sign-on. Stored password hashes are kept, so turning it back on restores them. It is ignored, with a warning in the log, while single sign-on isn't fully configured | Households with authentik want one place to manage sign-in, but a typo in the OIDC settings must not lock everyone out; the login page stays reachable for errors, the language switch and pairing a wall display. |

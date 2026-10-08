@@ -11,8 +11,11 @@ import { Field, inputCls } from "../ui/Segmented";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 
-/** Sign in with email and password, or with the household's single sign-on (§19.4). */
-export function LoginScreen({ next, oidc, error: initialError }: { next: string; oidc: string | null; error: string | null }) {
+/**
+ * Sign in with email and password, or with the household's single sign-on
+ * (§19.4). Without password sign-in only the single sign-on button is left (§20 D42).
+ */
+export function LoginScreen({ next, oidc, password: withPassword = true, error: initialError }: { next: string; oidc: string | null; password?: boolean; error: string | null }) {
   const { t, language } = useI18n();
   const { setPrefs } = usePrefs();
   const [email, setEmail] = useState("");
@@ -58,14 +61,16 @@ export function LoginScreen({ next, oidc, error: initialError }: { next: string;
         </div>
       </div>
       <form onSubmit={submit} className="flex flex-col gap-4 rounded-panel bg-surface p-6">
-        <Field label={t("login.email")}><input required type="email" autoComplete="username" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-        <Field label={t("login.password")}><input required type="password" autoComplete="current-password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        {withPassword && <>
+          <Field label={t("login.email")}><input required type="email" autoComplete="username" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+          <Field label={t("login.password")}><input required type="password" autoComplete="current-password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+        </>}
         <ErrorText code={error} />
-        <Button type="submit" variant="primary" size="lg" disabled={busy}>{t("login.signIn")}</Button>
+        {withPassword && <Button type="submit" variant="primary" size="lg" disabled={busy}>{t("login.signIn")}</Button>}
         {oidc && (
           <>
-            <p className="text-center text-sm text-soft">{t("login.or")}</p>
-            <Button type="button" variant="outline" size="lg" disabled={busy} onClick={sso}><KeyRound size={18} />{t("login.sso", { name: oidc })}</Button>
+            {withPassword && <p className="text-center text-sm text-soft">{t("login.or")}</p>}
+            <Button type="button" variant={withPassword ? "outline" : "primary"} size="lg" disabled={busy} onClick={sso}><KeyRound size={18} />{t("login.sso", { name: oidc })}</Button>
           </>
         )}
       </form>

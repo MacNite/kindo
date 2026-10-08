@@ -27,6 +27,7 @@ export async function signIn(input: z.input<typeof credentials>): Promise<Action
   let key = "";
   try {
     const body = credentials.parse(input);
+    if (!env().passwordLogin) throw new UserError("forbidden");
     const h = await headers();
     key = `${body.email}|${h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "direct"}`;
     if (signInLimiter.blocked(key)) throw new UserError("tooManyAttempts");
@@ -55,7 +56,7 @@ export async function signOut(): Promise<ActionResult> {
 
 const changeOwn = z.object({ currentPassword: z.string().min(1).max(200), newPassword: Acc.password });
 export const changePassword = act(changeOwn, async (_db, input, actor) => {
-  if (actor.kind !== "user") throw new UserError("forbidden");
+  if (actor.kind !== "user" || !env().passwordLogin) throw new UserError("forbidden");
   try {
     await getAuth().api.changePassword({ body: { ...input, revokeOtherSessions: true }, headers: await headers() });
   } catch (e) {
@@ -64,9 +65,29 @@ export const changePassword = act(changeOwn, async (_db, input, actor) => {
   }
 }, { level: "view", topic: null });
 
+/** How people sign in here; nothing secret, so anyone signed in may ask. */
+export async function getLoginOptions(): Promise<ActionResult<{ oidc: string | null; passwordLogin: boolean }>> {
+  try {
+    await requireActor("view");
+    return { ok: true, data: { oidc: env().oidc ? env().OIDC_NAME : null, passwordLogin: env().passwordLogin } };
+  } catch (e) {
+    return failure(e);
+  }
+}
+
 // ── Logins (admin) ──────────────────────────────────────────────────────────
-export const createLogin = act(Acc.A.createLogin, async (db, input) => { await Acc.createLogin(db, input); }, { level: "admin" });
-export const setLoginPassword = act(Acc.A.setPassword, Acc.setPassword, { level: "admin", topic: null });
+/** Without password sign-in (§20 D42) nobody gets a password: logins are single sign-on only. */
+const noPasswordsHere = () => {
+  if (!env().passwordLogin) throw new UserError("forbidden", "password sign-in is turned off");
+};
+export const createLogin = act(Acc.A.createLogin, async (db, input) => {
+  if (input.password) noPasswordsHere();
+  await Acc.createLogin(db, input);
+}, { level: "admin" });
+export const setLoginPassword = act(Acc.A.setPassword, async (db, input) => {
+  noPasswordsHere();
+  await Acc.setPassword(db, input);
+}, { level: "admin", topic: null });
 export const removeLogin = act(Acc.A.byMember, Acc.removeLogin, { level: "admin" });
 
 /** Admin-only details for Settings: paired devices, and whether single sign-on is set up. */
@@ -76,7 +97,7 @@ export async function getAccountAdmin() {
     const devices = await prisma.device.findMany({ where: { revokedAt: null }, orderBy: { createdAt: "asc" } });
     return {
       ok: true as const,
-      data: { oidc: env().oidc ? env().OIDC_NAME : null, devices: devices.map((d) => ({ id: d.id, name: d.name, createdAt: d.createdAt, lastSeenAt: d.lastSeenAt ?? undefined })) },
+      data: { oidc: env().oidc ? env().OIDC_NAME : null, passwordLogin: env().passwordLogin, devices: devices.map((d) => ({ id: d.id, name: d.name, createdAt: d.createdAt, lastSeenAt: d.lastSeenAt ?? undefined })) },
     };
   } catch (e) {
     return failure(e);
