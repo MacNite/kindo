@@ -118,11 +118,11 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
               <div className="grid grid-cols-4 gap-2">
                 {r.items.map((it) => (
                   <button key={it.id} onClick={() => onEdit({ kind: "step", memberId: member.id, item: it, recurrence: r.recurrence, period: r.period })} title={tx(it.label)}
-                    className="tint m-text relative flex aspect-square flex-col items-center justify-center gap-1 rounded-tile hover:ring-2 hover:ring-[var(--m)]">
-                    <Pictogram id={it.pictogram} className="h-7 w-7" />
-                    <span className="line-clamp-1 px-1 text-[11px] font-bold text-soft">{tx(it.label)}</span>
+                    className="tint m-text relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-tile p-1 hover:ring-2 hover:ring-[var(--m)]">
+                    <Pictogram id={it.pictogram} className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
+                    <span className="line-clamp-2 break-words text-center text-xs font-bold leading-[1.15] text-soft">{tx(it.label)}</span>
                     {showPoints && it.value.kind === "extra" && (
-                      <RewardAmount points={it.value.points} iconSize={11} className="absolute right-1.5 top-1 text-[11px] text-ink" />
+                      <RewardAmount points={it.value.points} iconSize={11} className="absolute right-1 top-0.5 text-xs text-ink" />
                     )}
                   </button>
                 ))}

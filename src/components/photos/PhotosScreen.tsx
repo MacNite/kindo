@@ -29,7 +29,7 @@ export function PhotosScreen() {
         {photos.slice(0, 6).map((p) => (
           <div key={p.id} className="relative aspect-[4/3] overflow-hidden rounded-tile">
             <Photo photo={p} size="thumbnail" className="h-full w-full" />
-            {p.takenAt && <span className="absolute bottom-1 left-1.5 text-[11px] font-bold text-white drop-shadow">{fmt.dateMedium(p.takenAt)}</span>}
+            {p.takenAt && <span className="absolute bottom-1 left-1.5 text-xs font-bold text-white drop-shadow">{fmt.dateMedium(p.takenAt)}</span>}
           </div>
         ))}
       </div>
