@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { KeyRound, LogOut, Monitor, Trash2 } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -21,7 +21,12 @@ export function AccountSection() {
   const { viewer, getMember, run } = useStore();
   const [passwordLogin, setPasswordLogin] = useState(false);
   useEffect(() => {
-    void getLoginOptions().then((r) => setPasswordLogin(r.ok && r.data.passwordLogin));
+    let live = true;
+    // Without an answer the password form stays hidden, as it does without password sign-in.
+    getLoginOptions().then((r) => live && setPasswordLogin(r.ok && r.data.passwordLogin), () => {});
+    return () => {
+      live = false;
+    };
   }, []);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -80,13 +85,16 @@ export function DevicesSection({ initialCode }: { initialCode?: string }) {
   const [code, setCode] = useState(initialCode ?? "");
   const [name, setName] = useState(t("devices.defaultName"));
   const [state, setState] = useState<{ error?: string; approved?: boolean }>({});
+  const later = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(later.current), []);
   const approve = async (e: FormEvent) => {
     e.preventDefault();
     const r = await run(() => approvePairing({ code: code.replace(/\D/g, ""), name }));
     setState(r.ok ? { approved: true } : { error: r.error });
     if (r.ok) {
       setCode("");
-      setTimeout(reload, 2500); // the display picks up its token on its next poll
+      clearTimeout(later.current);
+      later.current = setTimeout(reload, 2500); // the display picks up its token on its next poll
     }
   };
   return (

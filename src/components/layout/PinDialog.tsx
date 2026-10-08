@@ -1,6 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { Lock } from "lucide-react";
+import type { ActionResult } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { unlockWithPin } from "@/lib/services/accounts";
@@ -9,13 +10,16 @@ import { Button } from "../ui/Button";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 
+/** What was retried may be a server action's result, or (unlocking from Settings) nothing at all. */
+const isResult = (r: unknown): r is ActionResult<unknown> => typeof r === "object" && r !== null && typeof (r as { ok?: unknown }).ok === "boolean";
+
 /**
  * Asks for the settings PIN on a wall display (§19.4), then retries what
  * needed it. Big keys, so it works on a touch screen without a keyboard.
  */
 export function PinDialog() {
   const { t } = useI18n();
-  const { pinRequest, closePin, refresh, viewer } = useStore();
+  const { pinRequest, closePin, refresh, run, viewer } = useStore();
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -36,7 +40,11 @@ export function PinDialog() {
     const retry = pinRequest.retry;
     close();
     await refresh();
-    await retry();
+    // Retried like any other change: a failure is shown, and the data is refreshed afterwards.
+    await run(async (): Promise<ActionResult<unknown>> => {
+      const result = await retry();
+      return isResult(result) ? result : { ok: true, data: result };
+    });
   };
   const press = (k: string) => setPin((p) => (k === "⌫" ? p.slice(0, -1) : p.length < 8 ? p + k : p));
 
