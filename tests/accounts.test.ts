@@ -108,6 +108,19 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     await expect(Acc.approvePairing(db, { code, name: "x" }, "u")).rejects.toMatchObject({ code: "notFound" });
   });
 
+  it("keeps only a few pairing codes waiting; a display asking again replaces its own", async () => {
+    await db.pairingRequest.deleteMany();
+    let last = await Acc.startPairing(db);
+    for (let i = 1; i < Acc.MAX_PENDING_PAIRINGS; i++) last = await Acc.startPairing(db);
+    await expect(Acc.startPairing(db)).rejects.toMatchObject({ code: "tooManyAttempts" });
+    const again = await Acc.startPairing(db, new Date(), last.secret);
+    expect(await Acc.pollPairing(db, last.secret)).toEqual({ status: "expired" });
+    expect(await Acc.pollPairing(db, again.secret)).toEqual({ status: "waiting" });
+    // Expired requests make room.
+    expect((await Acc.startPairing(db, new Date(Date.now() + Acc.PAIRING_TTL_MS + 1000))).code).toMatch(/^\d{6}$/);
+    await db.pairingRequest.deleteMany();
+  });
+
   it("checks the PIN and pauses after five wrong tries", async () => {
     await expect(Acc.checkPin(db, "dev-a", { pin: "1234" })).rejects.toMatchObject({ code: "noPin" });
     await Acc.setPin(db, { pin: "2468" });

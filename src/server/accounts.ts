@@ -81,10 +81,20 @@ export async function assertAnotherAdminLogin(db: Tx, memberId: string) {
 
 // ── Kiosk pairing ───────────────────────────────────────────────────────────
 export const PAIRING_TTL_MS = 10 * 60_000;
+/**
+ * Codes waiting at once. Anyone can ask without signing in, so a few are
+ * enough: more would only make a mistyped code more likely to pair a stranger.
+ */
+export const MAX_PENDING_PAIRINGS = 10;
 
-/** A wall display asks to be paired: it gets a code to show and a secret to keep. */
-export async function startPairing(db: Tx, now = new Date()) {
+/**
+ * A wall display asks to be paired: it gets a code to show and a secret to
+ * keep. A display asking again (a reload) replaces its own earlier request.
+ */
+export async function startPairing(db: Tx, now = new Date(), previousSecret?: string) {
   await db.pairingRequest.deleteMany({ where: { expiresAt: { lt: now } } });
+  if (previousSecret) await db.pairingRequest.deleteMany({ where: { secretHash: sha256(previousSecret), approvedAt: null } });
+  if ((await db.pairingRequest.count()) >= MAX_PENDING_PAIRINGS) throw new UserError("tooManyAttempts");
   const secret = randomToken();
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = randomCode();

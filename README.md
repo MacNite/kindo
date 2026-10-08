@@ -47,7 +47,8 @@ Open <http://localhost:3000> and set up your household and your admin login, or 
 
 - **Everything is behind a login.** Adults get a login from an admin (Settings → Members). Children never need one.
 - **Single sign-on** with authentik or any OpenID Connect provider: set `OIDC_ISSUER`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET`, with the redirect URI `<APP_URL>/api/auth/callback/oidc`. It signs in people whose email already has a login; it never creates new ones. Set `KINDO_PASSWORD_LOGIN=false` to make single sign-on the only way in (ignored while single sign-on isn't configured).
-- **Wall display:** open `/pair` on the tablet. It shows a code and a QR code; an admin confirms it in Settings → Devices. The tablet then shows the wall and the child view without a login. It can tick off routines, chores and shopping; anything else (approving extras, planning, settings) asks for the **settings PIN**, which an admin sets in Settings → Devices and which unlocks the tablet for 10 minutes.
+- **Wall display:** open `/pair` on the tablet. It shows a code and a QR code; an admin confirms it in Settings → Devices. The tablet then shows the wall and the child view without a login. It can tick off routines, chores and shopping; anything else (approving extras, planning, settings) asks for the **settings PIN**, which an admin sets in Settings → Devices and which unlocks the tablet for 10 minutes. The PIN never gives admin rights: people, logins, devices and integrations need an admin's own login.
+- **Behind a reverse proxy** (Traefik, Caddy, nginx) that is the only way in, set `KINDO_TRUST_PROXY=true` so sign-in attempts are limited per client address too. Without one, leave it off: anyone could send an `X-Forwarded-For` header.
 
 | Service | What it does |
 |---|---|
