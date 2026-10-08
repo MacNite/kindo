@@ -55,6 +55,8 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     db.connection.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
+  // Login emails are for admins and their owners; a wall or another adult only learns that there is one.
+  const seesEmail = (memberId: string) => viewer.isAdmin || (viewer.kind === "user" && viewer.memberId === memberId);
   const rewardsOf = new Map(members.map((m) => [m.id, { on: m.routineRewards, points: m.routinePoints }]));
   const routineItems: Routine[] = routines.map((r) => ({
     id: r.id, memberId: r.memberId, period: r.period, recurrence: r.recurrence as unknown as Recurrence,
@@ -83,7 +85,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     viewer,
     members: members.map((m): Member => ({
       id: m.id, name: m.name, role: m.role, color: m.color, avatar: m.avatar as Member["avatar"], birthday: m.birthday ?? undefined,
-      account: m.user ? { email: m.user.email } : undefined, routineRewards: { on: m.routineRewards, points: m.routinePoints },
+      account: m.user ? (seesEmail(m.id) ? { email: m.user.email } : {}) : undefined, routineRewards: { on: m.routineRewards, points: m.routinePoints },
     })),
     routines: routineItems,
     chores: chores.map((c): Chore => ({

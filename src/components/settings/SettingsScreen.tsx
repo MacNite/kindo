@@ -129,7 +129,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
                     <dd className="flex items-center gap-2"><span className="h-4 w-4 rounded-full" style={{ background: m.color }} />{m.color}</dd>
                     {m.birthday && <><dt className="text-soft">{t("settings.members.birthday")}</dt><dd>{fmt.dateShort(new Date(m.birthday + "T00:00"))}</dd></>}
                     <dt className="text-soft">{t("settings.members.login")}</dt>
-                    <dd className="min-w-0 truncate">{m.account ? m.account.email : <span className="text-soft">{m.role === "child" ? t("settings.members.noLogin") : t("logins.none")}</span>}</dd>
+                    <dd className="min-w-0 truncate">{m.account ? m.account.email ?? t("logins.has") : <span className="text-soft">{m.role === "child" ? t("settings.members.noLogin") : t("logins.none")}</span>}</dd>
                   </dl>
                   {viewer.isAdmin && m.role !== "child" && (
                     <Button size="sm" variant="ghost" className="-ml-3 mt-2" onClick={() => setEditingLogin(m.id)}><KeyRound size={14} />{m.account ? t("logins.manage") : t("logins.give")}</Button>

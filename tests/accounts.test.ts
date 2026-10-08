@@ -7,7 +7,9 @@ import { setupHousehold, setupState } from "@/server/setup";
 import { seedDemo } from "@/server/demo/seed";
 import { can, deviceFromToken, type Actor } from "@/server/actor";
 import { sign, verify } from "@/server/crypto";
-import { TEST_DB, resetTestDatabase } from "./db";
+import { loadSnapshot } from "@/server/snapshot";
+import type { Viewer } from "@/lib/types";
+import { TEST_DB, VIEWER, resetTestDatabase } from "./db";
 
 describe("who may do what (§19.4)", () => {
   const user = (role: "admin" | "adult" | "child"): Actor => ({ kind: "user", userId: "u", memberId: "m", role, name: "x" });
@@ -68,6 +70,13 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     await Acc.createLogin(db, { memberId: "max", email: "max@example.test" }); // single sign-on only
     expect(await db.account.count({ where: { user: { email: "max@example.test" } } })).toBe(0);
     await expect(Acc.createLogin(db, { memberId: "max", email: "other@example.test" })).rejects.toMatchObject({ code: "conflict" });
+  });
+
+  it("login emails reach admins and their owners only, never a wall display", async () => {
+    const emails = async (viewer: Viewer) => Object.fromEntries((await loadSnapshot(db, viewer))!.members.filter((m) => m.account).map((m) => [m.id, m.account!.email]));
+    expect(await emails(VIEWER)).toEqual({ anna: "anna@example.test", max: "max@example.test" });
+    expect(await emails({ kind: "device", name: "Kitchen", canManage: true, isAdmin: false, elevated: true, pinSet: true })).toEqual({ anna: undefined, max: undefined });
+    expect(await emails({ kind: "user", name: "Max", memberId: "max", role: "adult", canManage: true, isAdmin: false, pinSet: false })).toEqual({ anna: undefined, max: "max@example.test" });
   });
 
   it("resetting a password signs the person out everywhere", async () => {
