@@ -183,3 +183,51 @@ export function buildEventIcs(e: EventToWrite, now = new Date()): string {
   cal.addSubcomponent(v);
   return cal.toString();
 }
+
+/**
+ * Applies Kindo's edit to the event as its server has it: title, times,
+ * place and people change, everything else (description, alarms, attendees,
+ * categories, other apps' properties, the time zone) stays as it was. A time
+ * that moves is written in the event's own time zone when the calendar
+ * carries it, in UTC otherwise.
+ */
+export function updateEventIcs(text: string, e: EventToWrite, now = new Date()): string {
+  const cal = new ICAL.Component(ICAL.parse(text));
+  registerTimezones(cal);
+  const vevents = cal.getAllSubcomponents("vevent");
+  const v = vevents.find((c) => !c.hasProperty("recurrence-id") && c.getFirstPropertyValue("uid") === e.uid) ?? vevents.find((c) => !c.hasProperty("recurrence-id"));
+  if (!v) throw new Error("no VEVENT to update");
+  const ev = new ICAL.Event(v);
+  const parsed = () => details(ev, ev.startDate, ev.endDate, false);
+  const timeFor = (d: Date, zone: ICAL.Timezone | undefined) => {
+    if (e.allDay) return icalDate(d);
+    const utc = ICAL.Time.fromJSDate(d, true);
+    return zone && zone !== ICAL.Timezone.utcTimezone && zone !== ICAL.Timezone.localTimezone ? utc.convertToZone(zone) : utc;
+  };
+
+  ev.summary = e.title;
+  let moved = false;
+  const before = parsed();
+  if (before.allDay !== e.allDay || before.start.getTime() !== e.start.getTime()) {    ev.startDate = timeFor(e.start, ev.startDate.zone);
+    moved = true;
+  }
+  // After the start: an event with a DURATION moves its end along with it.
+  const after = parsed();
+  const endIsDate = v.hasProperty("dtend") ? ev.endDate.isDate : e.allDay;
+  if (endIsDate !== e.allDay || after.end.getTime() !== e.end.getTime()) {
+    ev.endDate = timeFor(e.end, ev.startDate.zone);
+    moved = true;
+  }
+  if (e.location) ev.location = e.location;
+  else v.removeAllProperties("location");
+  if (e.memberIds.length) v.updatePropertyWithValue("x-kindo-members", e.memberIds.join(" "));
+  else v.removeAllProperties("x-kindo-members");
+  if (e.icon) v.updatePropertyWithValue("x-kindo-icon", e.icon);
+
+  const stamp = ICAL.Time.fromJSDate(now, true);
+  v.updatePropertyWithValue("dtstamp", stamp);
+  if (v.hasProperty("last-modified")) v.updatePropertyWithValue("last-modified", stamp);
+  // RFC 5545: a new time is a new revision, so invitees' apps take it.
+  if (moved) v.updatePropertyWithValue("sequence", Number(v.getFirstPropertyValue("sequence") ?? 0) + 1);
+  return cal.toString();
+}

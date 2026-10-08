@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { parseCalendar } from "./ical";
+import { parseCalendar, updateEventIcs } from "./ical";
 import { holidayRanges } from "../holidays";
 
 const ics = readFileSync(new URL("../../../tests/fixtures/school.ics", import.meta.url), "utf8");
@@ -68,6 +68,45 @@ describe("long-running series", () => {
       expect([0, 3]).toContain(offset % 14);
     }
     expect(bins).toHaveLength(13);
+  });
+});
+
+describe("updateEventIcs", () => {
+  const vtimezone = ics.slice(ics.indexOf("BEGIN:VTIMEZONE"), ics.indexOf("END:VTIMEZONE") + "END:VTIMEZONE".length);
+  const original = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Nextcloud//EN", vtimezone, "BEGIN:VEVENT", "UID:dentist@elsewhere",
+    "DTSTAMP:20261001T080000Z", "SEQUENCE:2", "DTSTART;TZID=Europe/Berlin:20261012T090000", "DTEND;TZID=Europe/Berlin:20261012T100000",
+    "SUMMARY:Dentist", "LOCATION:Praxis", "DESCRIPTION:Bring the insurance card", "CATEGORIES:Health", "X-OTHER-APP:keep me",
+    "BEGIN:VALARM", "ACTION:DISPLAY", "TRIGGER:-PT30M", "DESCRIPTION:Reminder", "END:VALARM", "END:VEVENT", "END:VCALENDAR", ""].join("\r\n");
+  const edit = { uid: "dentist@elsewhere", title: "Dentist (Max)", start: new Date("2026-10-12T07:00:00Z"), end: new Date("2026-10-12T08:00:00Z"), allDay: false, memberIds: ["max"] };
+  const one = (text: string) => parseCalendar(text, window)[0];
+
+  it("changes what Kindo edits and keeps everything else", () => {
+    const text = updateEventIcs(original, { ...edit, location: "Praxis Dr. Weiß" });
+    expect(text).toContain("DESCRIPTION:Bring the insurance card");
+    expect(text).toContain("CATEGORIES:Health");
+    expect(text).toContain("X-OTHER-APP:keep me");
+    expect(text).toContain("BEGIN:VALARM");
+    expect(text).toContain("SEQUENCE:2"); // the time didn't move
+    expect(text).toContain("DTSTART;TZID=Europe/Berlin:20261012T090000");
+    expect(one(text)).toMatchObject({ summary: "Dentist (Max)", location: "Praxis Dr. Weiß", memberIds: ["max"] });
+  });
+
+  it("moves the time in the event's own time zone and clears what was cleared", () => {
+    const text = updateEventIcs(original, { ...edit, start: new Date("2026-10-13T12:00:00Z"), end: new Date("2026-10-13T13:30:00Z"), memberIds: [] });
+    expect(text).toContain("DTSTART;TZID=Europe/Berlin:20261013T140000");
+    expect(text).toContain("DTEND;TZID=Europe/Berlin:20261013T153000");
+    expect(text).toContain("SEQUENCE:3");
+    expect(text).not.toContain("LOCATION");
+    expect(text).not.toContain("X-KINDO-MEMBERS");
+    expect(text).toContain("DESCRIPTION:Bring the insurance card");
+    expect(one(text).start.toISOString()).toBe("2026-10-13T12:00:00.000Z");
+  });
+
+  it("turns a timed event into a whole day", () => {
+    const text = updateEventIcs(original, { ...edit, allDay: true, start: new Date("2026-10-12T00:00:00Z"), end: new Date("2026-10-13T00:00:00Z") });
+    expect(text).toContain("DTSTART;VALUE=DATE:20261012");
+    expect(text).toContain("DTEND;VALUE=DATE:20261013");
+    expect(one(text)).toMatchObject({ allDay: true });
   });
 });
 

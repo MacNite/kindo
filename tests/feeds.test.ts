@@ -44,7 +44,7 @@ function googleMock() {
     const m = url.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
     if (m) {
       const cal = decodeURIComponent(m[1]);
-      const body = req.method === "POST" || req.method === "PUT" ? JSON.parse(await readBody(req)) : undefined;
+      const body = req.method === "POST" || req.method === "PATCH" ? JSON.parse(await readBody(req)) : undefined;
       log.push({ method: req.method!, path: url.pathname, body });
       if (req.method === "GET") return json({ items: events[cal] ?? [] });
       if (req.method === "POST") {
@@ -52,8 +52,18 @@ function googleMock() {
         events[cal].push(e);
         return json(e);
       }
-      if (req.method === "PUT") {
-        events[cal] = events[cal].map((e) => (e.id === m[2] ? { ...e, ...body } : e));
+      if (req.method === "PATCH") {
+        // Like Google: nested objects merge, null clears a field.
+        const merge = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => {
+          const out = { ...a };
+          for (const [k, v] of Object.entries(b)) {
+            if (v === null) delete out[k];
+            else if (typeof v === "object" && !Array.isArray(v) && typeof a[k] === "object") out[k] = merge(a[k] as Record<string, unknown>, v as Record<string, unknown>);
+            else out[k] = v;
+          }
+          return out;
+        };
+        events[cal] = events[cal].map((e) => (e.id === m[2] ? { ...merge(e, body), etag: `"${log.length}"` } : e));
         return json({});
       }
       if (req.method === "DELETE") {
@@ -123,7 +133,19 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     const post = google.log.find((l) => l.method === "POST")!;
     expect(post.body).toMatchObject({ summary: "Football", extendedProperties: { private: { kindoMembers: "lena" } } });
     expect(await db.event.findUniqueOrThrow({ where: { id } })).toMatchObject({ title: "Football", memberIds: ["lena"] });
-    await deleteEvent(db, { id });
+
+    // An edit sends only what changed; a moved event comes back under its new id.
+    const later = new Date(start.getTime() + 86_400_000);
+    const moved = await saveEvent(db, { id, sourceId: family.id, title: "Football", start: later, end: new Date(later.getTime() + 3_600_000), allDay: false, memberIds: ["lena"] });
+    const patch = google.log.find((l) => l.method === "PATCH")!;
+    expect(Object.keys(patch.body!).sort()).toEqual(["end", "start"]);
+    expect(moved).not.toBe(id);
+    expect(await db.event.findUniqueOrThrow({ where: { id: moved } })).toMatchObject({ title: "Football", memberIds: ["lena"], start: later });
+    const renamed = await saveEvent(db, { id: moved, sourceId: family.id, title: "Football final", start: later, end: new Date(later.getTime() + 3_600_000), allDay: false, memberIds: ["lena", "max"] });
+    expect(renamed).toBe(moved);
+    expect(google.log.filter((l) => l.method === "PATCH").at(-1)!.body).toEqual({ summary: "Football final", extendedProperties: { private: { kindoMembers: "lena max" } } });
+    expect(await db.event.findUniqueOrThrow({ where: { id: moved } })).toMatchObject({ title: "Football final", memberIds: ["lena", "max"] });
+    await deleteEvent(db, { id: moved });
     expect(google.log.some((l) => l.method === "DELETE")).toBe(true);
     const choir = await db.event.findFirstOrThrow({ where: { title: { equals: "Choir" } } });
     await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "readOnly" });

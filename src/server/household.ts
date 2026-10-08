@@ -387,8 +387,8 @@ export async function saveEvent(db: Tx, input: In<"event">) {
     if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
     if (existing.sourceId !== input.sourceId) throw new UserError("invalid", "events don't move between calendars");
     if (existing.source.connectionId) {
-      await updateRemoteEvent(db, existing, e);
-      return input.id;
+      // Its id follows its start: a moved event comes back under a new one.
+      return updateRemoteEvent(db, existing, e);
     }
     await db.event.update({ where: { id: input.id }, data: toStoredEvent(e) });
     return input.id;

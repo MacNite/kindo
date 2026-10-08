@@ -74,8 +74,9 @@ interface GEvent {
 }
 const toDate = (d: GDate) => (d.date ? new Date(`${d.date}T00:00:00Z`) : new Date(d.dateTime!));
 
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
 function body(e: EventToWrite) {
-  const ymd = (d: Date) => d.toISOString().slice(0, 10);
   return {
     summary: e.title, location: e.location,
     start: e.allDay ? { date: ymd(e.start) } : { dateTime: e.start.toISOString() },
@@ -83,6 +84,26 @@ function body(e: EventToWrite) {
     // Kindo's people travel along, like X-KINDO-MEMBERS in CalDAV.
     extendedProperties: { private: { kindoMembers: e.memberIds.join(" "), kindoUid: e.uid } },
   };
+}
+
+/**
+ * An edit as a PATCH: only the fields that differ from what Kindo shows, so
+ * Google keeps what other apps set (description, reminders, attendees,
+ * colour, other private properties). Null clears a field.
+ */
+export function patchBody(row: Pick<EventRow, "title" | "start" | "end" | "allDay" | "location" | "memberIds">, e: EventToWrite) {
+  const out: Record<string, unknown> = {};
+  const title = typeof row.title === "string" ? row.title : JSON.stringify(row.title);
+  if (title !== e.title) out.summary = e.title;
+  if ((row.location ?? "") !== (e.location ?? "")) out.location = e.location || null;
+  if (row.allDay !== e.allDay || row.start.getTime() !== e.start.getTime() || row.end.getTime() !== e.end.getTime()) {
+    // Both kinds named, so a timed event can become a whole day and back.
+    const when = (d: Date) => (e.allDay ? { date: ymd(d), dateTime: null } : { dateTime: d.toISOString(), date: null });
+    out.start = when(e.start);
+    out.end = when(e.end);
+  }
+  if (row.memberIds.join(" ") !== e.memberIds.join(" ")) out.extendedProperties = { private: { kindoMembers: e.memberIds.join(" ") } };
+  return out;
 }
 
 export const googleProvider: CalendarProvider = {
@@ -114,8 +135,10 @@ export const googleProvider: CalendarProvider = {
     await api(c, `/calendars/${encodeURIComponent(s.remoteId!)}/events`, { method: "POST", body: JSON.stringify(body(e)) });
   },
   async update(c, s, row: EventRow, e) {
+    const patch = patchBody(row, e);
+    if (!Object.keys(patch).length) return;
     await api(c, `/calendars/${encodeURIComponent(s.remoteId!)}/events/${encodeURIComponent(row.href!)}`, {
-      method: "PUT", body: JSON.stringify(body(e)), headers: row.etag ? { "If-Match": row.etag } : {},
+      method: "PATCH", body: JSON.stringify(patch), headers: row.etag ? { "If-Match": row.etag } : {},
     });
   },
   async remove(c, s, row: EventRow) {

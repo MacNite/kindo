@@ -39,7 +39,7 @@ const providers: Partial<Record<Connection["kind"], CalendarProvider>> = {
     listCalendars: (c) => caldav.listCalendars(caldavAccount(c)),
     fetchEvents: (c, s, w) => caldav.fetchEvents(caldavAccount(c), s.remoteId!, w),
     create: (c, s, e) => caldav.createEvent(caldavAccount(c), s.remoteId!, e),
-    update: (c, _s, row, e) => caldav.updateEvent(caldavAccount(c), row.href!, row.etag ?? undefined, e),
+    update: (c, s, row, e) => caldav.updateEvent(caldavAccount(c), s.remoteId!, row.href!, row.etag ?? undefined, e),
     remove: (c, _s, row) => caldav.deleteEvent(caldavAccount(c), row.href!, row.etag ?? undefined),
   },
   ics: icsProvider,
@@ -149,10 +149,23 @@ export async function createRemoteEvent(db: Tx, sourceId: string, e: EventInput)
   const uid = `${randomUUID()}@kindo`;
   await p.create(conn, source, toWrite(uid, e));
   await syncSource(db, conn, source, { force: true });
-  return eventId(source.id, uid, allDayForStorage(e).start);
+  return syncedId(db, source.id, uid, allDayForStorage(e).start);
 }
 
-/** Single events only: a recurring series is changed in the calendar app that owns it. */
+/**
+ * The id of a single event as the sync just stored it. Ids follow the start
+ * (see `eventId`), so an event that moved has a new one; looked up by uid in
+ * case the server rounded the time.
+ */
+async function syncedId(db: Tx, sourceId: string, uid: string, start: Date) {
+  const row = await db.event.findFirst({ where: { sourceId, uid, recurring: false }, select: { id: true } });
+  return row?.id ?? eventId(sourceId, uid, start);
+}
+
+/**
+ * Single events only: a recurring series is changed in the calendar app that
+ * owns it. Returns the event's id afterwards, which changes when it moved.
+ */
 export async function updateRemoteEvent(db: Tx, row: EventRow, e: EventInput) {
   const source = await sourceWithConnection(db, row.sourceId);
   const conn = source.connection!;
@@ -160,6 +173,7 @@ export async function updateRemoteEvent(db: Tx, row: EventRow, e: EventInput) {
   if (!p?.update || row.recurring || !row.href) throw new UserError("readOnly");
   await p.update(conn, source, row, toWrite(row.uid ?? `${randomUUID()}@kindo`, e));
   await syncSource(db, conn, source, { force: true });
+  return row.uid ? syncedId(db, source.id, row.uid, allDayForStorage(e).start) : eventId(source.id, row.href, allDayForStorage(e).start);
 }
 
 export async function deleteRemoteEvent(db: Tx, row: EventRow) {
