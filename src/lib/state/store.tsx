@@ -300,7 +300,7 @@ function useHousehold(initial: HouseholdWire) {
   const addShopping = (listId: string, name: string, memberId?: string) => {
     const id = uid();
     return mutate(
-      (d) => ({ ...d, shoppingItems: [{ id, listId, name, category: guessCategory(name, listId), memberId, done: false }, ...d.shoppingItems] }),
+      (d) => ({ ...d, shoppingItems: [{ id, listId, name, category: guessCategory(name, d.shoppingLists.find((l) => l.id === listId)?.name), memberId, done: false }, ...d.shoppingItems] }),
       () => A.addShoppingItem({ id, listId, name, memberId }),
       { name: "addShoppingItem", input: { id, listId, name, memberId } },
     );

@@ -19,7 +19,7 @@ export function applyQueued(d: HouseholdData, ops: OfflineOp[]): HouseholdData {
   for (const op of ops) {
     if (op.name === "addShoppingItem") {
       if (items.some((i) => i.id === op.input.id)) continue;
-      const item: ShoppingItem = { id: op.input.id, listId: op.input.listId, name: op.input.name, memberId: op.input.memberId, category: guessCategory(op.input.name, op.input.listId), done: false };
+      const item: ShoppingItem = { id: op.input.id, listId: op.input.listId, name: op.input.name, memberId: op.input.memberId, category: guessCategory(op.input.name, d.shoppingLists?.find((l) => l.id === op.input.listId)?.name), done: false };
       items = [item, ...items];
     } else if (op.name === "setShoppingDone") {
       items = items.map((i) => (i.id === op.input.id ? { ...i, done: op.input.done } : i));

@@ -143,9 +143,10 @@ export async function deleteReward(db: Tx, input: In<"byId">) {
 // ── Shopping ────────────────────────────────────────────────────────────────
 /** The id comes from the device, so a replayed offline add is a no-op. */
 export async function addShoppingItem(db: Tx, input: In<"shoppingAdd">) {
+  const list = await db.shoppingList.findUnique({ where: { id: input.listId }, select: { name: true } });
   try {
     await db.shoppingItem.create({
-      data: { id: input.id, listId: input.listId, name: json(input.name), qty: input.qty, memberId: input.memberId, category: guessCategory(input.name, input.listId) },
+      data: { id: input.id, listId: input.listId, name: json(input.name), qty: input.qty, memberId: input.memberId, category: guessCategory(input.name, list?.name as Text | undefined) },
     });
   } catch (e) {
     if (isUnique(e)) return;
