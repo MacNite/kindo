@@ -10,7 +10,7 @@ import { listAlbums } from "./photos/immich";
 import { syncPhotos } from "./photos/sync";
 import { ICS_REMOTE_ID, readFeed } from "./calendar/ics";
 import { parseCalendar } from "./calendar/ical";
-import { readEntity, syncPresenceWatchers } from "./homeassistant";
+import { checkToken, readEntity, syncPresenceWatchers, type HaStoredConfig } from "./homeassistant";
 
 /**
  * Connections to outside services and the calendars they bring (§5, §15,
@@ -27,7 +27,8 @@ export const C = {
   }),
   addHomeAssistant: z.object({
     url: httpUrl, token: z.string().trim().min(20).max(1000),
-    entityId: z.string().trim().regex(/^[a-z_]+\.[a-z0-9_]+$/, "an entity id like binary_sensor.hallway_motion"),
+    /** Presence is optional: Home Assistant may be connected for Home control only (§21). */
+    entityId: z.union([z.literal(""), z.string().trim().regex(/^[a-z_]+\.[a-z0-9_]+$/, "an entity id like binary_sensor.hallway_motion")]),
   }),
   addImmich: z.object({ name: z.string().trim().min(1).max(60), url: httpUrl, apiKey: z.string().trim().min(10).max(500) }),
   addCalDav: z.object({ name: z.string().trim().max(60).optional(), url: httpUrl, username: z.string().trim().min(1).max(200), password: z.string().min(1).max(500) }),
@@ -116,12 +117,19 @@ export async function addGoogle(db: Tx, input: { email: string; refreshToken: st
   return conn.id;
 }
 
-/** Connects Home Assistant for presence (§19.8): checks the token and the entity first. */
+/**
+ * Connects Home Assistant for presence (§19.8) and Home control (§21): checks
+ * the token and the presence entity first. One connection per household; a
+ * new one keeps the switches and sensors the old one had.
+ */
 export async function addHomeAssistant(db: Tx, input: In<"addHomeAssistant">) {
-  await readEntity(input.url, input.token, input.entityId);
-  await db.connection.deleteMany({ where: { kind: "homeassistant" } }); // one presence source per household
+  if (input.entityId) await readEntity(input.url, input.token, input.entityId);
+  else await checkToken(input.url, input.token);
+  const old = (await db.connection.findFirst({ where: { kind: "homeassistant" } }))?.config as HaStoredConfig | undefined;
+  await db.connection.deleteMany({ where: { kind: "homeassistant" } });
+  const config: HaStoredConfig = { entityId: input.entityId || undefined, controls: old?.controls, energy: old?.energy };
   const conn = await db.connection.create({
-    data: { kind: "homeassistant", name: input.entityId, url: input.url, secret: encryptSecret(input.token), config: json({ entityId: input.entityId }), status: "pending" },
+    data: { kind: "homeassistant", name: input.entityId || new URL(input.url).host, url: input.url, secret: encryptSecret(input.token), config: json(config), status: "pending" },
   });
   await syncPresenceWatchers(db).catch(() => {});
   return conn.id;

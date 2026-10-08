@@ -1,12 +1,14 @@
 import type {
   ApprovalRequest, CalendarSource, Chore, Completion, HouseholdWire, ImportantDate, Integration, Member, OneOffTask,
-  Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, WidgetConfig, ConnectionInfo,
+  Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, ConnectionInfo,
 } from "@/lib/types";
 import { addDays, dateKey, startOfDay } from "@/lib/dates";
 import { routineStepValue } from "@/lib/ledger";
 import type { Tx } from "./db";
 import { fromStoredEvent } from "./events";
 import { demoWeather } from "./demo/data";
+import { completeWallTiles, completeWidgets } from "@/lib/dashboard";
+import { homeSetupOf } from "./home";
 
 /** How far back completions travel to the devices: enough for a two-week history view. */
 export const HISTORY_DAYS = 35;
@@ -70,7 +72,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     household: {
       name: household.name, timezone: household.timezone, location: household.location ?? undefined, rewardMode: household.rewardMode,
       pointValue: household.pointValue, idleMinutes: household.idleMinutes, showPhotoMeta: household.showPhotoMeta,
-      widgets: household.widgets as unknown as WidgetConfig[], demo: household.demo,
+      widgets: completeWidgets(household.widgets), wallTiles: completeWallTiles(household.wallTiles), demo: household.demo,
       dayStartsAt: household.dayStartsAt, morningUntil: household.morningUntil, afternoonUntil: household.afternoonUntil,
       holidayIcsUrls: household.holidayIcsUrls, holidaysSyncedAt: household.holidaysSyncedAt ?? undefined, holidaysError: household.holidaysError ?? undefined,
     },
@@ -111,6 +113,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       lastError: c.lastError ?? undefined, lastSyncAt: c.lastSyncAt ?? undefined, config: (c.config ?? {}) as Record<string, unknown>,
     })) : [],
     features: { google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) },
+    home: homeSetupOf(connections.find((c) => c.kind === "homeassistant")),
   };
 }
 

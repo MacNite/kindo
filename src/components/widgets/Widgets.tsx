@@ -17,6 +17,7 @@ import { Pictogram } from "../ui/Pictogram";
 import { Photo } from "../ui/PhotoPlaceholder";
 import { RewardAmount } from "../ui/RewardAmount";
 import { cn } from "../ui/cn";
+import { HomeWidget } from "../home/HomeControl";
 
 // ── Clock ───────────────────────────────────────────────────────────────────
 export function BigClock({ size = "md" }: { size?: "md" | "xl" }) {
@@ -300,5 +301,5 @@ function PhotosWidget() {
 
 export const WIDGETS: Record<WidgetId, () => JSX.Element> = {
   clock: ClockWidget, weather: WeatherWidget, agenda: AgendaWidget, upcoming: UpcomingWidget, routines: RoutinesWidget,
-  chores: ChoresWidget, meals: MealsWidget, shopping: ShoppingWidget, dates: DatesWidget, photos: PhotosWidget,
+  chores: ChoresWidget, meals: MealsWidget, shopping: ShoppingWidget, dates: DatesWidget, photos: PhotosWidget, home: HomeWidget,
 };

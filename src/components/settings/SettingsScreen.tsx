@@ -13,6 +13,7 @@ import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
 import { MemberEditor, DatesSection, RoutineSettings } from "./Editors";
 import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountSections";
 import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSections";
+import { WallTilesCard } from "./WallTiles";
 import { lockAgain } from "@/lib/services/accounts";
 import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
@@ -164,6 +165,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
             <p className="mb-4 text-sm text-soft">{t("settings.dashboard.kioskHint")}</p>
             <Link href="/wall"><Button variant="outline">{t("settings.dashboard.openKiosk")}</Button></Link>
           </Card>
+          <div className="md:col-span-2"><WallTilesCard /></div>
           <div className="md:col-span-2"><PinCard /></div>
         </div>
       );

@@ -7,7 +7,7 @@ import type { PrismaClient } from "@prisma/client";
 import * as C from "@/server/connections";
 import { saveEvent, deleteEvent } from "@/server/household";
 import { syncConnection } from "@/server/calendar/sync";
-import { isPresent, watchPresence } from "@/server/homeassistant";
+import { isPresent, watchHome } from "@/server/homeassistant";
 import { seedDemo } from "@/server/demo/seed";
 import { TEST_DB, resetTestDatabase } from "./db";
 
@@ -163,13 +163,44 @@ describe("Home Assistant presence (§19.8)", () => {
     });
     const seen: boolean[] = [];
     const statuses: boolean[] = [];
-    const stop = watchPresence({ url: `http://127.0.0.1:${port}`, token: "token", entityId: "binary_sensor.hall", presentStates: ["on"] }, (p) => seen.push(p), (ok) => statuses.push(ok));
+    const stop = watchHome({ url: `http://127.0.0.1:${port}`, token: "token", entityId: "binary_sensor.hall", presentStates: ["on"], controls: [] },
+      { onPresence: (p) => seen.push(p), onControls: () => {}, onStatus: (ok) => statuses.push(ok) });
     await expect.poll(() => send !== undefined).toBe(true);
     send!("on");
     send!("on");
     send!("off");
     await expect.poll(() => seen).toEqual([false, true, false]);
     expect(statuses[0]).toBe(true);
+    stop();
+    wss.close();
+  });
+
+  it("tells switch changes apart from presence, and follows switches without a presence entity (§21)", async () => {
+    const wss = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    await new Promise((r) => wss.once("listening", r));
+    const port = (wss.address() as AddressInfo).port;
+    const subscribed: unknown[] = [];
+    let send: (() => void) | undefined;
+    wss.on("connection", (ws) => {
+      ws.send(JSON.stringify({ type: "auth_required" }));
+      ws.on("message", (raw) => {
+        const msg = JSON.parse(String(raw));
+        if (msg.type === "auth") ws.send(JSON.stringify({ type: "auth_ok" }));
+        if (msg.type === "subscribe_trigger") {
+          subscribed.push(msg.trigger.entity_id);
+          send = () => ws.send(JSON.stringify({ id: msg.id, type: "event", event: { variables: { trigger: { to_state: { state: "on" } } } } }));
+        }
+      });
+    });
+    const presence: boolean[] = [];
+    let controls = 0;
+    const stop = watchHome({ url: `http://127.0.0.1:${port}`, token: "token", entityId: "", presentStates: ["on"], controls: [{ entityId: "light.kitchen", name: "Kitchen" }] },
+      { onPresence: (p) => presence.push(p), onControls: () => controls++, onStatus: () => {} });
+    await expect.poll(() => send !== undefined).toBe(true);
+    expect(subscribed).toEqual([["light.kitchen"]]);
+    send!();
+    await expect.poll(() => controls).toBe(1);
+    expect(presence).toEqual([]);
     stop();
     wss.close();
   });
@@ -184,7 +215,8 @@ describe("Home Assistant presence (§19.8)", () => {
       ws.on("message", () => ws.send(JSON.stringify({ type: "auth_invalid" })));
     });
     const statuses: (string | undefined)[] = [];
-    const stop = watchPresence({ url: `http://127.0.0.1:${(wss.address() as AddressInfo).port}`, token: "wrong", entityId: "x.y", presentStates: ["on"] }, () => {}, (_ok, e) => statuses.push(e));
+    const stop = watchHome({ url: `http://127.0.0.1:${(wss.address() as AddressInfo).port}`, token: "wrong", entityId: "x.y", presentStates: ["on"], controls: [] },
+      { onPresence: () => {}, onControls: () => {}, onStatus: (_ok, e) => statuses.push(e) });
     await expect.poll(() => statuses).toContain("Home Assistant refused the token");
     await new Promise((r) => setTimeout(r, 1500));
     expect(connections).toBe(1);

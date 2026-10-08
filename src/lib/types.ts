@@ -3,6 +3,7 @@
  * (PostgreSQL, CalDAV, Immich…). Components only ever import from here and
  * from the service and state layers, never from the server or seed data.
  */
+import type { HomeSetup } from "./home";
 
 /** User-entered text is a plain string. Mock data ships both languages so the
  *  demo reads naturally in either UI language. */
@@ -206,9 +207,12 @@ export interface Weather {
   days: { date: Date; sky: Sky; high: number; low: number }[];
 }
 
-export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" | "chores" | "meals" | "shopping" | "dates" | "photos";
+export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" | "chores" | "meals" | "shopping" | "dates" | "photos" | "home";
 export type WidgetSize = "s" | "m" | "l";
 export interface WidgetConfig { id: WidgetId; enabled: boolean; size: WidgetSize }
+/** The household tiles beside the lanes on the wall display (§4, §21). */
+export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "home";
+export interface WallTile { id: WallTileId; enabled: boolean }
 
 /** A connection to an outside service, as an admin's Settings screen sees it: never its secret (§17). */
 export interface ConnectionInfo {
@@ -265,6 +269,7 @@ export interface HouseholdSettings {
   idleMinutes: number;
   showPhotoMeta: boolean;
   widgets: WidgetConfig[];
+  wallTiles: WallTile[];
   demo: boolean;
 }
 
@@ -299,6 +304,8 @@ export interface HouseholdData {
   connections: ConnectionInfo[];
   /** What the server is set up for. */
   features: { google: boolean };
+  /** Home control (§21): the switches and whether there is a solar view; null when not set up. */
+  home: HomeSetup | null;
 }
 
 /** The snapshot as it crosses the wire: dates of days are filled in on the device. */

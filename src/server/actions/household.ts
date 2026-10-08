@@ -45,6 +45,7 @@ export const addTask = act(S.taskAdd, H.addTask);
 export const deleteTask = act(S.byId, H.deleteTask);
 
 export const saveWidgets = act(S.widgets, H.saveWidgets);
+export const saveWallTiles = act(S.wallTiles, H.saveWallTiles);
 export const updateAlbum = act(S.album, async (db, input) => {
   await H.updateAlbum(db, input);
   // An album that just joined the rotation gets its photo list now (§19.6).

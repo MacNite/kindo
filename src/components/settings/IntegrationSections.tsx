@@ -14,6 +14,7 @@ import { MemberFilter } from "../ui/MemberFilter";
 import { AvatarStack } from "../ui/Avatar";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
+import { HomeSetupButton } from "./HomeSetup";
 import { toggled } from "@/lib/sets";
 
 type Done = { ok: boolean; error?: string };
@@ -87,6 +88,7 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
                   {c.status === "error" ? t("integrations.failed", { error: c.lastError ?? "" }) : c.lastSyncAt ? t("integrations.synced", { when: `${fmt.dateMedium(c.lastSyncAt)} ${fmt.time(c.lastSyncAt)}` }) : t("integrations.waiting")}
                 </span>
               </span>
+              {c.kind === "homeassistant" && <HomeSetupButton conn={c} />}
               <Button size="sm" variant="ghost" disabled={busy === c.id} onClick={() => act(c.id, () => syncConnectionNow({ id: c.id }))}>
                 <RefreshCw size={14} className={cn(busy === c.id && "animate-spin")} />{t("integrations.syncNow")}
               </Button>
@@ -220,7 +222,7 @@ function GoogleConnect({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Home Assistant presence: someone in the hallway wakes the wall from the photo frame. */
+/** Home Assistant: presence for the photo frame (optional), then switches and solar in Home control (§21). */
 function HomeAssistantForm({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const { run } = useStore();
@@ -240,7 +242,7 @@ function HomeAssistantForm({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.homeassistant")}
       footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={busy || !url || token.length < 20 || !entityId} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
+        <Button variant="primary" disabled={busy || !url || token.length < 20} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-soft">{t("integrations.haHint")}</p>
         <Field label={t("integrations.serverUrl")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://homeassistant.local:8123" /></Field>
