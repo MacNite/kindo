@@ -33,13 +33,14 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 - The home screen is built around **family lanes**: one column per person with their colour, current routine, appointments and chores.
 - Household context sits around the lanes: clock, weather, tonight's meal, shopping count and important dates.
-- Widgets can be shown or hidden, reordered and resized: clock, weather, today, coming up, routines, chores, meals, shopping, dates, photos, home control (§21).
-- The wall display's household column is configurable in Settings → Dashboard: weather, tonight's dinner, shopping, dates and home control, each shown or hidden and in any order (D45).
+- Widgets can be shown or hidden, reordered and resized: clock, weather, today, coming up, routines, chores, meals, shopping, dates, birthdays (§12), photos, home control (§21).
+- The wall display's household column is configurable in Settings → Dashboard: weather, tonight's dinner, shopping, dates, the birthday wheel and home control, each shown or hidden and in any order (D45, D46).
 - There are separate presentations for the wall (`/wall`), phones and the child view.
 
 ## §5 Calendar
 
-- Month, week and agenda views. Events are colour-coded by person, with a filter per person.
+- Month, week and agenda views, plus the birthday wheel (§12). Events are colour-coded by person, with a filter per person.
+- Next to "New event", "Important day" adds a birthday, anniversary or other yearly date without going through Settings (D46).
 - Daily attendance (school, Kita) is a *background* event: shown quietly, and left out of "coming up".
 - School holidays from the household's feeds (§7) show as a quiet band on each day they cover (month and week views) and as one line in the agenda on the day they begin. They are not events: they can't be opened or edited and don't count as "coming up".
 - Sources: **Nextcloud/CalDAV (primary)**, Google Calendar, ICS subscriptions and local events. Each source has default members that decide the event colour, and a read-only flag.
@@ -85,6 +86,10 @@ A weekly dinner plan with who cooks. Recipes and "ingredients to shopping list" 
 
 Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
+- **Birthday wheel:** the year as a circle, January at the top, one dot per birthday: every member with a birthday, birthdays entered as important dates, and the contacts the household picked. The next birthday is selected at first; tapping a dot (or a row of the list beside it) selects another. The centre shows the name, the age they turn and the days left, and an arc runs from today to that birthday. Within 14 days the sleeps until then show as dots, for children who can't read numbers yet.
+- It is a view of the calendar (Calendar → Birthdays), a home-screen widget and a wall tile, the last two off until someone turns them on.
+- **Contacts:** a Nextcloud connection can also read birthdays from address books the admin chooses (CardDAV, same app password). Per contact Kindo keeps whether it shows, its own name ("Oma Biggy" for "Mama Nitschke") and the member it belongs to, whose colour it takes. Nothing is written back to the address book (D46).
+
 ## §13 Photos and screensaver
 
 - **Several Immich servers.** Albums from all of them form one pool, with weighting.
@@ -99,7 +104,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
 ## §15 Settings
 
-Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, Dashboard (home screen, wall display tiles, PIN), Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant with its Home control setup).
+Sections: Family, Members, Dates, Birthdays (address books and contacts for the birthday wheel, admins only), Calendar, Routines & chores, Rewards, Photos, Dashboard (home screen, wall display tiles, PIN), Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant with its Home control setup).
 
 ## §16 Appearance
 
@@ -182,6 +187,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D42 | `KINDO_PASSWORD_LOGIN=false` turns password sign-in off: the login page shows only the single sign-on button (no automatic redirect), Better Auth's password routes answer 404, Settings hides every password field and the server refuses to set one, and first-run setup asks only for the admin's email, who then signs in through single sign-on. Stored password hashes are kept, so turning it back on restores them. It is ignored, with a warning in the log, while single sign-on isn't fully configured | Households with authentik want one place to manage sign-in, but a typo in the OIDC settings must not lock everyone out; the login page stays reachable for errors, the language switch and pairing a wall display. |
 | D44 | Home control: the admin picks up to 24 lights, switches, fans or helpers (`light`, `switch`, `fan`, `input_boolean`) and up to three power sensors (solar, house, grid) in Settings, stored in the Home Assistant connection's `config`. Anyone who may tick things off (a wall display without the PIN included) may switch them and use "everything off", which turns off exactly those switches in one `homeassistant.turn_off` call. The server only ever switches entities on that list. Screens read the states through a Server Action (polled every 15 s while visible, cached 2 s on the server); switch changes from anywhere reach them as a `home` topic on the SSE stream. Power is never stored. Presence is now optional on the connection | The family asked for the kitchen lights and a glance at the sun. A short, admin-made list keeps Kindo a family screen and keeps doors, heating and alarms out of a four-year-old's reach; power changes every few seconds, so polling an open view beats pushing every reading. |
 | D45 | The wall display's household column is a list of tiles (`Household.wallTiles`: weather, meal, shopping, dates, home) with an order and a switch each, set in Settings → Dashboard. A household that never set it gets the old layout, with Home control off. Home control is also a home-screen widget, hidden until someone adds it | Families asked to put Home control on the wall; the tile list is the smallest customisation that makes room for it without a layout editor on the wall. |
+| D46 | Contact birthdays come from Nextcloud address books over CardDAV, read hourly with the CalDAV connection's credentials, into `ContactBirthday` (name and day from the vCard's FN and BDAY; a missing or Apple "omitted" year means no age). The household's own choices (shown, alias, member) live on the same row and survive syncs, keyed by the vCard UID; nothing is written back. New contacts are hidden unless the admin chose "show new contacts at once". Non-admin viewers and wall displays receive only the shown contacts. The wheel lists each person once: a Kindo birthday for a member who has one, or a contact with the same name and day as a Kindo birthday, is left out. The calendar's "Important day" button opens the Dates editor | The family wants the grandparents and friends on the wall without typing their birthdays twice, under the names the children use, and without exposing the whole address book. The "Contact birthdays" calendar Nextcloud generates was not used: it carries the year only in its title and has no stable link to the contact. |
 
 ## §21 Home control
 

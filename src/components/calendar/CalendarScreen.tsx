@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Rss, Smartphone, Trash2, TreePalm } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CalendarHeart, ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Rss, Smartphone, Trash2, TreePalm } from "lucide-react";
 import type { CalendarEvent, CalendarProvider, Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useNow } from "@/lib/useNow";
@@ -16,8 +17,10 @@ import { Avatar, AvatarStack, ColorRail } from "../ui/Avatar";
 import { Dialog } from "../ui/Dialog";
 import { cn } from "../ui/cn";
 import { toggled } from "@/lib/sets";
+import { BirthdaysView } from "../birthdays/Birthdays";
+import { DateEditor } from "../settings/Editors";
 
-type View = "month" | "week" | "agenda";
+type View = "month" | "week" | "agenda" | "birthdays";
 
 export const PROVIDER_ICON: Record<CalendarProvider, typeof Cloud> = { caldav: Cloud, google: Globe, ics: Rss, local: Smartphone };
 
@@ -29,10 +32,12 @@ const colors = (e: CalendarEvent, get: GetMember) => e.memberIds.flatMap((id) =>
 export function CalendarScreen() {
   const today = useToday();
   const { t, fmt, region } = useI18n();
-  const [view, setView] = useState<View>("week");
+  const asked = useSearchParams().get("view");
+  const [view, setView] = useState<View>(asked === "birthdays" ? "birthdays" : "week");
   const [cursor, setCursor] = useState(today);
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [editing, setEditing] = useState<CalendarEvent | "new" | null>(null);
+  const [addingDay, setAddingDay] = useState(false);
   const { getMembers } = useStore();
   const [filter, setFilter] = useState(() => new Set(getMembers().map((m) => m.id)));
   const ws = region.weekStartsOn;
@@ -40,7 +45,7 @@ export function CalendarScreen() {
   const step = (dir: 1 | -1) => setCursor((c) => view === "month" ? new Date(c.getFullYear(), c.getMonth() + dir, 1) : addDays(c, dir * (view === "week" ? 7 : 14)));
   const toggle = (id: string) => setFilter((f) => toggled(f, id));
 
-  const title = view === "month" ? fmt.monthYear(cursor)
+  const title = view === "birthdays" ? t("birthdays.title") : view === "month" ? fmt.monthYear(cursor)
     : `${fmt.dateMedium(startOfWeek(cursor, ws))} – ${fmt.dateMedium(addDays(startOfWeek(cursor, ws), 6))}`;
 
   return (
@@ -48,20 +53,30 @@ export function CalendarScreen() {
       <div className="min-w-0 flex-1">
         <header className="mb-4 flex flex-wrap items-center gap-3">
           <h1 className="mr-auto font-display text-3xl font-bold tracking-tight md:text-4xl">{title}</h1>
-          <div className="flex items-center gap-1">
-            <IconButton label={t("calendar.previous")} onClick={() => step(-1)}><ChevronLeft /></IconButton>
-            <Button size="sm" variant="outline" onClick={() => setCursor(today)}>{t("calendar.today")}</Button>
-            <IconButton label={t("calendar.next")} onClick={() => step(1)}><ChevronRight /></IconButton>
-          </div>
+          {view !== "birthdays" && (
+            <div className="flex items-center gap-1">
+              <IconButton label={t("calendar.previous")} onClick={() => step(-1)}><ChevronLeft /></IconButton>
+              <Button size="sm" variant="outline" onClick={() => setCursor(today)}>{t("calendar.today")}</Button>
+              <IconButton label={t("calendar.next")} onClick={() => step(1)}><ChevronRight /></IconButton>
+            </div>
+          )}
           <Segmented value={view} onChange={setView} label="View" options={[
             { value: "month", label: t("calendar.month") }, { value: "week", label: t("calendar.week") }, { value: "agenda", label: t("calendar.agenda") },
+            { value: "birthdays", label: t("calendar.birthdays") },
           ]} />
-          <Button variant="primary" onClick={() => setEditing("new")}><Plus size={18} /><span className="max-sm:hidden">{t("calendar.newEvent")}</span></Button>
+          {/* The two "add" buttons stay together when the header wraps. */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setAddingDay(true)} aria-label={t("calendar.importantDay")}>
+              <CalendarHeart size={18} /><span className="max-sm:hidden">{t("calendar.importantDay")}</span>
+            </Button>
+            <Button variant="primary" onClick={() => setEditing("new")} aria-label={t("calendar.newEvent")}><Plus size={18} /><span className="max-sm:hidden">{t("calendar.newEvent")}</span></Button>
+          </div>
         </header>
         <div className="mb-4 lg:hidden"><MemberFilter members={getMembers()} selected={filter} onToggle={toggle} size="sm" /></div>
 
         {view === "month" && <MonthView cursor={cursor} filter={filter} onSelect={setSelected} />}
         {view === "week" && <WeekView cursor={cursor} filter={filter} onSelect={setSelected} />}
+        {view === "birthdays" && <BirthdaysView filter={filter} />}
         {view === "agenda" && <AgendaView from={view === "agenda" && sameDay(cursor, today) ? new Date() : cursor} filter={filter} onSelect={setSelected} />}
       </div>
 
@@ -75,6 +90,7 @@ export function CalendarScreen() {
 
       <EventDialog event={selected} onClose={() => setSelected(null)} onEdit={(e) => { setSelected(null); setEditing(e); }} />
       {editing && <EventEditor event={editing === "new" ? null : editing} day={cursor} onClose={() => setEditing(null)} />}
+      {addingDay && <DateEditor date={null} title={t("calendar.importantDay")} onClose={() => setAddingDay(false)} />}
     </div>
   );
 }

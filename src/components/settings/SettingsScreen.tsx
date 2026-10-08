@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  CalendarDays, CalendarHeart, ChevronRight, Gift, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Sparkles, UserRound, Users,
+  Cake, CalendarDays, CalendarHeart, ChevronRight, Gift, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Sparkles, UserRound, Users,
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
@@ -13,6 +13,7 @@ import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
 import { MemberEditor, DatesSection, RoutineSettings } from "./Editors";
 import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountSections";
 import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSections";
+import { BirthdaySettings } from "./BirthdaySettings";
 import { WallTilesCard } from "./WallTiles";
 import { lockAgain } from "@/lib/services/accounts";
 import { ErrorText } from "../ui/ErrorText";
@@ -24,13 +25,13 @@ import { Field, Segmented, inputCls } from "../ui/Segmented";
 import { cn } from "../ui/cn";
 
 const SECTIONS = [
-  { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "dates", Icon: CalendarHeart }, { id: "calendar", Icon: CalendarDays },
+  { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "dates", Icon: CalendarHeart }, { id: "birthdays", Icon: Cake }, { id: "calendar", Icon: CalendarDays },
   { id: "routines", Icon: Sparkles }, { id: "rewards", Icon: Gift }, { id: "photos", Icon: ImageIcon },
   { id: "dashboard", Icon: LayoutGrid }, { id: "appearance", Icon: Palette }, { id: "language", Icon: Languages },
   { id: "integrations", Icon: Plug }, { id: "devices", Icon: Monitor }, { id: "account", Icon: UserRound },
 ] as const;
 /** Sections only an admin changes; everyone else doesn't see them (the server refuses anyway). */
-const ADMIN_ONLY = new Set(["integrations", "devices"]);
+const ADMIN_ONLY = new Set(["integrations", "devices", "birthdays"]);
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function SettingsScreen() {
@@ -101,6 +102,9 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
 
     case "dates":
       return <DatesSection />;
+
+    case "birthdays":
+      return <BirthdaySettings />;
 
     case "account":
       return <AccountSection />;

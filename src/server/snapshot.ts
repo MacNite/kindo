@@ -1,5 +1,5 @@
 import type {
-  ApprovalRequest, CalendarSource, Chore, Completion, HouseholdWire, ImportantDate, Integration, Member, OneOffTask,
+  ApprovalRequest, CalendarSource, Chore, Completion, ContactBirthday, HouseholdWire, ImportantDate, Integration, Member, OneOffTask,
   Recurrence, Routine, ShoppingCategory, TaskItem, TaskValue, Text, Viewer, ConnectionInfo,
 } from "@/lib/types";
 import { addDays, dateKey, startOfDay } from "@/lib/dates";
@@ -28,7 +28,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
   const today = startOfDay(now);
   const sinceDay = dateKey(addDays(today, -HISTORY_DAYS));
 
-  const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, sources, events, albums, holidays, connections] = await Promise.all([
+  const [members, routines, chores, completions, points, rewards, tasks, lists, items, meals, dates, contacts, sources, events, albums, holidays, connections] = await Promise.all([
     db.member.findMany({ orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { user: { select: { email: true } } } }),
     db.routine.findMany({ include: { steps: { orderBy: { position: "asc" } } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
     db.chore.findMany({ orderBy: { createdAt: "asc" } }),
@@ -41,6 +41,8 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     db.shoppingItem.findMany({ orderBy: { createdAt: "desc" } }),
     db.meal.findMany({ where: { day: { gte: dateKey(addDays(today, -14)) } }, orderBy: { day: "asc" } }),
     db.importantDate.findMany(),
+    // Only the contacts the household chose reach the devices; admins see all of them to choose from (D46).
+    db.contactBirthday.findMany({ where: viewer.isAdmin ? {} : { show: true }, orderBy: { name: "asc" } }),
     db.calendarSource.findMany({ orderBy: { sortOrder: "asc" } }),
     db.event.findMany({
       where: { end: { gte: addDays(today, -EVENTS_BEFORE_DAYS) }, start: { lte: addDays(today, EVENTS_AFTER_DAYS) } },
@@ -98,6 +100,9 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     // `date` is filled in on the device, which knows its own time zone.
     meals: meals.map((m) => ({ day: m.day, dinner: m.dinner as Text, cookId: m.cookId ?? undefined, note: (m.note as Text | null) ?? undefined })),
     dates: dates.map((d): ImportantDate => ({ id: d.id, kind: d.kind, title: d.title as Text, date: d.date, yearly: d.yearly, memberId: d.memberId ?? undefined })),
+    birthdays: contacts.map((c): ContactBirthday => ({
+      id: c.id, name: c.name, alias: c.alias ?? undefined, date: c.date, show: c.show, memberId: c.memberId ?? undefined, connectionId: c.connectionId ?? undefined,
+    })),
     sources: sources.map((s): CalendarSource => ({
       id: s.id, provider: s.provider, name: s.name as Text, account: s.account ?? undefined, defaultMemberIds: s.defaultMemberIds, readOnly: s.readOnly,
       background: s.background || undefined, connectionId: s.connectionId ?? undefined, lastSyncAt: s.lastSyncAt ?? undefined,

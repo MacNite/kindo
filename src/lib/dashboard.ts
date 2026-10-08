@@ -1,10 +1,10 @@
 import type { WallTile, WallTileId, WidgetConfig, WidgetId } from "./types";
 
 /** Every home-screen widget, so a widget added in a later version shows up hidden in "Customize". */
-export const WIDGET_IDS: readonly WidgetId[] = ["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "photos", "home"];
+export const WIDGET_IDS: readonly WidgetId[] = ["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "birthdays", "photos", "home"];
 /** The wall display before anyone customises it: as it always looked, Home control off (§4, §21). */
 export const DEFAULT_WALL_TILES: readonly WallTile[] = [
-  { id: "weather", enabled: true }, { id: "meal", enabled: true }, { id: "shopping", enabled: true }, { id: "dates", enabled: true }, { id: "home", enabled: false },
+  { id: "weather", enabled: true }, { id: "meal", enabled: true }, { id: "shopping", enabled: true }, { id: "dates", enabled: true }, { id: "birthdays", enabled: false }, { id: "home", enabled: false },
 ];
 export const WALL_TILE_IDS: readonly WallTileId[] = DEFAULT_WALL_TILES.map((t) => t.id);
 
