@@ -197,6 +197,11 @@ export async function saveWidgets(db: Tx, input: In<"widgets">) {
   await db.household.update({ where: { id: 1 }, data: { widgets: json(input.widgets) } });
 }
 
+/** Which household tiles the wall display shows, in order (§4, §21). */
+export async function saveWallTiles(db: Tx, input: In<"wallTiles">) {
+  await db.household.update({ where: { id: 1 }, data: { wallTiles: json(input.tiles) } });
+}
+
 export async function updateAlbum(db: Tx, input: In<"album">) {
   await db.photoAlbum.updateMany({ where: { id: input.id }, data: { selected: input.selected, weight: input.weight } });
 }

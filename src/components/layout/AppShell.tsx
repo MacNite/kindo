@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Monitor, MoreHorizontal, Smile, UserRound } from "lucide-react";
 import { useI18n } from "@/i18n";
-import { NAV, isActive } from "./nav";
+import { isActive, navFor } from "./nav";
 import { QuickPrefs } from "./QuickPrefs";
 import { Dialog } from "../ui/Dialog";
 import { cn } from "../ui/cn";
@@ -21,8 +21,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { t } = useI18n();
   const [more, setMore] = useState(false);
-  const { getMembers, getMember, viewer } = useStore();
+  const { getMembers, getMember, viewer, home } = useStore();
   const me = getMember(viewer.memberId);
+  const NAV = navFor(Boolean(home));
 
   return (
     <div className="min-h-dvh md:flex">

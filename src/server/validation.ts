@@ -28,7 +28,8 @@ export const period = z.enum(["morning", "afternoon", "evening"]);
 export const role = z.enum(["admin", "adult", "child"]);
 export const rewardMode = z.enum(["off", "stars", "tokens", "money"]);
 export const shoppingCategory = z.enum(["produce", "dairy", "bakery", "pantry", "frozen", "household", "hardware", "care", "other"]);
-export const widgetId = z.enum(["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "photos"]);
+export const widgetId = z.enum(["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "photos", "home"]);
+export const wallTileId = z.enum(["weather", "meal", "shopping", "dates", "home"]);
 
 export const avatar = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("emoji"), value: z.string().min(1).max(16) }),
@@ -53,6 +54,7 @@ export const S = {
   taskDone: z.object({ id, done: z.boolean() }),
 
   widgets: z.object({ widgets: z.array(z.object({ id: widgetId, enabled: z.boolean(), size: z.enum(["s", "m", "l"]) })).max(20) }),
+  wallTiles: z.object({ tiles: z.array(z.object({ id: wallTileId, enabled: z.boolean() })).max(10).refine((t) => new Set(t.map((x) => x.id)).size === t.length, "each tile once") }),
   album: z.object({ id, selected: z.boolean().optional(), weight: z.number().int().min(0).max(100).optional() }),
   photoPrefs: z.object({ idleMinutes: z.number().min(0.25).max(240).optional(), showPhotoMeta: z.boolean().optional() }),
 

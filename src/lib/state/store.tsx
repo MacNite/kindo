@@ -1,8 +1,9 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
-  ActionResult, Completion, HouseholdData, HouseholdWire, PhotoAlbum, Reward, RewardMode, TaskItem, WidgetConfig, WidgetId,
+  ActionResult, Completion, HouseholdData, HouseholdWire, PhotoAlbum, Reward, RewardMode, TaskItem, WallTile, WallTileId, WidgetConfig, WidgetId,
 } from "../types";
+import { moved } from "../dashboard";
 import { dateKey } from "../dates";
 import { hydrateEvent } from "../events";
 import { completionOutcome, doneKey, resolveRoutineValues } from "../ledger";
@@ -59,6 +60,8 @@ function useHousehold(initial: HouseholdWire) {
   /** A wall display tried something that needs the settings PIN: what to retry once it's unlocked. */
   /** The latest presence report from Home Assistant, if one is connected. */
   const [presence, setPresence] = useState<{ present: boolean; at: number } | null>(null);
+  /** Counts "a switch changed" news from Home Assistant, so Home control reads the switches again (§21). */
+  const [homeTick, setHomeTick] = useState(0);
   const [pinRequest, setPinRequest] = useState<{ retry: () => Promise<unknown> } | null>(null);
   const pending = useRef(0);
   const stale = useRef(false);
@@ -197,6 +200,7 @@ function useHousehold(initial: HouseholdWire) {
       } catch {}
       // Presence (Home Assistant) is news for the wall, not a data change (§19.8).
       if (change.topic === "presence") setPresence({ present: Boolean(change.present), at: Date.now() });
+      else if (change.topic === "home") setHomeTick((n) => n + 1);
       else void refresh();
     });
     const onVisible = () => document.visibilityState === "visible" && void refresh();
@@ -292,6 +296,14 @@ function useHousehold(initial: HouseholdWire) {
   });
   const updateWidget = (id: WidgetId, patch: Partial<WidgetConfig>) => setWidgets((w) => w.map((x) => (x.id === id ? { ...x, ...patch } : x)));
 
+  /** The wall display's household tiles (§4, §21). */
+  const setWallTiles = (next: (t: WallTile[]) => WallTile[]) => {
+    const tiles = next(data.household.wallTiles);
+    return mutate((d) => ({ ...d, household: { ...d.household, wallTiles: tiles } }), () => A.saveWallTiles({ tiles }));
+  };
+  const moveWallTile = (id: WallTileId, dir: -1 | 1) => setWallTiles((t) => moved(t, t.findIndex((x) => x.id === id), dir));
+  const showWallTile = (id: WallTileId, enabled: boolean) => setWallTiles((t) => t.map((x) => (x.id === id ? { ...x, enabled } : x)));
+
   // ── Photos ────────────────────────────────────────────────────────────────
   const updateAlbum = (id: string, patch: Partial<Pick<PhotoAlbum, "selected" | "weight">>) =>
     mutate((d) => ({ ...d, albums: d.albums.map((a) => (a.id === id ? { ...a, ...patch } : a)) }), () => A.updateAlbum({ id, ...patch }));
@@ -313,6 +325,7 @@ function useHousehold(initial: HouseholdWire) {
     shopping: data.shoppingItems, shoppingLists: data.shoppingLists, toggleShopping, setShoppingDone, addShopping, clearDone,
     tasks: data.tasks, toggleTask, addTask,
     widgets: data.household.widgets, moveWidget, updateWidget,
+    wallTiles: data.household.wallTiles, moveWallTile, showWallTile, home: data.home, homeTick,
     albums: data.albums, updateAlbum, idleMinutes: data.household.idleMinutes, setIdleMinutes,
     showPhotoMeta: data.household.showPhotoMeta, setShowPhotoMeta,
   };

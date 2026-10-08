@@ -87,6 +87,8 @@ model Household {
   showPhotoMeta    Boolean    @default(true)
   /// `WidgetConfig[]`: which home cards show, their order and size.
   widgets          Json
+  /// `WallTile[]`: which household tiles the wall display shows beside the lanes, in order (§4, §21).
+  wallTiles        Json       @default("[]")
   /// HH:MM. The household day starts here, so a late evening tick still counts for that evening (§19.3).
   dayStartsAt      String     @default("03:00")
   /// HH:MM. Which routine the wall shows "now".

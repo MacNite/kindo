@@ -1,4 +1,5 @@
 import type { Connection } from "@prisma/client";
+import type { EnergySensors, HomeControl } from "@/lib/home";
 import type { Tx } from "./db";
 import { decryptSecret } from "./crypto";
 import { UserError } from "./errors";
@@ -7,34 +8,86 @@ import { errorMessage, log } from "./log";
 import { notify } from "./realtime";
 
 /**
- * Home Assistant presence (§13, §19.8, §20 D39): someone in the hallway wakes
- * the wall from the photo frame, nobody there lets it go back to photos.
- * Kindo subscribes to one entity over Home Assistant's WebSocket API with a
- * long-lived token, on the server only.
+ * Home Assistant (§13, §19.8, §21, §20 D39, D44): presence wakes the wall
+ * from the photo frame, and a few switches and the solar flow show in Home
+ * control. Kindo talks to Home Assistant with a long-lived token, on the
+ * server only: over the WebSocket API for changes, over REST for reads and
+ * switching.
  */
-export interface HaConfig { url: string; token: string; entityId: string; presentStates: string[] }
+export interface HaConfig {
+  url: string;
+  token: string;
+  /** The presence entity; empty when Home Assistant is connected only for Home control. */
+  entityId: string;
+  presentStates: string[];
+  controls: HomeControl[];
+  energy?: EnergySensors;
+}
 /** States that mean "someone is here", for motion/occupancy sensors, person and device trackers. */
 export const DEFAULT_PRESENT = ["on", "home", "detected", "occupied"];
 
 export const isPresent = (state: string, present = DEFAULT_PRESENT) => present.includes(state.toLowerCase());
 
-/** Checks the token and the entity, returning its current state. */
-export async function readEntity(url: string, token: string, entityId: string): Promise<string> {
-  const res = await fetchChecked(`${url.replace(/\/+$/, "")}/api/states/${encodeURIComponent(entityId)}`, { headers: { Authorization: `Bearer ${token}` } });
+/** An entity as Home Assistant's REST API returns it. */
+export interface HaState { entity_id: string; state: string; attributes: { friendly_name?: string; unit_of_measurement?: string; device_class?: string } }
+
+const base = (url: string) => url.replace(/\/+$/, "");
+const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+async function haFetch(url: string, token: string, path: string, init: RequestInit = {}, what = "Home Assistant") {
+  const res = await fetchChecked(`${base(url)}${path}`, { timeoutMs: 10_000, ...init, headers: { ...auth(token), "content-type": "application/json", ...init.headers } });
   if (res.status === 401) throw new UserError("remote", "Home Assistant refused the token");
-  if (res.status === 404) throw new UserError("remote", `no entity ${entityId}`);
+  if (res.status === 404) throw new UserError("remote", `no ${what}`);
   if (!res.ok) throw new UserError("remote", `Home Assistant: HTTP ${res.status}`);
-  return ((await res.json()) as { state: string }).state;
+  return res;
 }
 
-const wsUrl = (url: string) => `${url.replace(/\/+$/, "").replace(/^http/i, "ws")}/api/websocket`;
+/** Checks the token and the entity, returning its current state. */
+export async function readEntity(url: string, token: string, entityId: string): Promise<string> {
+  return (await readState(url, token, entityId)).state;
+}
+
+export async function readState(url: string, token: string, entityId: string): Promise<HaState> {
+  const res = await haFetch(url, token, `/api/states/${encodeURIComponent(entityId)}`, {}, `entity ${entityId}`);
+  return (await res.json()) as HaState;
+}
+
+/** Checks the address and the token without naming an entity. */
+export async function checkToken(url: string, token: string) {
+  await haFetch(url, token, "/api/", {}, "Home Assistant API at this address");
+}
+
+/** Every entity Home Assistant has, for picking switches and sensors in Settings. */
+export async function listStates(url: string, token: string): Promise<HaState[]> {
+  const res = await haFetch(url, token, "/api/states");
+  return (await res.json()) as HaState[];
+}
 
 /**
- * Watches one entity. Calls `onPresence` whenever it changes between present
- * and absent, and `onStatus` as the connection comes and goes. Reconnects
- * with backoff. Returns the stop function.
+ * Switches entities on or off. `homeassistant.turn_on/turn_off` works across
+ * lights, switches, fans and helpers, so "everything off" is one call.
  */
-export function watchPresence(cfg: HaConfig, onPresence: (present: boolean) => void, onStatus: (ok: boolean, error?: string) => void): () => void {
+export async function switchEntities(url: string, token: string, entityIds: string[], on: boolean) {
+  if (!entityIds.length) return;
+  await haFetch(url, token, `/api/services/homeassistant/${on ? "turn_on" : "turn_off"}`, { method: "POST", body: JSON.stringify({ entity_id: entityIds }) }, "service");
+}
+
+const wsUrl = (url: string) => `${base(url).replace(/^http/i, "ws")}/api/websocket`;
+
+interface WatchHandlers {
+  onPresence: (present: boolean) => void;
+  /** A switch Kindo shows changed, whoever switched it. */
+  onControls: () => void;
+  onStatus: (ok: boolean, error?: string) => void;
+}
+
+/**
+ * Follows the presence entity and the switches. Calls `onPresence` whenever
+ * presence changes between present and absent, `onControls` when a switch
+ * changes, and `onStatus` as the connection comes and goes. Reconnects with
+ * backoff. Returns the stop function.
+ */
+export function watchHome(cfg: HaConfig, { onPresence, onControls, onStatus }: WatchHandlers): () => void {
   let ws: WebSocket | undefined;
   let stopped = false;
   let retry = 0;
@@ -47,6 +100,7 @@ export function watchPresence(cfg: HaConfig, onPresence: (present: boolean) => v
       onPresence(p);
     }
   };
+  const controlIds = cfg.controls.map((c) => c.entityId);
 
   const connect = () => {
     if (stopped) return;
@@ -57,6 +111,7 @@ export function watchPresence(cfg: HaConfig, onPresence: (present: boolean) => v
       return schedule();
     }
     let id = 1;
+    const ids = { states: 0, presence: 0, controls: 0 };
     ws.onmessage = (ev) => {
       const msg = JSON.parse(String(ev.data)) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { to_state?: { state: string } } } }; id?: number };
       if (msg.type === "auth_required") ws!.send(JSON.stringify({ type: "auth", access_token: cfg.token }));
@@ -67,13 +122,23 @@ export function watchPresence(cfg: HaConfig, onPresence: (present: boolean) => v
       } else if (msg.type === "auth_ok") {
         retry = 0;
         onStatus(true);
-        // Current state first, then every change of this one entity.
-        ws!.send(JSON.stringify({ id: id++, type: "get_states" }));
-        ws!.send(JSON.stringify({ id: id++, type: "subscribe_trigger", trigger: { platform: "state", entity_id: cfg.entityId } }));
-      } else if (msg.type === "result" && msg.id === 1 && Array.isArray(msg.result)) {
+        // Current state first, then every change of the entities Kindo follows.
+        if (cfg.entityId) {
+          ids.states = id++;
+          ws!.send(JSON.stringify({ id: ids.states, type: "get_states" }));
+          ids.presence = id++;
+          ws!.send(JSON.stringify({ id: ids.presence, type: "subscribe_trigger", trigger: { platform: "state", entity_id: cfg.entityId } }));
+        }
+        if (controlIds.length) {
+          ids.controls = id++;
+          ws!.send(JSON.stringify({ id: ids.controls, type: "subscribe_trigger", trigger: { platform: "state", entity_id: controlIds } }));
+        }
+      } else if (msg.type === "result" && ids.states && msg.id === ids.states && Array.isArray(msg.result)) {
         const s = (msg.result as { entity_id: string; state: string }[]).find((x) => x.entity_id === cfg.entityId);
         if (s) emit(s.state);
-      } else if (msg.type === "event") {
+      } else if (msg.type === "event" && ids.controls && msg.id === ids.controls) {
+        onControls();
+      } else if (msg.type === "event" && ids.presence && msg.id === ids.presence) {
         const to = msg.event?.variables?.trigger?.to_state?.state;
         if (to) emit(to);
       }
@@ -105,9 +170,25 @@ interface Watcher { key: string; stop: () => void }
 const g = globalThis as unknown as { kindoPresence?: Map<string, Watcher> };
 const watchers = (g.kindoPresence ??= new Map());
 
+/** Non-secret settings stored on the connection (`Connection.config`). */
+export interface HaStoredConfig { entityId?: string; presentStates?: string[]; controls?: HomeControl[]; energy?: EnergySensors }
+
 export function haConfig(c: Connection): HaConfig {
-  const cfg = (c.config ?? {}) as { entityId?: string; presentStates?: string[] };
-  return { url: c.url ?? "", token: c.secret ? decryptSecret(c.secret) : "", entityId: cfg.entityId ?? "", presentStates: cfg.presentStates ?? DEFAULT_PRESENT };
+  const cfg = (c.config ?? {}) as HaStoredConfig;
+  return {
+    url: c.url ?? "", token: c.secret ? decryptSecret(c.secret) : "", entityId: cfg.entityId ?? "",
+    presentStates: cfg.presentStates ?? DEFAULT_PRESENT, controls: cfg.controls ?? [], energy: cfg.energy?.solar ? cfg.energy : undefined,
+  };
+}
+
+/** Switches change in bursts ("everything off"): one refetch per burst is enough. */
+function debounced(fn: () => void, ms: number) {
+  let t: ReturnType<typeof setTimeout> | undefined;
+  return () => {
+    clearTimeout(t);
+    t = setTimeout(fn, ms);
+    t.unref?.();
+  };
 }
 
 /** Starts, restarts or stops watchers so they match the household's Home Assistant connections. */
@@ -116,19 +197,19 @@ export async function syncPresenceWatchers(db: Tx) {
   const live = new Set<string>();
   for (const c of conns) {
     const cfg = haConfig(c);
-    const key = `${cfg.url}|${cfg.entityId}|${c.secret}|${cfg.presentStates.join(",")}`;
+    const key = `${cfg.url}|${cfg.entityId}|${c.secret}|${cfg.presentStates.join(",")}|${cfg.controls.map((x) => x.entityId).join(",")}`;
     live.add(c.id);
     const w = watchers.get(c.id);
     if (w?.key === key) continue;
     w?.stop();
-    const stop = watchPresence(
-      cfg,
-      (present) => void notify("presence", { present }),
-      (ok, error) => void db.connection.update({ where: { id: c.id }, data: { status: ok ? "ok" : "error", lastError: ok ? null : error?.slice(0, 500), lastSyncAt: new Date() } })
+    const stop = watchHome(cfg, {
+      onPresence: (present) => void notify("presence", { present }),
+      onControls: debounced(() => void notify("home"), 300),
+      onStatus: (ok, error) => void db.connection.update({ where: { id: c.id }, data: { status: ok ? "ok" : "error", lastError: ok ? null : error?.slice(0, 500), lastSyncAt: new Date() } })
         .catch(() => {}),
-    );
+    });
     watchers.set(c.id, { key, stop });
-    log.info("watching presence", { entity: cfg.entityId });
+    log.info("watching home assistant", { presence: cfg.entityId || undefined, controls: cfg.controls.length });
   }
   for (const [id, w] of watchers) {
     if (!live.has(id)) {

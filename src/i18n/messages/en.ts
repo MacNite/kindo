@@ -8,7 +8,7 @@ const en = {
   nav: {
     home: "Home", calendar: "Calendar", routines: "Routines", tasks: "Tasks", shopping: "Shopping",
     meals: "Meals", rewards: "Rewards", photos: "Photos", settings: "Settings", more: "More",
-    wall: "Wall display", kids: "Kids",
+    wall: "Wall display", kids: "Kids", homeControl: "Home control",
   },
   common: {
     delete: "Delete", saved: "Saved",
@@ -39,6 +39,7 @@ const en = {
   widgets: {
     clock: "Clock", weather: "Weather", agenda: "Today", upcoming: "Coming up", routines: "Routines",
     chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
+    home: "Home control",
   },
   calendar: {
     holiday: "School holidays", recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
@@ -131,6 +132,24 @@ const en = {
     start: "Start screensaver", flowActive: "Dashboard", flowIdle: "No touch", flowSaver: "Photos", flowTouch: "Touch",
     presence: "With Home Assistant (Settings → Integrations), presence wakes the wall display.", wake: "Tap to return",
   },
+  homeControl: {
+    title: "Home control", subtitle: "A few switches and the sun on the roof, from Home Assistant.",
+    notSetUp: "Nothing to switch yet. An admin picks lights, switches and the solar sensors under Settings → Integrations → Home Assistant.", setUp: "Set up in Settings",
+    unreachable: "Home Assistant isn't answering right now. Switching works again once it is back.",
+    energy: "Power right now", switches: "Switches", solar: "Solar", house: "Home uses",
+    gridIn: "From the grid", gridOut: "Into the grid", gridIdle: "Grid", solarShare: "Share of the house running on solar", solarCovers: "The sun covers {p}% of what the house uses.",
+    on: "On", off: "Off", unavailable: "Not reachable",
+    allOff: "Everything off", allOffConfirm: "Turn everything off", allOffHint: "Turns off every switch shown here ({n}). Everything else in Home Assistant stays as it is.",
+  },
+  homeSetup: {
+    open: "Home control", title: "Home control", hint: "Pick what the family may switch and where the solar numbers come from. Anyone at the wall display can switch these, so leave out anything that shouldn't be (doors, heating, alarms).",
+    switches: "Switches", noSwitches: "No switches yet.", nameOf: "Name for {entity}", removeSwitch: "Remove {name}", addSwitch: "Add a light or switch", search: "Search by name",
+    loading: "Asking Home Assistant…", nothingFound: "Nothing found.", none: "None",
+    energy: "Solar", solar: "Solar power", solarHint: "Needed for the solar view: what the panels produce right now (W or kW).",
+    house: "House consumption", houseHint: "Optional: what the house uses right now.",
+    grid: "Grid power", gridHint: "Optional: power to or from the grid. Without it, Kindo works it out from solar and house.",
+    gridInvert: "Feed-in counts as positive", gridInvertHint: "Turn on if this sensor shows a positive number while you feed into the grid.",
+  },
   kids: {
     choose: "Who are you?", back: "Family screen", allDone: "All done",
     nextUp: "Next", parentHint: "Hold to leave",
@@ -144,7 +163,7 @@ const en = {
   account: { signOut: "Sign out", changePassword: "Change password", currentPassword: "Current password", newPassword: "New password" },
   devices: { hint: "Wall displays need no login. Open /pair on the tablet, then confirm the code it shows here.", pair: "Pair a wall display", name: "Name", defaultName: "Kitchen", approve: "Pair", approved: "Paired. The display opens the wall in a moment.", paired: "Paired displays", none: "No display paired yet.", lastSeen: "Last seen {when}", revoke: "Unpair" },
   logins: { none: "No login yet.", give: "Give a login", manage: "Login", create: "Login for {name}", edit: "{name}'s login", remove: "Remove login", resetHint: "Sets a new password and signs the person out everywhere.", ssoHint: "Leave empty to sign in only with {name}, using this email.", ssoOnlyHint: "Signs in with {name}, using this email." },
-  integrations: { subscribe: "Subscribe", icsNamePlaceholder: "e.g. Waste collection", feedUrl: "Feed address", feedUrlHint: "An .ics or webcal:// address. Kept encrypted, since private feeds work like a password.", googleContinue: "Continue to Google", googleHint: "Google asks which account to connect and whether Kindo may read and add events. Kindo then lists the account's calendars here.", google_connected: "Google account connected.", google_failed: "Connecting Google didn't work. Please try again.", google_notConfigured: "Google needs the household's own OAuth client: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the Kindo server (redirect URI: <your Kindo address>/api/integrations/google/callback).", haHint: "When someone is there, the wall wakes from the photo frame; when nobody is, it goes back to photos.", haToken: "Long-lived access token", haTokenHint: "In Home Assistant: your profile → Security → Long-lived access tokens. Stored encrypted on the Kindo server only.", haEntity: "Presence sensor", haEntityHint: "A motion, occupancy or person entity. \"on\", \"home\", \"detected\" and \"occupied\" count as someone being there.", immichNameHint: "Shown above its albums, e.g. whose server it is.", immichNamePlaceholder: "e.g. Oma & Opa", apiKey: "API key", immichKeyHint: "In Immich: Account settings → API keys. It needs the permissions album.read, asset.read and asset.view. It is stored encrypted on the Kindo server only.", failed: "Last sync failed: {error}", synced: "synced {when}", waiting: "Waiting for the first sync", syncNow: "Sync now", remove: "Disconnect", removeConfirm: "Disconnect {name}? Its calendars and events leave Kindo; nothing is deleted on the server.", addAnother: "Add another", connect: "Connect", connecting: "Connecting…", serverUrl: "Server address", caldavUrlHint: "For Nextcloud: your Nextcloud address followed by /remote.php/dav", username: "Username", appPassword: "App password", appPasswordHint: "Create one in Nextcloud under Settings → Security → Devices & sessions. It is stored encrypted on the Kindo server only." },
+  integrations: { subscribe: "Subscribe", icsNamePlaceholder: "e.g. Waste collection", feedUrl: "Feed address", feedUrlHint: "An .ics or webcal:// address. Kept encrypted, since private feeds work like a password.", googleContinue: "Continue to Google", googleHint: "Google asks which account to connect and whether Kindo may read and add events. Kindo then lists the account's calendars here.", google_connected: "Google account connected.", google_failed: "Connecting Google didn't work. Please try again.", google_notConfigured: "Google needs the household's own OAuth client: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the Kindo server (redirect URI: <your Kindo address>/api/integrations/google/callback).", haHint: "Connect Home Assistant for presence on the wall and, afterwards, for a few switches and the solar view in Home control.", haToken: "Long-lived access token", haTokenHint: "In Home Assistant: your profile → Security → Long-lived access tokens. Stored encrypted on the Kindo server only.", haEntity: "Presence sensor", haEntityHint: "Optional. When someone is there, the wall wakes from the photo frame; when nobody is, it goes back to photos. A motion, occupancy or person entity. \"on\", \"home\", \"detected\" and \"occupied\" count as someone being there.", immichNameHint: "Shown above its albums, e.g. whose server it is.", immichNamePlaceholder: "e.g. Oma & Opa", apiKey: "API key", immichKeyHint: "In Immich: Account settings → API keys. It needs the permissions album.read, asset.read and asset.view. It is stored encrypted on the Kindo server only.", failed: "Last sync failed: {error}", synced: "synced {when}", waiting: "Waiting for the first sync", syncNow: "Sync now", remove: "Disconnect", removeConfirm: "Disconnect {name}? Its calendars and events leave Kindo; nothing is deleted on the server.", addAnother: "Add another", connect: "Connect", connecting: "Connecting…", serverUrl: "Server address", caldavUrlHint: "For Nextcloud: your Nextcloud address followed by /remote.php/dav", username: "Username", appPassword: "App password", appPasswordHint: "Create one in Nextcloud under Settings → Security → Devices & sessions. It is stored encrypted on the Kindo server only." },
   sources: { background: "Daily attendance", backgroundHint: "School or Kita: shown quietly, left out of “coming up”.", readOnlyHint: "Nobody can add or change events here from Kindo.", whoHint: "Events take these people's colours unless Kindo assigned them itself.", remove: "Remove from Kindo", localHint: "Kindo's own calendar, stored in Kindo's database." },
   offline: { title: "No connection", body: "This page hasn't been opened on this device before. The shopping list works offline once you've opened it with a connection." },
   settings: {
@@ -172,6 +191,9 @@ const en = {
       layout: "Home screen layout", layoutHint: "Open the home screen and tap Customize.", openLayout: "Arrange home screen",
       kiosk: "Wall display", kioskHint: "Full screen, no admin controls, photo frame when idle.", openKiosk: "Open wall display",
       pin: "Settings need a PIN on the wall display",
+      wallTiles: "Wall display tiles", wallTilesHint: "What the wall shows beside the family lanes, from top to bottom.",
+      wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control",
+      wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.",
     },
     appearance: { theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large" },
     language: {
@@ -185,7 +207,7 @@ const en = {
       immich: "Immich", immichBody: "Albums for the screensaver and photo card. Several servers can be added.",
       google: "Google Calendar", googleBody: "Calendars from Google accounts.",
       ics: "Calendar subscriptions (ICS)", icsBody: "Read-only feeds like school holidays or waste collection.",
-      homeassistant: "Home Assistant", homeassistantBody: "Presence for the photo frame: the wall wakes up when someone is there. Not a smart-home panel.",
+      homeassistant: "Home Assistant", homeassistantBody: "Presence for the photo frame, a few switches and the solar view in Home control. Not a full smart-home panel.",
     },
     dates: { hint: "Birthdays, anniversaries and school dates, with a countdown on the family screen.", add: "Add date", edit: "Edit date", kind: "Kind", date: "Date", yearly: "Every year", yearlyHint: "For birthdays and anniversaries, the original date, so ages can be counted.", who: "Whose date" },
   },

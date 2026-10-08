@@ -5,7 +5,7 @@ const de: Messages = {
   nav: {
     home: "Start", calendar: "Kalender", routines: "Routinen", tasks: "Aufgaben", shopping: "Einkauf",
     meals: "Essen", rewards: "Belohnungen", photos: "Fotos", settings: "Einstellungen", more: "Mehr",
-    wall: "Wandanzeige", kids: "Kinder",
+    wall: "Wandanzeige", kids: "Kinder", homeControl: "Zuhause",
   },
   common: {
     delete: "Löschen", saved: "Gespeichert",
@@ -36,6 +36,7 @@ const de: Messages = {
   widgets: {
     clock: "Uhr", weather: "Wetter", agenda: "Heute", upcoming: "Demnächst", routines: "Routinen",
     chores: "Haushalt", meals: "Essen", shopping: "Einkauf", dates: "Wichtige Tage", photos: "Fotos",
+    home: "Zuhause",
   },
   calendar: {
     holiday: "Ferien", recurringHint: "Teil einer Terminserie: Bitte in der Kalender-App ändern, aus der sie stammt.",
@@ -128,6 +129,24 @@ const de: Messages = {
     start: "Bilderrahmen starten", flowActive: "Übersicht", flowIdle: "Keine Berührung", flowSaver: "Fotos", flowTouch: "Berührung",
     presence: "Mit Home Assistant (Einstellungen → Integrationen) weckt Anwesenheit die Wandanzeige.", wake: "Tippen zum Zurückkehren",
   },
+  homeControl: {
+    title: "Zuhause", subtitle: "Ein paar Schalter und die Sonne auf dem Dach, aus Home Assistant.",
+    notSetUp: "Noch nichts zu schalten. Ein Admin wählt Lampen, Schalter und die Solarsensoren unter Einstellungen → Integrationen → Home Assistant aus.", setUp: "In den Einstellungen einrichten",
+    unreachable: "Home Assistant antwortet gerade nicht. Schalten geht wieder, sobald es zurück ist.",
+    energy: "Strom gerade", switches: "Schalter", solar: "Solar", house: "Verbrauch",
+    gridIn: "Aus dem Netz", gridOut: "Ins Netz", gridIdle: "Netz", solarShare: "Anteil des Hauses, der mit Solarstrom läuft", solarCovers: "Die Sonne deckt {p} % des Verbrauchs.",
+    on: "An", off: "Aus", unavailable: "Nicht erreichbar",
+    allOff: "Alles aus", allOffConfirm: "Alles ausschalten", allOffHint: "Schaltet alle Schalter aus, die hier zu sehen sind ({n}). Alles andere in Home Assistant bleibt, wie es ist.",
+  },
+  homeSetup: {
+    open: "Zuhause", title: "Zuhause", hint: "Wähle aus, was die Familie schalten darf und woher die Solarwerte kommen. An der Wandanzeige kann jeder diese Schalter bedienen, also lass weg, was nicht dazugehört (Türen, Heizung, Alarmanlage).",
+    switches: "Schalter", noSwitches: "Noch keine Schalter.", nameOf: "Name für {entity}", removeSwitch: "{name} entfernen", addSwitch: "Lampe oder Schalter hinzufügen", search: "Nach Namen suchen",
+    loading: "Frage Home Assistant…", nothingFound: "Nichts gefunden.", none: "Keiner",
+    energy: "Solar", solar: "Solarleistung", solarHint: "Nötig für die Solaranzeige: was die Module gerade erzeugen (W oder kW).",
+    house: "Hausverbrauch", houseHint: "Optional: was das Haus gerade verbraucht.",
+    grid: "Netzleistung", gridHint: "Optional: Leistung ins oder aus dem Netz. Ohne diesen Sensor rechnet Kindo sie aus Solar und Verbrauch aus.",
+    gridInvert: "Einspeisung ist positiv", gridInvertHint: "Einschalten, wenn dieser Sensor beim Einspeisen eine positive Zahl zeigt.",
+  },
   kids: {
     choose: "Wer bist du?", back: "Familienansicht", allDone: "Alles geschafft",
     nextUp: "Als Nächstes", parentHint: "Gedrückt halten zum Verlassen",
@@ -141,7 +160,7 @@ const de: Messages = {
   account: { signOut: "Abmelden", changePassword: "Passwort ändern", currentPassword: "Aktuelles Passwort", newPassword: "Neues Passwort" },
   devices: { hint: "Wandanzeigen brauchen kein Login. Öffne /pair auf dem Tablet und bestätige hier den angezeigten Code.", pair: "Wandanzeige koppeln", name: "Name", defaultName: "Küche", approve: "Koppeln", approved: "Gekoppelt. Die Anzeige öffnet gleich die Wandansicht.", paired: "Gekoppelte Anzeigen", none: "Noch keine Anzeige gekoppelt.", lastSeen: "Zuletzt aktiv {when}", revoke: "Entkoppeln" },
   logins: { none: "Noch kein Login.", give: "Login einrichten", manage: "Login", create: "Login für {name}", edit: "Login von {name}", remove: "Login entfernen", resetHint: "Setzt ein neues Passwort und meldet die Person überall ab.", ssoHint: "Leer lassen, um sich nur mit {name} über diese E-Mail anzumelden.", ssoOnlyHint: "Meldet sich mit {name} über diese E-Mail an." },
-  integrations: { subscribe: "Abonnieren", icsNamePlaceholder: "z. B. Abfallkalender", feedUrl: "Feed-Adresse", feedUrlHint: "Eine .ics- oder webcal://-Adresse. Wird verschlüsselt gespeichert, weil private Feeds wie ein Passwort funktionieren.", googleContinue: "Weiter zu Google", googleHint: "Google fragt, welches Konto verbunden werden soll und ob Kindo Termine lesen und anlegen darf. Danach erscheinen die Kalender des Kontos hier.", google_connected: "Google-Konto verbunden.", google_failed: "Die Verbindung mit Google hat nicht geklappt. Bitte noch einmal versuchen.", google_notConfigured: "Google braucht einen eigenen OAuth-Client des Haushalts: GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET auf dem Kindo-Server setzen (Weiterleitungs-URI: <deine Kindo-Adresse>/api/integrations/google/callback).", haHint: "Ist jemand da, wacht die Wandanzeige aus dem Fotorahmen auf; ist niemand da, zeigt sie wieder Fotos.", haToken: "Langlebiges Zugriffstoken", haTokenHint: "In Home Assistant: dein Profil → Sicherheit → Langlebige Zugriffstoken. Wird nur verschlüsselt auf dem Kindo-Server gespeichert.", haEntity: "Anwesenheitssensor", haEntityHint: "Eine Bewegungs-, Belegungs- oder Personen-Entität. „on“, „home“, „detected“ und „occupied“ bedeuten, dass jemand da ist.", immichNameHint: "Steht über den Alben, z. B. wem der Server gehört.", immichNamePlaceholder: "z. B. Oma & Opa", apiKey: "API-Schlüssel", immichKeyHint: "In Immich: Kontoeinstellungen → API-Schlüssel. Er braucht die Berechtigungen album.read, asset.read und asset.view. Er wird nur verschlüsselt auf dem Kindo-Server gespeichert.", failed: "Letzte Synchronisierung fehlgeschlagen: {error}", synced: "synchronisiert {when}", waiting: "Wartet auf die erste Synchronisierung", syncNow: "Jetzt synchronisieren", remove: "Trennen", removeConfirm: "{name} trennen? Die Kalender und Termine verschwinden aus Kindo, auf dem Server wird nichts gelöscht.", addAnother: "Weitere hinzufügen", connect: "Verbinden", connecting: "Verbinde…", serverUrl: "Serveradresse", caldavUrlHint: "Bei Nextcloud: deine Nextcloud-Adresse, gefolgt von /remote.php/dav", username: "Benutzername", appPassword: "App-Passwort", appPasswordHint: "In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen anlegen. Es wird nur verschlüsselt auf dem Kindo-Server gespeichert." },
+  integrations: { subscribe: "Abonnieren", icsNamePlaceholder: "z. B. Abfallkalender", feedUrl: "Feed-Adresse", feedUrlHint: "Eine .ics- oder webcal://-Adresse. Wird verschlüsselt gespeichert, weil private Feeds wie ein Passwort funktionieren.", googleContinue: "Weiter zu Google", googleHint: "Google fragt, welches Konto verbunden werden soll und ob Kindo Termine lesen und anlegen darf. Danach erscheinen die Kalender des Kontos hier.", google_connected: "Google-Konto verbunden.", google_failed: "Die Verbindung mit Google hat nicht geklappt. Bitte noch einmal versuchen.", google_notConfigured: "Google braucht einen eigenen OAuth-Client des Haushalts: GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET auf dem Kindo-Server setzen (Weiterleitungs-URI: <deine Kindo-Adresse>/api/integrations/google/callback).", haHint: "Verbinde Home Assistant für die Anwesenheit an der Wandanzeige und danach für ein paar Schalter und die Solaranzeige unter Zuhause.", haToken: "Langlebiges Zugriffstoken", haTokenHint: "In Home Assistant: dein Profil → Sicherheit → Langlebige Zugriffstoken. Wird nur verschlüsselt auf dem Kindo-Server gespeichert.", haEntity: "Anwesenheitssensor", haEntityHint: "Optional. Ist jemand da, wacht die Wandanzeige aus dem Fotorahmen auf; ist niemand da, zeigt sie wieder Fotos. Eine Bewegungs-, Belegungs- oder Personen-Entität. „on“, „home“, „detected“ und „occupied“ bedeuten, dass jemand da ist.", immichNameHint: "Steht über den Alben, z. B. wem der Server gehört.", immichNamePlaceholder: "z. B. Oma & Opa", apiKey: "API-Schlüssel", immichKeyHint: "In Immich: Kontoeinstellungen → API-Schlüssel. Er braucht die Berechtigungen album.read, asset.read und asset.view. Er wird nur verschlüsselt auf dem Kindo-Server gespeichert.", failed: "Letzte Synchronisierung fehlgeschlagen: {error}", synced: "synchronisiert {when}", waiting: "Wartet auf die erste Synchronisierung", syncNow: "Jetzt synchronisieren", remove: "Trennen", removeConfirm: "{name} trennen? Die Kalender und Termine verschwinden aus Kindo, auf dem Server wird nichts gelöscht.", addAnother: "Weitere hinzufügen", connect: "Verbinden", connecting: "Verbinde…", serverUrl: "Serveradresse", caldavUrlHint: "Bei Nextcloud: deine Nextcloud-Adresse, gefolgt von /remote.php/dav", username: "Benutzername", appPassword: "App-Passwort", appPasswordHint: "In Nextcloud unter Einstellungen → Sicherheit → Geräte & Sitzungen anlegen. Es wird nur verschlüsselt auf dem Kindo-Server gespeichert." },
   sources: { background: "Tägliche Betreuung", backgroundHint: "Schule oder Kita: dezent angezeigt und nicht unter „Demnächst“.", readOnlyHint: "Niemand kann hier aus Kindo Termine anlegen oder ändern.", whoHint: "Termine bekommen die Farben dieser Personen, außer Kindo hat sie selbst zugeordnet.", remove: "Aus Kindo entfernen", localHint: "Kindos eigener Kalender, gespeichert in Kindos Datenbank." },
   offline: { title: "Keine Verbindung", body: "Diese Seite wurde auf diesem Gerät noch nicht geöffnet. Die Einkaufsliste funktioniert offline, sobald du sie einmal mit Verbindung geöffnet hast." },
   settings: {
@@ -169,6 +188,9 @@ const de: Messages = {
       layout: "Aufbau der Startseite", layoutHint: "Öffne die Startseite und tippe auf Anpassen.", openLayout: "Startseite anordnen",
       kiosk: "Wandanzeige", kioskHint: "Vollbild, ohne Verwaltung, Bilderrahmen bei Inaktivität.", openKiosk: "Wandanzeige öffnen",
       pin: "Einstellungen an der Wandanzeige mit PIN schützen",
+      wallTiles: "Kacheln der Wandanzeige", wallTilesHint: "Was die Wandanzeige neben den Spalten der Familie zeigt, von oben nach unten.",
+      wallTile_weather: "Wetter", wallTile_meal: "Abendessen", wallTile_shopping: "Einkauf", wallTile_dates: "Wichtige Tage", wallTile_home: "Zuhause",
+      wallHomeHint: "Erscheint, sobald Schalter oder Solarsensoren aus Home Assistant eingerichtet sind.",
     },
     appearance: { theme: "Farbschema", light: "Hell", dark: "Dunkel", system: "Wie das Gerät", textSize: "Schriftgröße", normal: "Normal", large: "Groß" },
     language: {
@@ -182,7 +204,7 @@ const de: Messages = {
       immich: "Immich", immichBody: "Alben für Bilderrahmen und Fotokarte. Mehrere Server sind möglich.",
       google: "Google Kalender", googleBody: "Kalender aus Google-Konten.",
       ics: "Kalender-Abos (ICS)", icsBody: "Nur-Lese-Feeds wie Schulferien oder Abfallkalender.",
-      homeassistant: "Home Assistant", homeassistantBody: "Anwesenheit für den Fotorahmen: Die Wandanzeige wacht auf, wenn jemand da ist. Kein Smart-Home-Panel.",
+      homeassistant: "Home Assistant", homeassistantBody: "Anwesenheit für den Fotorahmen, ein paar Schalter und die Solaranzeige unter Zuhause. Kein vollständiges Smart-Home-Panel.",
     },
     dates: { hint: "Geburtstage, Jahrestage und Schultermine, mit Countdown auf dem Familienbildschirm.", add: "Termin hinzufügen", edit: "Termin bearbeiten", kind: "Art", date: "Datum", yearly: "Jedes Jahr", yearlyHint: "Bei Geburts- und Jahrestagen das ursprüngliche Datum, damit das Alter gezählt werden kann.", who: "Wessen Termin" },
   },

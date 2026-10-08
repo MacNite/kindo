@@ -11,7 +11,7 @@ The key question the product answers is: *can a family glance at one screen and 
 - **For a child:** can a four- or five-year-old follow their morning or evening routine largely through pictures?
 - **For a parent:** can I see today's schedule, tasks and family status without navigating through several screens?
 
-Kindo is **not** a smart-home dashboard. Family organisation comes first.
+Kindo is **not** a smart-home dashboard. Family organisation comes first. Home control (§21) is deliberately small: a few switches the household picks, "everything off" and the solar flow, never the whole of Home Assistant.
 
 ## §2 Devices
 
@@ -33,7 +33,8 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 - The home screen is built around **family lanes**: one column per person with their colour, current routine, appointments and chores.
 - Household context sits around the lanes: clock, weather, tonight's meal, shopping count and important dates.
-- Widgets can be shown or hidden, reordered and resized: clock, weather, today, coming up, routines, chores, meals, shopping, dates, photos.
+- Widgets can be shown or hidden, reordered and resized: clock, weather, today, coming up, routines, chores, meals, shopping, dates, photos, home control (§21).
+- The wall display's household column is configurable in Settings → Dashboard: weather, tonight's dinner, shopping, dates and home control, each shown or hidden and in any order (D45).
 - There are separate presentations for the wall (`/wall`), phones and the child view.
 
 ## §5 Calendar
@@ -98,7 +99,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
 ## §15 Settings
 
-Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, Dashboard, Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant).
+Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, Dashboard (home screen, wall display tiles, PIN), Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant with its Home control setup).
 
 ## §16 Appearance
 
@@ -131,6 +132,7 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 6. **Immich adapter** with a thumbnail proxy and cache. *(done)*
 7. **PWA:** installable, offline shopping list, wake lock on the wall. *(done)*
 8. Google Calendar, ICS, Home Assistant (presence for the photo frame). *(done)*
+9. Home control: Home Assistant switches, "everything off" and the solar flow, on their own page and as a wall tile (§21). *(done)*
 
 ## §20 Decisions
 
@@ -178,3 +180,13 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |
 | D41 | Immich album photos come from `POST /api/search/metadata` (album filter, images only, paged by `nextCursor`, or `nextPage` before v3.2), not from the album response. The API key needs `album.read`, `asset.read` and `asset.view` | Immich v3 dropped `assets` from album responses, so selecting an album emptied it. |
 | D42 | `KINDO_PASSWORD_LOGIN=false` turns password sign-in off: the login page shows only the single sign-on button (no automatic redirect), Better Auth's password routes answer 404, Settings hides every password field and the server refuses to set one, and first-run setup asks only for the admin's email, who then signs in through single sign-on. Stored password hashes are kept, so turning it back on restores them. It is ignored, with a warning in the log, while single sign-on isn't fully configured | Households with authentik want one place to manage sign-in, but a typo in the OIDC settings must not lock everyone out; the login page stays reachable for errors, the language switch and pairing a wall display. |
+| D44 | Home control: the admin picks up to 24 lights, switches, fans or helpers (`light`, `switch`, `fan`, `input_boolean`) and up to three power sensors (solar, house, grid) in Settings, stored in the Home Assistant connection's `config`. Anyone who may tick things off (a wall display without the PIN included) may switch them and use "everything off", which turns off exactly those switches in one `homeassistant.turn_off` call. The server only ever switches entities on that list. Screens read the states through a Server Action (polled every 15 s while visible, cached 2 s on the server); switch changes from anywhere reach them as a `home` topic on the SSE stream. Power is never stored. Presence is now optional on the connection | The family asked for the kitchen lights and a glance at the sun. A short, admin-made list keeps Kindo a family screen and keeps doors, heating and alarms out of a four-year-old's reach; power changes every few seconds, so polling an open view beats pushing every reading. |
+| D45 | The wall display's household column is a list of tiles (`Household.wallTiles`: weather, meal, shopping, dates, home) with an order and a switch each, set in Settings → Dashboard. A household that never set it gets the old layout, with Home control off. Home control is also a home-screen widget, hidden until someone adds it | Families asked to put Home control on the wall; the tile list is the smallest customisation that makes room for it without a layout editor on the wall. |
+
+## §21 Home control
+
+- One page, `/home-control`, in the navigation once something is set up: the switches the admin picked, with their own names and pictures (a lamp, a plug, a fan), and "everything off", which asks once before it acts.
+- **Solar:** what the panels produce now, what the house uses, and the grid (into or from), each with a picture and a number in W or kW, plus one calm bar for how much of the house the sun covers. Without a grid sensor the grid is house minus solar. No charts, no history (§1).
+- **On the wall:** a Home control tile in the household column, if the household turns it on (D45), with the same switches as chips and power now. A wall display may switch without the PIN (D44).
+- **Setup:** Settings → Integrations → Home Assistant → Home control lists what Home Assistant has, so nobody types entity ids. Locks, covers, climate, alarms and scripts are never offered.
+- Home Assistant's address and token stay on the server (§17); devices only see names and entity ids.
