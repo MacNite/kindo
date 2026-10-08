@@ -34,7 +34,7 @@ describe("routineFor", () => {
   } as unknown as HouseholdData;
   const { routineFor } = householdSelectors(data);
 
-  it("joins every routine due in a period into one morning (D43)", () => {
+  it("joins every routine due in a period into one morning (D50)", () => {
     expect(routineFor("f", "morning", new Date(2026, 9, 5))?.items.map((i) => i.id)).toEqual(["teeth", "dress", "bag"]);
   });
 

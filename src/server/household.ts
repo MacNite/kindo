@@ -261,7 +261,7 @@ async function assertAnotherAdmin(db: Tx, memberId: string) {
 // ── Routines and chores: editing ────────────────────────────────────────────
 /**
  * The member's routine for a period and rhythm, started when there is none.
- * There is one per member, period and rhythm (D43), so steps added for the
+ * There is one per member, period and rhythm (D50), so steps added for the
  * same morning end up together.
  */
 async function routineFor(tx: Tx, memberId: string, period: In<"routineStep">["period"], input: In<"routineStep">["recurrence"]) {
@@ -283,7 +283,7 @@ async function compactRoutine(tx: Tx, routineId: string) {
 /**
  * Saves one routine step. Its period and rhythm decide which of the member's
  * routines holds it: changing either moves the step, with its id and history,
- * to the matching routine. The step's own points are optional (D42).
+ * to the matching routine. The step's own points are optional (D49).
  */
 export async function saveRoutineStep(db: Tx, input: In<"routineStep">) {
   return inTx(db, async (tx) => {
@@ -333,7 +333,7 @@ export async function deleteRoutineStep(db: Tx, input: In<"byId">) {
   });
 }
 
-/** Switches a member's routine points on or off (§9, D42). The number stays when they are off. */
+/** Switches a member's routine points on or off (§9, D49). The number stays when they are off. */
 export async function setRoutineRewards(db: Tx, input: In<"routineRewards">) {
   const n = await db.member.updateMany({ where: { id: input.memberId }, data: { routineRewards: input.on, routinePoints: input.points } });
   if (!n.count) throw notFound("member");

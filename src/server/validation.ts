@@ -69,12 +69,12 @@ export const S = {
     /** Existing step to edit; omit to add one. */
     stepId: id.optional(),
     memberId: id,
-    /** Period and rhythm pick the routine: one per member, period and rhythm (D43). */
+    /** Period and rhythm pick the routine: one per member, period and rhythm (D50). */
     period,
     recurrence,
     pictogram,
     label: text,
-    /** The step's own points; omitted or null follows the member's routine points (D42). */
+    /** The step's own points; omitted or null follows the member's routine points (D49). */
     points: z.number().int().min(0).max(10_000).nullable().optional(),
   }),
   routineSteps: z.object({

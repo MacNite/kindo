@@ -73,7 +73,7 @@ test("a new chore can go to several people at once", async ({ page }) => {
   await expect(page.getByRole("button", { name: label })).toHaveCount(2);
 });
 
-test("a new routine adds several steps to the block that is already there (D43)", async ({ page }) => {
+test("a new routine adds several steps to the block that is already there (D50)", async ({ page }) => {
   await prepare(page);
   await page.goto("/routines");
   await page.getByRole("button", { name: "New routine" }).click();
@@ -93,7 +93,7 @@ test("a new routine adds several steps to the block that is already there (D43)"
   await expect(paul.getByRole("button", { name: "Shoes on" })).toHaveCount(2);
 });
 
-test("routine points are switched on and off per child (D42)", async ({ page }) => {
+test("routine points are switched on and off per child (D49)", async ({ page }) => {
   await prepare(page);
   await page.goto("/routines");
   const toggle = page.getByRole("switch", { name: "Points for routines: Lena" });

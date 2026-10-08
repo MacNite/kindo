@@ -18,7 +18,7 @@ Kindo is **not** a smart-home dashboard. Family organisation comes first. Home c
 | Context | Requirements |
 |---|---|
 | Wall display | Landscape or portrait touchscreen in the kitchen or hallway. Readable from several metres away. Large touch targets, no tiny controls. Always on, and becomes a photo frame when idle. |
-| Mobile (PWA later) | Parents quickly check the calendar, add tasks, use shopping, manage chores and approve children's extras. |
+| Mobile (installable PWA, §19.7) | Parents quickly check the calendar, add tasks, use shopping, manage chores and approve children's extras. |
 | Desktop/tablet | Full management: calendar, settings, configuration. |
 
 ## §3 People and accounts
@@ -47,7 +47,7 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 ## §6 Routines, chores, tasks
 
-- **Routine:** a member, a period (morning, afternoon, evening), a recurrence and ordered steps. There is one routine per member, period and rhythm: new steps for the same morning join it, and a step whose period or rhythm changes moves to the matching routine (D43). On a given day, everything due in a period shows as one routine.
+- **Routine:** a member, a period (morning, afternoon, evening), a recurrence and ordered steps. There is one routine per member, period and rhythm: new steps for the same morning join it, and a step whose period or rhythm changes moves to the matching routine (D50). On a given day, everything due in a period shows as one routine.
 - **Chore:** a recurring household responsibility for one member or anyone.
 - **Task:** a one-off item with an optional due date.
 - Each step is a pictogram, an optional short label and an optional reward (§9).
@@ -63,7 +63,7 @@ The engine (`src/lib/recurrence.ts`) answers "does it occur on this date", "ever
 
 ## §8 Pictograms
 
-There is a built-in library in one visual language (Lucide, plus custom icons drawn on the same grid), organised in categories: morning, personal care, household, evening, outdoors, school & play. Personal care holds washing, teeth, hair, toilet and small first aid (D43).
+There is a built-in library in one visual language (Lucide, plus custom icons drawn on the same grid), organised in categories: morning, personal care, household, evening, outdoors, school & play. Personal care holds washing, teeth, hair, toilet and small first aid (D51).
 
 Emoji and uploaded photos are supported as alternatives (`emoji:` and `img:` prefixes). Upload is planned.
 
@@ -71,7 +71,7 @@ Emoji and uploaded photos are supported as alternatives (`emoji:` and `img:` pre
 
 - Modes: off, stars, tokens, pocket money (with a conversion rate).
 - **Rewards are optional on every item.** A chore can earn points, optionally after a parent approves.
-- **Routine steps earn points only while the child's routine points are on** (a switch per child, with points per step). It helps a child get used to a routine and is meant to be switched off again; the setting is kept. A step may set its own points (0 = none). Routine points are paid at once, without approval (D42).
+- **Routine steps earn points only while the child's routine points are on** (a switch per child, with points per step). It helps a child get used to a routine and is meant to be switched off again; the setting is kept. A step may set its own points (0 = none). Routine points are paid at once, without approval (D49).
 - Rewards are a simple catalogue with costs. The product should never feel like a video game.
 
 ## §10 Shopping
@@ -117,21 +117,21 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 ## §17 Architecture
 
 - Next.js App Router, React 19, TypeScript and Tailwind CSS 3, with a custom i18n layer (no next-intl, see §20 D3).
-- Layering: `src/app` for routing, `src/components` for UI, `src/lib/services` for data seams, `src/lib` for pure domain logic. **Components never import mock data directly.**
+- Layering: `src/app` for routing, `src/components` for UI, `src/lib/services` for data seams, `src/lib` for pure domain logic, `src/server` for server-only code. **Components never import from `src/server` directly.**
 - Persistence follows BrewCore and NutriCore: Server Actions, Prisma and PostgreSQL in a modular monolith, with a one-shot `migrate` image. No separate REST backend, microservices or event bus unless justified. Server code lives in `src/server` (`household.ts` holds the rules, `actions/*.ts` wraps them as Server Actions); UI reaches it only through `src/lib/services/actions.ts` and the store.
 - Integrations run server-side. Secrets never reach the browser.
 
 ## §18 Deployment
 
-- Two images from one multi-stage Dockerfile on `node:22-alpine`: `ghcr.io/macnite/kindo` (Next.js `standalone` output, no Prisma CLI) and `ghcr.io/macnite/kindo-migrate` (one-shot `prisma migrate deploy`). Both run as non-root user `kindo` (uid 1001). The app has a healthcheck on `/api/health`, which includes a database round-trip.
+- Two images from one multi-stage Dockerfile on `node:26-alpine` (CI tests on the same Node major; `engines` still allows 22 for development): `ghcr.io/macnite/kindo` (Next.js `standalone` output, no Prisma CLI) and `ghcr.io/macnite/kindo-migrate` (one-shot `prisma migrate deploy`). Both run as non-root user `kindo` (uid 1001). The app has a healthcheck on `/api/health`, which includes a database round-trip.
 - Compose runs `db` (PostgreSQL 17), `migrate` and `app`; the app waits for `migrate` to complete.
 - `docker-compose.yml` uses `APP_IMAGE` and keeps `build:` so `--build` works from source.
-- Publishing: see README *Images*. arm64 builds only on release tags and manual runs, because emulated builds are slow.
+- Publishing: see README *Images*. An image is pushed only after the whole CI workflow passed for that commit. arm64 builds only on release tags and manual runs, because emulated builds are slow.
 
 ## §19 Roadmap
 
 1. **v0.1, UX prototype:** all screens on mock data, Docker image, CI. *(done)*
-2. **Persistence:** *(done)* PostgreSQL and Prisma, a `migrate` image and service, household state moved from `store.tsx` to Server Actions. Realtime sync between wall and phones (SSE).
+2. **Persistence:** *(done)* PostgreSQL and Prisma, a `migrate` image and service; the household's state and writes moved from the in-memory mock store to the database and Server Actions (`store.tsx` is now the device's copy of the server snapshot). Realtime sync between wall and phones (SSE).
 3. **Recurrence engine:** *(done)* occurrences per date, daily reset, completion history.
 4. **Accounts:** *(done)* local login plus OIDC (authentik), kiosk device pairing, a PIN for settings on the wall.
 5. **Nextcloud/CalDAV** read, then write, with member mapping per calendar. *(done)*
@@ -140,6 +140,11 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 8. Google Calendar, ICS, Home Assistant (presence for the photo frame). *(done)*
 9. Home control: Home Assistant switches, "everything off" and the solar flow, on their own page and as a wall tile (§21). *(done)*
 10. Cameras and the doorbell: Frigate's cameras on the wall and their own page, a ring from Home Assistant on every screen, and talking back (§22). *(done; two-way talk still to be confirmed on the household's doorbell and tablet)*
+
+Still open:
+
+- **Weather** has no provider yet. Only the demo household has weather (made up); otherwise the wall tile hides and the home widget says there is no weather source.
+- Uploading photos as pictograms (§8) and recipes with "ingredients to shopping list" (§11) remain planned.
 
 ## §20 Decisions
 
@@ -159,7 +164,7 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 | D12 | Realtime sync: Server-Sent Events fed by PostgreSQL `LISTEN/NOTIFY` | Works with more than one app container and needs no extra service. Messages carry only a topic, never data; each device refetches what it may see. |
 | D13 | Screens keep rendering on the device (D7 stays); the route-group layouts load a household snapshot on the server and hand it to the store | Smallest change from v0.1, no hydration mismatches for time and theme, and the first paint has data. SSR can still come later. |
 | D14 | One household snapshot per round-trip: everything a screen needs, events from 90 days back to 400 days ahead, completions of the last 35 days | Family-sized data is small. One shape keeps the store simple and the optimistic updates honest. |
-| D15 | The server decides rewards: routine steps are always stored as expected, and an item's points come from the database, not the device | §9 must hold whatever a device sends. *Routine part superseded by D42; points still come from the database.* |
+| D15 | The server decides rewards: routine steps are always stored as expected, and an item's points come from the database, not the device | §9 must hold whatever a device sends. *Routine part superseded by D49; points still come from the database.* |
 | D16 | Important dates are stored as the original date plus a yearly flag, managed in a new Settings section, *Dates* | Ages and anniversaries count themselves; §15 gains one section. |
 | D17 | All-day events are stored at UTC midnight with an exclusive end, as in iCalendar | "Tuesday" stays Tuesday on every device and round-trips through CalDAV. |
 | D18 | Mutations are idempotent "set" operations; offline-capable creates use ids from the device | Retries, double taps and the later offline queue (§19.7) cannot create duplicates or flip state twice. |
@@ -187,11 +192,15 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 | D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |
 | D41 | Immich album photos come from `POST /api/search/metadata` (album filter, images only, paged by `nextCursor`, or `nextPage` before v3.2), not from the album response. The API key needs `album.read`, `asset.read` and `asset.view` | Immich v3 dropped `assets` from album responses, so selecting an album emptied it. |
 | D42 | `KINDO_PASSWORD_LOGIN=false` turns password sign-in off: the login page shows only the single sign-on button (no automatic redirect), Better Auth's password routes answer 404, Settings hides every password field and the server refuses to set one, and first-run setup asks only for the admin's email, who then signs in through single sign-on. Stored password hashes are kept, so turning it back on restores them. It is ignored, with a warning in the log, while single sign-on isn't fully configured | Households with authentik want one place to manage sign-in, but a typo in the OIDC settings must not lock everyone out; the login page stays reachable for errors, the language switch and pairing a wall display. |
+| D43 | *Not used.* Two decisions numbered D43 (and the routine-points D42) were lost in merges; they are D49–D51 | Numbers are never reused, so older commits and PRs can still be read. |
 | D44 | Home control: the admin picks up to 24 lights, switches, fans or helpers (`light`, `switch`, `fan`, `input_boolean`) and the power sensors (solar, house, grid; see D47) in Settings, stored in the Home Assistant connection's `config`. Anyone who may tick things off (a wall display without the PIN included) may switch them and use "everything off", which turns off exactly those switches in one `homeassistant.turn_off` call. The server only ever switches entities on that list. Screens read the states through a Server Action (polled every 15 s while visible, cached 2 s on the server); switch changes from anywhere reach them as a `home` topic on the SSE stream. Power is never stored. Presence is now optional on the connection | The family asked for the kitchen lights and a glance at the sun. A short, admin-made list keeps Kindo a family screen and keeps doors, heating and alarms out of a four-year-old's reach; power changes every few seconds, so polling an open view beats pushing every reading. |
-| D45 | The wall display's household column is a list of tiles (`Household.wallTiles`: weather, meal, shopping, dates, home) with an order and a switch each, set in Settings → Dashboard. A household that never set it gets the old layout, with Home control off. Home control is also a home-screen widget, hidden until someone adds it | Families asked to put Home control on the wall; the tile list is the smallest customisation that makes room for it without a layout editor on the wall. |
+| D45 | The wall display's household column is a list of tiles (`Household.wallTiles`: weather, meal, shopping, dates, home; birthdays and cameras joined later, D46 and D48) with an order and a switch each, set in Settings → Dashboard. A household that never set it gets the old layout, with Home control off. Home control is also a home-screen widget, hidden until someone adds it | Families asked to put Home control on the wall; the tile list is the smallest customisation that makes room for it without a layout editor on the wall. |
 | D46 | Contact birthdays come from Nextcloud address books over CardDAV, read hourly with the CalDAV connection's credentials, into `ContactBirthday` (name and day from the vCard's FN and BDAY; a missing or Apple "omitted" year means no age). The household's own choices (shown, alias, member) live on the same row and survive syncs, keyed by the vCard UID; nothing is written back. New contacts are hidden unless the admin chose "show new contacts at once". Non-admin viewers and wall displays receive only the shown contacts. The wheel lists each person once: a Kindo birthday for a member who has one, or a contact with the same name and day as a Kindo birthday, is left out. The calendar's "Important day" button opens the Dates editor | The family wants the grandparents and friends on the wall without typing their birthdays twice, under the names the children use, and without exposing the whole address book. The "Contact birthdays" calendar Nextcloud generates was not used: it carries the year only in its title and has no stable link to the contact. |
 | D47 | The solar view's grid comes from two unsigned sensors, feed-in and grid draw (grid = draw − feed-in; one not set up counts as zero, one without a reading leaves the grid unknown). House consumption is "Calculate" by default (solar + grid, never below zero); a house sensor, when picked and reading, wins. A stored signed grid sensor (D44) is still read and stays in the dialog until cleared, but feed-in and draw win over it | Many meters and inverters report feed-in and draw as two positive values and have no house consumption sensor; the family should not need a Home Assistant template sensor to see the house. |
 | D48 | Cameras (§22) come from Frigate, signed in on the server with a Frigate user (address with port; password encrypted, D28); an https address with a certificate the system doesn't trust needs the admin to trust it, and then only that certificate (SHA-256 fingerprint, checked before anything is sent). Live view is WebRTC through Frigate's bundled go2rtc: the screen's offer goes to `POST /api/cameras/<id>/webrtc`, Kindo checks the viewer, picks the stream from the admin's setup and forwards the offer to Frigate's authenticated `/api/go2rtc/webrtc`; go2rtc's complete answer comes back the same way, and media flows directly between the screen and go2rtc's port 8555. An offer that sends media is refused unless it is for the two-way stream, from someone at manage level, holding the camera's talk lease (`TalkLease`: one holder per camera and screen, 30 s, renewed every 10 s, so a crashed screen frees the camera on its own). Rings: Home Assistant's `subscribe_trigger` on the visitor sensors from `off` to `on`, by the instance that runs the jobs, stored as `DoorbellRing` (shown for 60 s; presses within 15 s are one) and announced as a `doorbell` topic without data (D12); each screen asks for the ring that is still going on. Still pictures go through `/api/cameras/<id>/snapshot`, uncached | A one-shot HTTP handshake (go2rtc's non-trickle API) works inside the standalone Next.js image; the WebSocket gateway or sidecar a WebSocket handshake would need is not. Frigate's authenticated port keeps go2rtc's API off the network, and the browser never learns an address, a password or a stream name. Pinning a fingerprint is safer than turning certificate checks off, which is what a self-signed Frigate otherwise forces. A ring is stored so a sleeping or reconnecting wall still sees it. Talking is for adults, so a child doesn't speak to strangers at the door. |
+| D49 | Routine steps may earn points: a switch and points per step on each child (`Member.routineRewards`, `routinePoints`, default off and 5), a step's own points override them (0 = none). Paid at once, never with approval, and never while the household's rewards are off. Chores and extras are one list, each with an optional reward | Points help a young child get used to brushing teeth and getting dressed. A switch per child lets parents phase them out without editing every step. Replaces "expected routines never earn points". |
+| D50 | One routine per member, period and recurrence; the server finds or starts it when a step is saved, and existing duplicates were merged by migration. Routines due in the same period of a day are shown as one | Adding steps for the same morning kept creating new panels. Blocks now only split where the rhythm differs (every day, school days, weekends). |
+| D51 | The pictogram picker has a **personal care** category (washing hands, face and hair, shower, bath, towel, toilet, teeth, hair, cream, nails, medicine, plaster). Brush teeth, brush hair, bath and wash face moved there from morning and evening; ids stay the same | Hygiene steps belong to both morning and evening routines, and washing had only one picture. Keeping the ids leaves saved routines untouched. |
 
 ## §21 Home control
 

@@ -112,7 +112,7 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(await db.routine.count({ where: { id: routineId } })).toBe(0);
   });
 
-  it("routine steps earn nothing until the child's routine points are on, then at once (D42)", async () => {
+  it("routine steps earn nothing until the child's routine points are on, then at once (D49)", async () => {
     await H.setCompletion(db, { itemId: "paul-morning-3", day, done: true });
     expect(await H.balanceOf(db, "paul")).toBe(64);
     await H.setCompletion(db, { itemId: "paul-morning-3", day, done: false });
@@ -149,7 +149,7 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(s?.members.find((m) => m.id === "paul")?.routineRewards).toEqual({ on: true, points: 4 });
   });
 
-  it("steps for the same period and rhythm share one routine; another rhythm gets its own (D43)", async () => {
+  it("steps for the same period and rhythm share one routine; another rhythm gets its own (D50)", async () => {
     const a = await H.saveRoutineStep(db, { memberId: "paul", period: "morning", recurrence: { kind: "daily" }, pictogram: "bed", label: "Bed" });
     expect(a.routineId).toBe("paul-morning");
     expect(await db.routineStep.findUniqueOrThrow({ where: { id: a.stepId } })).toMatchObject({ position: 4 });
