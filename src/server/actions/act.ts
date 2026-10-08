@@ -28,13 +28,19 @@ export function act<Schema extends z.ZodType, R>(schema: Schema, fn: (db: Tx, in
       if (topic) await notify(topic);
       return { ok: true, data: result };
     } catch (e) {
-      return failure(e);
+      return failure(e, opts.level === "admin");
     }
   };
 }
 
-export function failure(e: unknown): { ok: false; error: string } {
-  if (e instanceof UserError) return { ok: false, error: e.code };
+/**
+ * The error code for the UI. Admins setting up an integration also get what
+ * the service said, so "didn't answer" can say why (a name that doesn't
+ * resolve, a certificate, a sign-in proxy in the way). Nobody else does:
+ * it may name addresses inside the house.
+ */
+export function failure(e: unknown, admin = false): { ok: false; error: string; detail?: string } {
+  if (e instanceof UserError) return { ok: false, error: e.code, ...(admin && e.code === "remote" && e.message !== e.code ? { detail: e.message.slice(0, 300) } : {}) };
   if (e instanceof ZodError) return { ok: false, error: "invalid" };
   log.error("action failed", { error: errorMessage(e), stack: e instanceof Error ? e.stack : undefined });
   return { ok: false, error: "server" };

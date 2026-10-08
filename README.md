@@ -207,6 +207,7 @@ Any other rtsp:// source of the same camera that recording or detection uses nee
 **Network and browser:**
 - Video and sound go directly between the screen and go2rtc's WebRTC port: allow **8555 TCP and UDP** from the wall tablet (and phones) to Frigate. Kindo only relays the handshake, through Frigate's authenticated API; keep go2rtc's API (1984) and Frigate's unauthenticated port (5000) away from the LAN.
 - Browsers allow the microphone only on https (or `localhost`): open Kindo over https with a certificate the tablet trusts to talk. Watching and the ring work over http too.
+- **Behind a reverse proxy** (`https://frigate.example.com`): Kindo's server must reach that name itself. Kindo's container resolves it with its own DNS, which from inside the house often points to the public address and fails without NAT loopback; then use Frigate's LAN address and port 8971 instead (with *Trust Frigate's own certificate*). A sign-in proxy (authentik, Authelia) in front of Frigate redirects Kindo to its login page: let `/api` through, or use port 8971 directly. When connecting fails, the dialog shows the reason.
 - A wall display plays the visitor's sound only after someone has touched the page once (browser autoplay rules); otherwise it shows *Tap for sound*. In a kiosk browser you can allow autoplay instead.
 
 ## License

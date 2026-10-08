@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Server } from "node:http";
+import { createServer, type Server } from "node:http";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import type { Actor } from "@/server/actor";
@@ -67,6 +67,18 @@ describe.skipIf(!TEST_DB)("Cameras and the doorbell (§22)", () => {
     const snap = await loadSnapshot(db, VIEWER);
     expect(snap?.cameras).toEqual([]);
     expect(snap?.integrations.find((i) => i.id === "frigate")?.status).toBe("connected");
+  });
+
+  it("says why Frigate can't be reached: a name that doesn't resolve, a sign-in proxy in the way", async () => {
+    const add = (url: string) => K.addFrigate(db, { url, username: FRIGATE_USER, password: FRIGATE_PASSWORD, trustCertificate: false });
+    await expect(add("http://frigate.kindo-test.invalid:8971")).rejects.toThrow(/can't resolve frigate\.kindo-test\.invalid/);
+    const proxy = createServer((_req, res) => res.writeHead(302, { location: "https://auth.example.home/outpost/start" }).end());
+    await new Promise<void>((r) => proxy.listen(0, "127.0.0.1", r));
+    try {
+      await expect(add(`http://127.0.0.1:${(proxy.address() as { port: number }).port}`)).rejects.toThrow(/redirects \(HTTP 302 to auth\.example\.home\)/);
+    } finally {
+      proxy.close();
+    }
   });
 
   it("offers Frigate's cameras and streams by name, and Home Assistant's doorbell sensor first", async () => {

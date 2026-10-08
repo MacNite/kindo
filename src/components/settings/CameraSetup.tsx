@@ -36,15 +36,15 @@ function CameraSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: (
   const [choices, setChoices] = useState<CameraChoices | null>(null);
   const [cameras, setCameras] = useState<CameraSetup[]>(stored.cameras ?? []);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ code: string; detail?: string } | null>(null);
 
   useEffect(() => {
     let live = true;
     listCameraChoices({ id: conn.id }).then((r) => {
       if (!live) return;
       if (r.ok) setChoices(r.data);
-      else setError(r.error);
-    }, () => live && setError("network"));
+      else setError({ code: r.error, detail: r.detail });
+    }, () => live && setError({ code: "network" }));
     return () => {
       live = false;
     };
@@ -66,7 +66,7 @@ function CameraSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: (
     }));
     setBusy(false);
     if (r.ok) onClose();
-    else setError(r.error);
+    else setError({ code: r.error, detail: r.detail });
   };
 
   /** A stored value the lists no longer offer stays selectable, so saving doesn't drop it silently. */
@@ -74,7 +74,7 @@ function CameraSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: (
 
   return (
     <Dialog open wide onClose={onClose} title={t("cameraSetup.title")}
-      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+      footer={<><ErrorText code={error?.code} detail={error?.detail} className="mr-auto max-w-md self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
         <Button variant="primary" disabled={busy} onClick={save}>{t("common.save")}</Button></>}>
       <div className="flex flex-col gap-5">
         <p className="text-sm text-soft">{t("cameraSetup.hint")}</p>

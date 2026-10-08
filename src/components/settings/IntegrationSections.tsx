@@ -270,18 +270,18 @@ function FrigateForm({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [trustCertificate, setTrust] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ code: string; detail?: string } | null>(null);
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     setBusy(true);
     const r = await run(() => addFrigate({ url, username, password, trustCertificate }));
     setBusy(false);
     if (r.ok) onClose();
-    else setError(r.error);
+    else setError({ code: r.error, detail: r.detail });
   };
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.frigate")}
-      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+      footer={<><ErrorText code={error?.code} detail={error?.detail} className="mr-auto max-w-sm self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
         <Button variant="primary" disabled={busy || !url || !username || !password} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-soft">{t("integrations.frigateHint")}</p>
