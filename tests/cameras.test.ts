@@ -159,6 +159,10 @@ describe.skipIf(!TEST_DB)("Cameras and the doorbell (§22)", () => {
     // The button bounces, Home Assistant reconnects: still one ring.
     expect(await ringFor(db, VISITOR, new Date(now.getTime() + 3000))).toEqual([]);
     expect(await ringFor(db, "binary_sensor.other", now)).toEqual([]);
+    // The same press reported twice at once (two watchers during a hand-over): one ring, not two.
+    const twice = new Date(now.getTime() + 60_000);
+    expect((await Promise.all([ringFor(db, VISITOR, twice), ringFor(db, VISITOR, twice)])).flat()).toEqual(["door"]);
+    await db.doorbellRing.deleteMany({ where: { at: twice } });
     expect(await activeRing(db, new Date(now.getTime() + 10_000))).toMatchObject({ cameraId: "door" });
     expect(await activeRing(db, new Date(now.getTime() + RING_MS + 1))).toBeNull();
   });
