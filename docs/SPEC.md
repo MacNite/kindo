@@ -61,7 +61,7 @@ The engine (`src/lib/recurrence.ts`) answers "does it occur on this date", "ever
 
 ## §8 Pictograms
 
-There is a built-in library in one visual language (Lucide, plus custom icons drawn on the same grid), organised in categories: morning, household, evening, outdoors, school & play.
+There is a built-in library in one visual language (Lucide, plus custom icons drawn on the same grid), organised in categories: morning, personal care, household, evening, outdoors, school & play. Personal care holds washing, teeth, hair, toilet and small first aid (D43).
 
 Emoji and uploaded photos are supported as alternatives (`emoji:` and `img:` prefixes). Upload is planned.
 
@@ -178,3 +178,4 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |
 | D41 | Immich album photos come from `POST /api/search/metadata` (album filter, images only, paged by `nextCursor`, or `nextPage` before v3.2), not from the album response. The API key needs `album.read`, `asset.read` and `asset.view` | Immich v3 dropped `assets` from album responses, so selecting an album emptied it. |
 | D42 | `KINDO_PASSWORD_LOGIN=false` turns password sign-in off: the login page shows only the single sign-on button (no automatic redirect), Better Auth's password routes answer 404, Settings hides every password field and the server refuses to set one, and first-run setup asks only for the admin's email, who then signs in through single sign-on. Stored password hashes are kept, so turning it back on restores them. It is ignored, with a warning in the log, while single sign-on isn't fully configured | Households with authentik want one place to manage sign-in, but a typo in the OIDC settings must not lock everyone out; the login page stays reachable for errors, the language switch and pairing a wall display. |
+| D43 | The pictogram picker has a **personal care** category (washing hands, face and hair, shower, bath, towel, toilet, teeth, hair, cream, nails, medicine, plaster). Brush teeth, brush hair, bath and wash face moved there from morning and evening; ids stay the same | Hygiene steps belong to both morning and evening routines, and washing had only one picture. Keeping the ids leaves saved routines untouched. |

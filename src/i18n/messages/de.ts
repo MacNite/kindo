@@ -78,7 +78,7 @@ const de: Messages = {
   picker: {
     title: "Bild auswählen", builtin: "Bilder", emoji: "Emoji", photo: "Eigenes Foto",
     upload: "Foto hochladen", uploadHint: "Für die Kleinen klappt oft ein Foto der eigenen Zahnbürste oder des eigenen Betts am besten.",
-    cat_morning: "Morgens", cat_household: "Haushalt", cat_evening: "Abends", cat_outdoor: "Draußen", cat_school: "Schule & Spiel",
+    cat_morning: "Morgens", cat_care: "Körperpflege", cat_household: "Haushalt", cat_evening: "Abends", cat_outdoor: "Draußen", cat_school: "Schule & Spiel",
   },
   tasks: {
     title: "Aufgaben", subtitle: "Einmalige Dinge, die erledigt werden müssen.", add: "Aufgabe hinzufügen", placeholder: "Was ist zu tun?",
