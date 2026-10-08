@@ -48,8 +48,11 @@ export function RoutinesScreen() {
   const [tab, setTab] = useState<"routines" | "chores" | "history">("routines");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [adding, setAdding] = useState(false);
-  const { getMembers } = useStore();
+  const { getMembers, allRoutines } = useStore();
   const kids = getMembers().filter((m) => m.role === "child");
+  // Children always have a section; anyone else as soon as they have a routine, so it can be edited.
+  const withRoutines = new Set(allRoutines().map((r) => r.memberId));
+  const listed = getMembers().filter((m) => m.role === "child" || withRoutines.has(m.id));
   const firstAdult = getMembers().find((m) => m.role !== "child")?.id ?? null;
 
   const newChore = () =>
@@ -74,8 +77,8 @@ export function RoutinesScreen() {
 
       {tab === "routines" && (
         <div className="flex flex-col gap-8">
-          {kids.length === 0 && <p className="rounded-panel bg-surface p-6 text-soft">{t("routines.noChildren")}</p>}
-          {kids.map((m) => <MemberRoutines key={m.id} member={m} onEdit={setDraft} />)}
+          {listed.length === 0 && <p className="rounded-panel bg-surface p-6 text-soft">{t("routines.noChildren")}</p>}
+          {listed.map((m) => <MemberRoutines key={m.id} member={m} onEdit={setDraft} />)}
         </div>
       )}
 
@@ -100,7 +103,7 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
       <header className="mb-3 flex flex-wrap items-center gap-3">
         <Avatar member={member} size="md" />
         <h2 className="font-display text-2xl font-bold">{member.name}</h2>
-        {rewardMode !== "off" && <RoutineRewards member={member} />}
+        {rewardMode !== "off" && member.role === "child" && <RoutineRewards member={member} />}
       </header>
       {routines.length === 0 && <p className="rounded-panel bg-surface p-5 text-soft">{t("routines.noRoutines")}</p>}
       <div className="grid gap-3 lg:grid-cols-3">
