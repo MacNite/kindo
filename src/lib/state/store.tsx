@@ -230,7 +230,7 @@ function useHousehold(initial: HouseholdWire) {
     return mutate((d) => {
       const without = d.completions.filter((c) => doneKey(c.itemId, c.day) !== key);
       if (!done) return { ...d, completions: without, approvals: d.approvals.filter((a) => doneKey(a.item.id, a.day) !== key) };
-      const outcome = completionOutcome(item.value, memberId !== null);
+      const outcome = completionOutcome(item.value, memberId !== null, d.household.rewardMode);
       const c: Completion = { id: `tmp-${key}`, itemId: item.id, memberId, day, status: outcome.status, pictogram: item.pictogram, label: item.label, at: new Date() };
       const approvals = outcome.status === "pending" && memberId ? [...d.approvals, { id: c.id, memberId, item, day, at: c.at }] : d.approvals;
       return { ...d, completions: [...without, c], approvals };

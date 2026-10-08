@@ -80,6 +80,16 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(await H.balanceOf(db, "paul")).toBe(89);
   });
 
+  it("with rewards off, chores are simply done: no points and no approval (§9)", async () => {
+    await H.setRewardMode(db, { mode: "off" });
+    await H.setCompletion(db, { itemId: "x-garage", day, done: true });
+    expect(await db.completion.findUniqueOrThrow({ where: { itemId_day: { itemId: "x-garage", day } } })).toMatchObject({ status: "done" });
+    await db.chore.update({ where: { id: "x-leaves" }, data: { value: { kind: "extra", points: 25, needsApproval: false }, memberId: "paul" } });
+    await H.setCompletion(db, { itemId: "x-leaves", day, done: true });
+    expect(await H.balanceOf(db, "lena")).toBe(125);
+    expect(await H.balanceOf(db, "paul")).toBe(64);
+  });
+
   it("redeeming spends points and refuses when there are not enough", async () => {
     await H.redeem(db, { memberId: "paul", rewardId: "r2" });
     expect(await H.balanceOf(db, "paul")).toBe(14);
