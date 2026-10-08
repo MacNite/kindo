@@ -56,3 +56,19 @@ test("a new event lands in the calendar", async ({ page }) => {
   await page.getByRole("radio", { name: "Agenda" }).click();
   await expect(page.getByText("Kindergarten party").filter({ visible: true }).first()).toBeVisible();
 });
+
+test("a new chore can go to several people at once", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/routines");
+  await page.getByRole("radio", { name: "Chores" }).click();
+  await page.getByRole("button", { name: "New chore" }).click();
+  const label = `Water herbs ${Date.now()}`;
+  await page.getByLabel("Name").fill(label);
+  // Anna is picked already; add Lena.
+  await page.getByRole("dialog").getByRole("button", { name: "Lena" }).click();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await page.reload();
+  await page.getByRole("radio", { name: "Chores" }).click();
+  await expect(page.getByRole("button", { name: label })).toHaveCount(2);
+});

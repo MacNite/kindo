@@ -60,7 +60,7 @@ const en = {
     extra: "Extra", extraHint: "Optional help that earns a reward.",
     points: "Reward", needsApproval: "A parent confirms before it counts",
     pictogram: "Picture", label: "Name", labelHint: "Optional. Shown small under the picture.",
-    assignTo: "Who", repeats: "Repeats", childView: "Child view", steps: "{n} steps",
+    assignToMany: "Pick several people to create it for each of them.", assignTo: "Who", repeats: "Repeats", childView: "Child view", steps: "{n} steps",
     preview: "How it looks for {name}", earns: "+{n}",
   },
   recurrence: {

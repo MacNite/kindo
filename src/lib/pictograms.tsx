@@ -3,13 +3,13 @@ import type { LucideProps } from "lucide-react";
 import {
   Apple, Backpack, Bath, Bed, BedDouble, Bike, BookOpen, Car, CookingPot, Dog, Droplets, Flower2, Footprints,
   Moon, Music, Recycle, Shirt, ShoppingBasket, Sparkles, Sprout, Sun, ToyBrick, Trash2, Utensils,
-  WashingMachine, Wrench, Hammer, Shovel, Baby, Cat, Glasses, Pencil, Leaf, Sandwich, Soup, Milk, Package,
+  WashingMachine, Wrench, Hammer, Shovel, Baby, Cat, Glasses, Pencil, Leaf, Soup, Milk, Package,
 } from "lucide-react";
 import type { Text } from "./types";
 
 /**
  * One visual language for every task: Lucide's 24px / 2px-stroke icons.
- * The few gaps (toothbrush, vacuum, pyjamas, hair) are drawn on the same grid
+ * The few gaps (toothbrush, vacuum, pyjamas, comb, lunch box) are drawn on the same grid
  * so they sit naturally beside the rest.
  */
 type Icon = ComponentType<LucideProps>;
@@ -18,9 +18,10 @@ const base = { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: 
 
 const Toothbrush: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
   <svg {...base} strokeWidth={strokeWidth} {...p}>
-    <path d="M4 20 14.5 9.5" />
-    <rect x="13.2" y="3.2" width="5" height="8.5" rx="1.5" transform="rotate(45 15.7 7.45)" />
-    <path d="M16 4.5 17.2 3.3M18.2 6.7l1.2-1.2M20.4 8.9l1.2-1.2" />
+    <path d="M3 16.5h9" />
+    <path d="M12 14.5h8a2 2 0 0 1 0 4h-8z" />
+    <path d="M13.5 14.5v-4M16.5 14.5v-4M19.5 14.5v-4" />
+    <path d="M12.5 7.5c1.2-1.6 2.8-1.6 4 0s2.8 1.6 4 0" />
   </svg>
 );
 const Vacuum: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
@@ -37,11 +38,19 @@ const Pyjamas: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...
     <path d="M14.5 13.2a2 2 0 1 1-2.2-2.7 1.6 1.6 0 0 0 2.2 2.7Z" />
   </svg>
 );
-const Hairbrush: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
+const Comb: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
   <svg {...base} strokeWidth={strokeWidth} {...p}>
-    <ellipse cx="9" cy="8" rx="5" ry="5.5" />
-    <path d="M12.5 12 20 20.5" />
-    <path d="M7 6.5h.01M10 6h.01M8 9h.01M11 9h.01" />
+    <g transform="rotate(-25 12 12)">
+      <rect x="2.5" y="7.5" width="19" height="4" rx="1.5" />
+      <path d="M4.5 11.5v5M7.5 11.5v5M10.5 11.5v5M13.5 11.5v5M16.5 11.5v5M19.5 11.5v5" />
+    </g>
+  </svg>
+);
+const LunchBox: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
+  <svg {...base} strokeWidth={strokeWidth} {...p}>
+    <path d="M3 12h18v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <path d="M5.5 12 9 4.5l5.5 7.5M7 9.2h5" />
+    <path d="M17.5 7c-1.8-1.3-4 0-3.3 2.6.3 1.2 1.3 2.4 2.3 2.4h2c1 0 2-1.2 2.3-2.4.7-2.6-1.5-3.9-3.3-2.6zm0 0c0-1.2.5-2 1.5-2.5" />
   </svg>
 );
 
@@ -57,9 +66,9 @@ export const PICTOGRAMS: Pictogram[] = [
   P("clothes", Shirt, "morning", "Get dressed", "Anziehen"),
   P("breakfast", Apple, "morning", "Breakfast", "Frühstück"),
   P("backpack", Backpack, "morning", "Pack school bag", "Schulranzen packen"),
-  P("hair", Hairbrush, "morning", "Brush hair", "Haare kämmen"),
+  P("hair", Comb, "morning", "Brush hair", "Haare kämmen"),
   P("shoes", Footprints, "morning", "Shoes on", "Schuhe anziehen"),
-  P("lunchbox", Sandwich, "morning", "Lunch box", "Brotdose"),
+  P("lunchbox", LunchBox, "morning", "Lunch box", "Brotdose"),
 
   P("dishes", Utensils, "household", "Dishes", "Geschirr"),
   P("laundry", WashingMachine, "household", "Laundry", "Wäsche"),

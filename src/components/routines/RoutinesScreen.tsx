@@ -186,9 +186,12 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
   const { t, tx } = useI18n();
   const { getMember, getMembers, run } = useStore();
   const [d, setD] = useState(draft);
+  // New tasks and new routines can go to several people at once; one copy is saved per person.
+  const multi = isNew(draft) && !(draft.kind === "step" && draft.routineId);
+  const [who, setWho] = useState<(string | null)[]>([draft.memberId]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const member = getMember(d.memberId);
+  const member = getMember(multi ? who[0] ?? null : d.memberId);
   const item = d.item;
   const step = d.kind === "step";
   const set = (p: Partial<TaskItem>) => setD((x) => ({ ...x, item: { ...x.item, ...p } }));
@@ -201,14 +204,30 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
     if (r.ok) onClose();
     else setError(r.error);
   };
-  const save = () => finish(() => step
+  const saveFor = (memberId: string | null) => step
     ? saveRoutineStep({
-      stepId: isNew(d) ? undefined : item.id, routineId: d.routineId, memberId: d.memberId!, period: d.period ?? "morning",
+      stepId: isNew(d) ? undefined : item.id, routineId: d.routineId, memberId: memberId!, period: d.period ?? "morning",
       recurrence: d.recurrence, pictogram: item.pictogram, label: item.label,
     })
-    : saveChore({ id: isNew(d) ? undefined : item.id, memberId: d.memberId, pictogram: item.pictogram, label: item.label, value: item.value, recurrence: d.recurrence }));
+    : saveChore({ id: isNew(d) ? undefined : item.id, memberId, pictogram: item.pictogram, label: item.label, value: item.value, recurrence: d.recurrence });
+  const save = () => finish(async () => {
+    if (!multi) return saveFor(d.memberId);
+    let last: ActionResult<unknown> = { ok: true, data: undefined };
+    for (const id of who) {
+      last = await saveFor(id);
+      if (!last.ok) break;
+    }
+    return last;
+  });
   const remove = () => finish(() => (step ? deleteRoutineStep({ id: item.id }) : deleteChore({ id: item.id })));
   const people = step ? getMembers() : [...getMembers(), null];
+  const selected = (id: string | null) => (multi ? who.includes(id) : d.memberId === id);
+  const pick = (id: string | null) => {
+    if (!multi) return setD((x) => ({ ...x, memberId: id }));
+    // "Anyone" stands alone: it can't be combined with named people.
+    setWho((w) => (id === null ? [null] : w.includes(id) ? w.filter((x) => x !== id) : [...w.filter((x) => x !== null), id]));
+  };
+  const canSave = multi ? who.length > 0 : !(step && !d.memberId);
 
   return (
     <Dialog open wide onClose={onClose} title={isNew(d) ? (step && !d.routineId ? t("routines.addRoutine") : t("routines.newTask")) : t("routines.editTask")}
@@ -216,7 +235,7 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
         {!isNew(d) && <Button variant="ghost" className="mr-auto" onClick={remove} disabled={busy}><Trash2 size={16} />{t("common.delete")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" onClick={save} disabled={busy || (step && !d.memberId)}>{t("common.save")}</Button>
+        <Button variant="primary" onClick={save} disabled={busy || !canSave}>{t("common.save")}</Button>
       </>}>
       <div style={{ "--m": member?.color ?? "rgb(var(--soft))" } as CSSProperties} className="grid gap-6 md:grid-cols-[1fr_220px]">
         <div className="flex flex-col gap-6">
@@ -224,11 +243,11 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
           <Field label={t("routines.label")} hint={t("routines.labelHint")}>
             <input className={inputCls} value={tx(item.label)} onChange={(e) => set({ label: e.target.value })} />
           </Field>
-          <Field label={t("routines.assignTo")}>
+          <Field label={t("routines.assignTo")} hint={multi ? t("routines.assignToMany") : undefined}>
             <div className="flex flex-wrap gap-2">
               {people.map((m) => (
-                <button key={m?.id ?? "any"} disabled={step && !!d.routineId} onClick={() => setD((x) => ({ ...x, memberId: m?.id ?? null }))} aria-pressed={d.memberId === (m?.id ?? null)}
-                  className={cn("inline-flex h-11 items-center gap-2 rounded-full border-2 pl-1 pr-4 font-bold", d.memberId === (m?.id ?? null) ? "border-ink" : "border-line text-soft")}>
+                <button key={m?.id ?? "any"} disabled={step && !!d.routineId} onClick={() => pick(m?.id ?? null)} aria-pressed={selected(m?.id ?? null)}
+                  className={cn("inline-flex h-11 items-center gap-2 rounded-full border-2 pl-1 pr-4 font-bold", selected(m?.id ?? null) ? "border-ink" : "border-line text-soft")}>
                   {m ? <Avatar member={m} size="sm" /> : <span className="grid h-8 w-8 place-items-center rounded-full bg-sunken">?</span>}{m?.name ?? t("common.anyone")}
                 </button>
               ))}
