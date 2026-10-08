@@ -42,9 +42,9 @@ describe.skipIf(!TEST_DB)("school holidays (§7, §19.3)", () => {
     const n = await syncHolidays(db, now);
     expect(n).toBeGreaterThanOrEqual(3);
     expect(await db.holidayRange.findFirst({ where: { summary: "Herbstferien" } })).toMatchObject({ start: "2026-10-26", end: "2026-10-30" });
-    // Against the same clock as the sync: the real one would make this fail a day after the fixture date.
+    // Due-ness is judged against the same clock the sync ran on, not today's.
     expect(await holidaysDue(db, now)).toBe(false);
-    const snap = await loadSnapshot(db, VIEWER, new Date(2026, 9, 7));
+    const snap = await loadSnapshot(db, VIEWER, now);
     expect(snap?.holidays.map((h) => h.summary)).toContain("Herbstferien");
   });
 

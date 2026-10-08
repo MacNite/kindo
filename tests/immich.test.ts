@@ -71,8 +71,9 @@ describe.skipIf(!TEST_DB)("Immich (§19.6)", () => {
     await updateAlbum(db, { id: summer.id, selected: true, weight: 50 });
     await albumSelected(db, summer.id);
     const photos = await db.photoAsset.findMany({ where: { albumId: summer.id }, orderBy: { remoteId: "asc" } });
-    expect(photos.map((p) => p.remoteId)).toEqual(["a1", "a2"]);
+    expect(photos.map((p) => p.remoteId)).toEqual(["a1", "a2", "a4"]);
     expect(photos[0].place).toBe("Rügen, Germany");
+    expect((await db.photoAlbum.findUniqueOrThrow({ where: { id: summer.id } })).count).toBe(3);
     const playlist = await photoPlaylist(db);
     expect(playlist.every((p) => p.src?.startsWith("/api/photos/"))).toBe(true);
   });

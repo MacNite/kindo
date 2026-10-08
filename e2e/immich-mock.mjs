@@ -1,7 +1,9 @@
 /**
  * A stand-in Immich server for the tests: two albums, a few photos (one
  * video, which the photo frame skips), and real JPEG thumbnails. Counts the
- * thumbnail requests so tests can see the proxy's cache working.
+ * thumbnail requests so tests can see the proxy's cache working. Like Immich
+ * v3, albums don't list their assets: those come from the metadata search,
+ * two per page so the tests go through the paging.
  */
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -17,6 +19,7 @@ const albums = [
     { id: "a1", type: "IMAGE", exifInfo: { dateTimeOriginal: "2026-07-14T10:00:00Z", city: "Rügen", country: "Germany" } },
     { id: "a2", type: "IMAGE", localDateTime: "2026-07-15T12:00:00Z" },
     { id: "v1", type: "VIDEO" },
+    { id: "a4", type: "IMAGE", fileCreatedAt: "2026-07-16T09:00:00Z" },
   ] },
   { id: "alb-kids", albumName: "Kids", assets: [{ id: "a3", type: "IMAGE", fileCreatedAt: "2026-05-01T08:00:00Z" }] },
 ];
@@ -43,7 +46,19 @@ export function startImmichMock(port = 0) {
     const album = url.pathname.match(/^\/api\/albums\/([^/]+)$/);
     if (album) {
       const a = albums.find((x) => x.id === album[1]);
-      return a ? json({ id: a.id, albumName: a.albumName, assets: a.assets }) : res.writeHead(404).end();
+      return a ? json({ id: a.id, albumName: a.albumName, assetCount: a.assets.length }) : res.writeHead(404).end();
+    }
+    if (url.pathname === "/api/search/metadata" && req.method === "POST") {
+      let raw = "";
+      req.on("data", (c) => (raw += c));
+      req.on("end", () => {
+        const q = JSON.parse(raw || "{}");
+        const all = albums.filter((a) => q.albumIds?.includes(a.id)).flatMap((a) => a.assets).filter((x) => !q.type || x.type === q.type);
+        const from = Number(q.cursor ?? 0);
+        const items = all.slice(from, from + 2);
+        json({ assets: { items, count: items.length, nextCursor: from + 2 < all.length ? String(from + 2) : null } });
+      });
+      return;
     }
     const thumb = url.pathname.match(/^\/api\/assets\/([^/]+)\/thumbnail$/);
     if (thumb) {
