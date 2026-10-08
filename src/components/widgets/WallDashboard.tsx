@@ -13,6 +13,7 @@ import { BigClock, WeatherNow, DatesList } from "./Widgets";
 import { Screensaver } from "../photos/Screensaver";
 import { Avatar } from "../ui/Avatar";
 import { HomeTile } from "../home/HomeControl";
+import { BirthdaysCompact } from "../birthdays/Birthdays";
 import { useGreeting } from "./HomeScreen";
 
 /**
@@ -75,6 +76,13 @@ export function WallDashboard() {
       <div className="grow rounded-panel bg-surface p-6">
         <p className="mb-4 text-lg font-bold text-soft">{t("widgets.dates")}</p>
         <DatesList limit={3} large />
+      </div>
+    ),
+    // The birthday wheel, when the household turned it on (D46).
+    birthdays: (
+      <div className="rounded-panel bg-surface p-6">
+        <p className="mb-4 text-lg font-bold text-soft">{t("widgets.birthdays")}</p>
+        <BirthdaysCompact large />
       </div>
     ),
     // Switches and solar from Home Assistant (§21), when the household turned the tile on.

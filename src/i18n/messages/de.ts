@@ -36,7 +36,7 @@ const de: Messages = {
   widgets: {
     clock: "Uhr", weather: "Wetter", agenda: "Heute", upcoming: "Demnächst", routines: "Routinen",
     chores: "Haushalt", meals: "Essen", shopping: "Einkauf", dates: "Wichtige Tage", photos: "Fotos",
-    home: "Zuhause",
+    home: "Zuhause", birthdays: "Geburtstage",
   },
   calendar: {
     holiday: "Ferien", recurringHint: "Teil einer Terminserie: Bitte in der Kalender-App ändern, aus der sie stammt.",
@@ -44,6 +44,14 @@ const de: Messages = {
     month: "Monat", week: "Woche", agenda: "Liste", sources: "Kalender", newEvent: "Neuer Termin",
     readOnly: "Nur lesen", from: "Aus {source}", who: "Wer", where: "Wo", when: "Wann",
     today: "Heute", previous: "Zurück", next: "Weiter", more: "+{n} weitere", source: "Kalender",
+    birthdays: "Geburtstage", importantDay: "Wichtiger Tag",
+  },
+  birthdays: {
+    title: "Geburtstage", soon: "Bald", later: "Später im Jahr", next: "Als Nächstes", family: "Familie",
+    none: "Noch keine Geburtstage. Sie kommen aus Einstellungen → Personen, aus „Wichtiger Tag“ im Kalender oder aus den Nextcloud-Kontakten unter Einstellungen → Geburtstage.",
+    turns: "wird {n}", turnsToday: "wird heute {n}", days: "{n} Tage", oneDay: "1 Tag", months: "{n} Monate", oneMonth: "1 Monat",
+    sleeps: "Noch {n}× schlafen", oneSleep: "Noch 1× schlafen",
+    legend: "▲ heute. Der Bogen zeigt die Zeit bis zum gewählten Geburtstag.", wheel: "Geburtstage im Jahr",
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Abo", local: "Lokal" },
   routines: {
@@ -171,7 +179,19 @@ const de: Messages = {
       dates: "Termine",
       family: "Familie", members: "Personen", calendar: "Kalender", routines: "Routinen & Haushalt",
       rewards: "Belohnungen", photos: "Fotos", dashboard: "Übersicht", appearance: "Darstellung",
-      language: "Sprache & Region", integrations: "Integrationen",
+      language: "Sprache & Region", integrations: "Integrationen", birthdays: "Geburtstage",
+    },
+    birthdays: {
+      hint: "Das Geburtstagsrad zeigt alle in der Familie mit Geburtstag, die als wichtige Tage eingetragenen Geburtstage und die hier gewählten Kontakte. Namen und Farben gelten nur in Kindo: Das Adressbuch bleibt unverändert.",
+      source: "Aus den Nextcloud-Kontakten", sourceHint: "Nutzt das App-Passwort der Nextcloud-Verbindung. Wähle die Adressbücher, aus denen Geburtstage gelesen werden.",
+      noConnection: "Verbinde zuerst Nextcloud unter Integrationen.", openIntegrations: "Integrationen",
+      loadBooks: "Adressbücher anzeigen", loading: "Frage Nextcloud …", noBooks: "Keine Adressbücher gefunden.",
+      autoShow: "Neue Kontakte sofort zeigen", autoShowHint: "Sonst warten neue Kontakte hier, bis jemand sie anhakt.",
+      save: "Speichern und lesen", synced: "Gelesen {when}.", notSynced: "Noch nicht gelesen.", off: "Kein Adressbuch gewählt.",
+      contacts: "Kontakte", search: "Suchen", noContacts: "Noch keine Kontakte mit Geburtstag.", noMatch: "Niemand passt.",
+      show: "Zeigen", name: "Name im Adressbuch", alias: "Name in Kindo", aliasFor: "Name in Kindo für {name}", aliasPlaceholder: "Wie im Adressbuch",
+      date: "Geburtstag", whose: "Gehört zu", nobody: "Niemand",
+      wallHint: "Das Rad kann auch auf die Wandanzeige (Einstellungen → Übersicht) und auf den Startbildschirm (Anpassen).",
     },
     family: { name: "Familienname", location: "Ort für das Wetter", timezone: "Zeitzone", hint: "Erscheint in der Begrüßung auf der Wandanzeige." },
     members: {
@@ -190,7 +210,7 @@ const de: Messages = {
       kiosk: "Wandanzeige", kioskHint: "Vollbild, ohne Verwaltung, Bilderrahmen bei Inaktivität.", openKiosk: "Wandanzeige öffnen",
       pin: "Einstellungen an der Wandanzeige mit PIN schützen",
       wallTiles: "Kacheln der Wandanzeige", wallTilesHint: "Was die Wandanzeige neben den Spalten der Familie zeigt, von oben nach unten.",
-      wallTile_weather: "Wetter", wallTile_meal: "Abendessen", wallTile_shopping: "Einkauf", wallTile_dates: "Wichtige Tage", wallTile_home: "Zuhause",
+      wallTile_weather: "Wetter", wallTile_meal: "Abendessen", wallTile_shopping: "Einkauf", wallTile_dates: "Wichtige Tage", wallTile_home: "Zuhause", wallTile_birthdays: "Geburtstagsrad",
       wallHomeHint: "Erscheint, sobald Schalter oder Solarsensoren aus Home Assistant eingerichtet sind.",
     },
     appearance: { theme: "Farbschema", light: "Hell", dark: "Dunkel", system: "Wie das Gerät", textSize: "Schriftgröße", normal: "Normal", large: "Groß" },

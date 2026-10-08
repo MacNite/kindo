@@ -183,6 +183,25 @@ export interface ImportantDate {
   memberId?: string;
 }
 
+/**
+ * A birthday from a contact in a connected address book (§12, D46). Whether
+ * it shows, the name Kindo uses and whose colour it takes are Kindo's own:
+ * nothing is written back to the address book.
+ */
+export interface ContactBirthday {
+  id: string;
+  /** The name in the address book. */
+  name: string;
+  /** The name Kindo shows instead, e.g. "Oma Biggy" for "Mama Nitschke". */
+  alias?: string;
+  /** YYYY-MM-DD, or --MM-DD when the contact has no year. */
+  date: string;
+  show: boolean;
+  /** The family member the contact belongs to, for the colour. */
+  memberId?: string;
+  connectionId?: string;
+}
+
 /** An important date's next occurrence, computed for "today". */
 export interface UpcomingDate extends ImportantDate {
   next: Date;
@@ -207,11 +226,11 @@ export interface Weather {
   days: { date: Date; sky: Sky; high: number; low: number }[];
 }
 
-export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" | "chores" | "meals" | "shopping" | "dates" | "photos" | "home";
+export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" | "chores" | "meals" | "shopping" | "dates" | "birthdays" | "photos" | "home";
 export type WidgetSize = "s" | "m" | "l";
 export interface WidgetConfig { id: WidgetId; enabled: boolean; size: WidgetSize }
 /** The household tiles beside the lanes on the wall display (§4, §21). */
-export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "home";
+export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "birthdays" | "home";
 export interface WallTile { id: WallTileId; enabled: boolean }
 
 /** A connection to an outside service, as an admin's Settings screen sees it: never its secret (§17). */
@@ -293,6 +312,8 @@ export interface HouseholdData {
   shoppingItems: ShoppingItem[];
   meals: Meal[];
   dates: ImportantDate[];
+  /** Contact birthdays: the shown ones, and for admins every one, to choose from (D46). */
+  birthdays: ContactBirthday[];
   sources: CalendarSource[];
   events: CalendarEvent[];
   albums: PhotoAlbum[];

@@ -43,6 +43,7 @@ function makeI18n(language: Language, regionId: keyof typeof REGIONS) {
     dateShort: (d: Date) => df({ day: "2-digit", month: "2-digit", year: "numeric" }).format(d),
     weekday: (d: Date, style: "long" | "short" | "narrow" = "short") => df({ weekday: style }).format(d),
     monthYear: (d: Date) => df({ month: "long", year: "numeric" }).format(d),
+    monthShort: (d: Date) => df({ month: "short" }).format(d).replace(/\.$/, ""),
     dayNum: (d: Date) => df({ day: "numeric" }).format(d),
     num: (n: number) => new Intl.NumberFormat(loc).format(n),
     money: (n: number) => new Intl.NumberFormat(loc, { style: "currency", currency: region.currency }).format(n),

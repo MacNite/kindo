@@ -133,6 +133,7 @@ model Member {
   shopping    ShoppingItem[]
   meals       Meal[]
   dates       ImportantDate[]
+  contacts    ContactBirthday[]
 }
 
 model Routine {
@@ -276,6 +277,30 @@ model ImportantDate {
   yearly   Boolean           @default(true)
   memberId String?
   member   Member?           @relation(fields: [memberId], references: [id], onDelete: SetNull)
+}
+
+/// A birthday from a contact in a connected address book (§12, D46). The sync
+/// keeps `name` and `date` up to date; `show`, `alias` and `memberId` are the
+/// household's own and are never written back.
+model ContactBirthday {
+  id           String      @id @default(cuid())
+  /// The Nextcloud account it comes from; null for the demo's contacts.
+  connectionId String?
+  connection   Connection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  /// The vCard's UID (or its address), so the household's choices survive a sync.
+  uid          String
+  /// The name in the address book (FN).
+  name         String
+  /// YYYY-MM-DD, or --MM-DD when the contact has no year.
+  date         String
+  show         Boolean     @default(false)
+  /// The name Kindo shows instead, e.g. "Oma Biggy" for "Mama Nitschke".
+  alias        String?
+  /// Whose colour it takes.
+  memberId     String?
+  member       Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, uid])
 }
 
 model CalendarSource {
@@ -486,4 +511,5 @@ model Connection {
   createdAt  DateTime         @default(now())
   sources    CalendarSource[]
   albums     PhotoAlbum[]
+  contacts   ContactBirthday[]
 }

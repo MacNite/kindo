@@ -4,7 +4,7 @@ import { addDays, at, dateKey, startOfDay } from "@/lib/dates";
 import { toStoredEvent } from "../events";
 import {
   DEFAULT_WIDGETS, DEMO_BALANCES, DEMO_DONE_TODAY, DEMO_LISTS, DEMO_PENDING, DEMO_REWARDS, DEMO_SOURCES, FAMILY_NAME,
-  demoAlbums, demoChores, demoDates, demoEvents, demoMeals, demoMembers, demoPhotos, demoRoutines, demoShopping, demoTasks,
+  demoAlbums, demoChores, demoContacts, demoDates, demoEvents, demoMeals, demoMembers, demoPhotos, demoRoutines, demoShopping, demoTasks,
 } from "./data";
 
 const json = (v: unknown) => v as Prisma.InputJsonValue;
@@ -82,6 +82,7 @@ export async function seedDemo(db: Tx, now = new Date(), timezone = process.env.
 
   await db.meal.createMany({ data: demoMeals(today).map((m) => ({ day: m.day, dinner: json(m.dinner), cookId: m.cookId, note: m.note === undefined ? undefined : json(m.note) })) });
   await db.importantDate.createMany({ data: demoDates(today).map((d) => ({ id: d.id, kind: d.kind, title: json(d.title), date: d.date, yearly: d.yearly, memberId: d.memberId })) });
+  await db.contactBirthday.createMany({ data: demoContacts(today) });
 
   await db.calendarSource.createMany({
     data: DEMO_SOURCES.map((s, i) => ({ id: s.id, provider: s.provider, name: json(s.name), account: s.account, defaultMemberIds: s.defaultMemberIds, readOnly: s.readOnly, sortOrder: i })),

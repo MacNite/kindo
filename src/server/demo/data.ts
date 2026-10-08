@@ -25,7 +25,8 @@ export const DEFAULT_WIDGETS: WidgetConfig[] = [
 ];
 
 export function demoMembers(today: Date): Member[] {
-  const lenaBirthday = new Date(addDays(today, 12).setFullYear(today.getFullYear() - 7));
+  const in12 = addDays(today, 12);
+  const lenaBirthday = new Date(in12.setFullYear(in12.getFullYear() - 8));
   return [
     { id: "anna", name: "Anna", role: "admin", color: "#3B78C2", avatar: { kind: "emoji", value: "🦊" }, birthday: "1988-03-14" },
     { id: "max", name: "Max", role: "adult", color: "#2E8B6E", avatar: { kind: "emoji", value: "🐻" }, birthday: "1986-11-02" },
@@ -181,6 +182,22 @@ export function demoDates(today: Date): ImportantDate[] {
     { id: "d4", kind: "anniversary", title: { en: "Anna & Max", de: "Anna & Max" }, date: yearsAgo(27, 10), yearly: true },
     { id: "d5", kind: "birthday", title: "Opa Klaus", date: yearsAgo(41, 73), yearly: true },
     { id: "d6", kind: "other", title: { en: "Christmas market", de: "Weihnachtsmarkt" }, date: dateKey(addDays(today, 52)), yearly: false },
+  ];
+}
+
+/** Birthdays as if from the Müllers' Nextcloud contacts, one renamed for Kindo (D46). */
+export function demoContacts(today: Date) {
+  const yearsAgo = (days: number, years: number) => {
+    const d = addDays(today, days);
+    d.setFullYear(d.getFullYear() - years);
+    return dateKey(d);
+  };
+  return [
+    { uid: "demo-brigitte", name: "Mama Müller", alias: "Oma Biggy", date: yearsAgo(5, 75), show: true, memberId: "max" },
+    { uid: "demo-julia", name: "Julia Hartmann", alias: "Tante Jule", date: yearsAgo(120, 42), show: true, memberId: "anna" },
+    { uid: "demo-ben", name: "Ben Schröder", date: yearsAgo(56, 8), show: true, memberId: "lena" },
+    { uid: "demo-carla", name: "Carla Rossi", date: `--${dateKey(addDays(today, 200)).slice(5)}`, show: true },
+    { uid: "demo-peter", name: "Peter Vogt (Büro)", date: yearsAgo(250, 47), show: false },
   ];
 }
 

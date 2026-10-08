@@ -39,7 +39,7 @@ const en = {
   widgets: {
     clock: "Clock", weather: "Weather", agenda: "Today", upcoming: "Coming up", routines: "Routines",
     chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
-    home: "Home control",
+    home: "Home control", birthdays: "Birthdays",
   },
   calendar: {
     holiday: "School holidays", recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
@@ -47,6 +47,14 @@ const en = {
     month: "Month", week: "Week", agenda: "Agenda", sources: "Calendars", newEvent: "New event",
     readOnly: "Read only", from: "From {source}", who: "Who", where: "Where", when: "When",
     today: "Today", previous: "Previous", next: "Next", more: "+{n} more", source: "Calendar",
+    birthdays: "Birthdays", importantDay: "Important day",
+  },
+  birthdays: {
+    title: "Birthdays", soon: "Soon", later: "Later this year", next: "Next up", family: "Family",
+    none: "No birthdays yet. Add them to people in Settings → Members, with “Important day” in the calendar, or from Nextcloud contacts in Settings → Birthdays.",
+    turns: "turns {n}", turnsToday: "turns {n} today", days: "{n} days", oneDay: "1 day", months: "{n} months", oneMonth: "1 month",
+    sleeps: "{n} more sleeps", oneSleep: "1 more sleep",
+    legend: "▲ today. The arc shows the time until the chosen birthday.", wheel: "Birthdays in the year",
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Subscription", local: "Local" },
   routines: {
@@ -174,7 +182,19 @@ const en = {
       dates: "Dates",
       family: "Family", members: "Members", calendar: "Calendar", routines: "Routines & chores",
       rewards: "Rewards", photos: "Photos", dashboard: "Dashboard", appearance: "Appearance",
-      language: "Language & region", integrations: "Integrations",
+      language: "Language & region", integrations: "Integrations", birthdays: "Birthdays",
+    },
+    birthdays: {
+      hint: "The birthday wheel shows everyone in the family with a birthday, the birthdays added as important days, and the contacts picked here. Names and colours set here are Kindo's own: the address book stays unchanged.",
+      source: "From Nextcloud contacts", sourceHint: "Uses the app password of the Nextcloud connection. Choose the address books to read birthdays from.",
+      noConnection: "Connect Nextcloud under Integrations first.", openIntegrations: "Integrations",
+      loadBooks: "Show address books", loading: "Asking Nextcloud…", noBooks: "No address books found.",
+      autoShow: "Show new contacts at once", autoShowHint: "Otherwise new contacts wait here until someone ticks them.",
+      save: "Save and read", synced: "Read {when}.", notSynced: "Not read yet.", off: "No address book chosen.",
+      contacts: "Contacts", search: "Search", noContacts: "No contacts with a birthday yet.", noMatch: "Nobody matches.",
+      show: "Show", name: "Name in the address book", alias: "Name in Kindo", aliasFor: "Name in Kindo for {name}", aliasPlaceholder: "As in the address book",
+      date: "Birthday", whose: "Belongs to", nobody: "Nobody",
+      wallHint: "The wheel can also go on the wall display (Settings → Dashboard) and on the home screen (Customize).",
     },
     family: { name: "Family name", location: "Location for weather", timezone: "Time zone", hint: "Shown on the wall display greeting." },
     members: {
@@ -193,7 +213,7 @@ const en = {
       kiosk: "Wall display", kioskHint: "Full screen, no admin controls, photo frame when idle.", openKiosk: "Open wall display",
       pin: "Settings need a PIN on the wall display",
       wallTiles: "Wall display tiles", wallTilesHint: "What the wall shows beside the family lanes, from top to bottom.",
-      wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control",
+      wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control", wallTile_birthdays: "Birthday wheel",
       wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.",
     },
     appearance: { theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large" },

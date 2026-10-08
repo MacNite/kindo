@@ -121,7 +121,8 @@ export function DatesSection() {
   );
 }
 
-function DateEditor({ date, onClose }: { date: ImportantDate | null; onClose: () => void }) {
+/** Adds or edits an important date; also opened from the calendar's "Important day" (D46). */
+export function DateEditor({ date, onClose, title: heading }: { date: ImportantDate | null; onClose: () => void; title?: string }) {
   const { t, tx } = useI18n();
   const { getMembers, run } = useStore();
   const [kind, setKind] = useState<ImportantDateKind>(date?.kind ?? "birthday");
@@ -132,7 +133,7 @@ function DateEditor({ date, onClose }: { date: ImportantDate | null; onClose: ()
   const [error, setError] = useState<string | null>(null);
   const done = (r: { ok: boolean; error?: string }) => (r.ok ? onClose() : setError(r.error ?? "server"));
   return (
-    <Dialog open onClose={onClose} title={date ? t("settings.dates.edit") : t("settings.dates.add")}
+    <Dialog open onClose={onClose} title={heading ?? (date ? t("settings.dates.edit") : t("settings.dates.add"))}
       footer={<>
         {date && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => deleteImportantDate({ id: date.id })))}><Trash2 size={16} />{t("common.delete")}</Button>}
         <ErrorText code={error} className="self-center" />

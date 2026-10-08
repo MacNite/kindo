@@ -18,6 +18,7 @@ import { Photo } from "../ui/PhotoPlaceholder";
 import { RewardAmount } from "../ui/RewardAmount";
 import { cn } from "../ui/cn";
 import { HomeWidget } from "../home/HomeControl";
+import { BirthdaysCompact } from "../birthdays/Birthdays";
 
 // ── Clock ───────────────────────────────────────────────────────────────────
 export function BigClock({ size = "md" }: { size?: "md" | "xl" }) {
@@ -280,6 +281,11 @@ function DatesWidget() {
   return <Panel title={t("widgets.dates")}><DatesList /></Panel>;
 }
 
+function BirthdaysWidget() {
+  const { t } = useI18n();
+  return <Panel title={t("widgets.birthdays")} href="/calendar?view=birthdays"><BirthdaysCompact /></Panel>;
+}
+
 // ── Photos ──────────────────────────────────────────────────────────────────
 function PhotosWidget() {
   const { t, fmt } = useI18n();
@@ -301,5 +307,5 @@ function PhotosWidget() {
 
 export const WIDGETS: Record<WidgetId, () => JSX.Element> = {
   clock: ClockWidget, weather: WeatherWidget, agenda: AgendaWidget, upcoming: UpcomingWidget, routines: RoutinesWidget,
-  chores: ChoresWidget, meals: MealsWidget, shopping: ShoppingWidget, dates: DatesWidget, photos: PhotosWidget, home: HomeWidget,
+  chores: ChoresWidget, meals: MealsWidget, shopping: ShoppingWidget, dates: DatesWidget, birthdays: BirthdaysWidget, photos: PhotosWidget, home: HomeWidget,
 };
