@@ -23,7 +23,8 @@ export type Actor =
  */
 export type Level = "view" | "tick" | "manage" | "admin";
 
-export const DEVICE_COOKIE = "kindo_device";
+import { DEVICE_COOKIE } from "./cookie-names";
+export { DEVICE_COOKIE };
 export const PIN_COOKIE = "kindo_pin";
 export const PAIRING_COOKIE = "kindo_pairing";
 /** How long a PIN unlocks a wall display. */

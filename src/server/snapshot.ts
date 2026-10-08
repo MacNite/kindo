@@ -11,12 +11,13 @@ import { demoWeather } from "./demo/data";
 import { completeWallTiles, completeWidgets } from "@/lib/dashboard";
 import { homeSetupOf } from "./home";
 import { camerasOf } from "./cameras";
+import { env } from "./env";
 
 /** How far back completions travel to the devices: enough for a two-week history view. */
-export const HISTORY_DAYS = 35;
+const HISTORY_DAYS = 35;
 /** Calendar window sent to the devices. Wider ranges are fetched on demand later. */
-export const EVENTS_BEFORE_DAYS = 90;
-export const EVENTS_AFTER_DAYS = 400;
+const EVENTS_BEFORE_DAYS = 90;
+const EVENTS_AFTER_DAYS = 400;
 
 const value = (v: unknown) => v as TaskValue;
 
@@ -122,7 +123,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       id: c.id, kind: c.kind, name: c.name, url: c.url ?? undefined, username: c.username ?? undefined, status: c.status,
       lastError: c.lastError ?? undefined, lastSyncAt: c.lastSyncAt ?? undefined, config: (c.config ?? {}) as Record<string, unknown>,
     })) : [],
-    features: { google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) },
+    features: { google: Boolean(env().google) },
     home: homeSetupOf(connections.find((c) => c.kind === "homeassistant")),
     cameras: camerasOf(connections.find((c) => c.kind === "frigate")),
   };

@@ -160,7 +160,7 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
                   <HolidayBand day={d} />
                   {evs.slice(0, 3).map((e) => (
                     <button key={e.id} type="button" onClick={() => onSelect(e)} style={evStyle(e, getMember)}
-                      className={cn("pointer-events-auto relative truncate rounded-md px-1.5 py-0.5 text-left text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
+                      className={cn("pointer-events-auto relative truncate rounded-md px-1.5 py-0.5 text-left coarse:py-1.5 text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
                       {!e.allDay && <span className="num font-normal opacity-80">{fmt.time(e.start)} </span>}{tx(e.title)}
                     </button>
                   ))}
@@ -223,7 +223,7 @@ function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<stri
                 <div className="mt-1 flex flex-col gap-1">
                   <HolidayBand day={d} />
                   {allDay.map((e) => (
-                    <button key={e.id} onClick={() => onSelect(e)} style={evStyle(e, getMember)} className={cn("truncate rounded-md px-1.5 py-0.5 text-left text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>{tx(e.title)}</button>
+                    <button key={e.id} onClick={() => onSelect(e)} style={evStyle(e, getMember)} className={cn("truncate rounded-md px-1.5 py-0.5 text-left coarse:py-1.5 text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>{tx(e.title)}</button>
                   ))}
                 </div>
               </div>
