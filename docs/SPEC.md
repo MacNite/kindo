@@ -40,6 +40,7 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 - Month, week and agenda views. Events are colour-coded by person, with a filter per person.
 - Daily attendance (school, Kita) is a *background* event: shown quietly, and left out of "coming up".
+- School holidays from the household's feeds (§7) show as a quiet band on each day they cover (month and week views) and as one line in the agenda on the day they begin. They are not events: they can't be opened or edited and don't count as "coming up".
 - Sources: **Nextcloud/CalDAV (primary)**, Google Calendar, ICS subscriptions and local events. Each source has default members that decide the event colour, and a read-only flag.
 
 ## §6 Routines, chores, tasks
@@ -174,3 +175,4 @@ Sections: Family, Members, Dates, Calendar, Routines & chores, Rewards, Photos, 
 | D38 | Google Calendar uses the household's own OAuth client (`GOOGLE_CLIENT_ID`/`SECRET`), scopes `calendar.readonly` + `calendar.events`, offline access; the refresh token is stored encrypted, access tokens only in memory. Kindo's people and uid travel in the event's private extended properties | No shared Kindo client to trust or rate-limit; writes behave like CalDAV's (D30). |
 | D39 | Home Assistant presence: one entity per household, followed over HA's WebSocket API (`subscribe_trigger`) by the instance that runs the jobs; changes are pushed to screens as a `presence` topic on the SSE stream. `on`, `home`, `detected`, `occupied` mean someone is there | No automation to write in HA, and presence reaches the wall within a second without being stored. |
 | D40 | Buttons inside forms are `type="button"` unless they submit | A person chip inside a form submitted it. |
+| D41 | The holiday feeds that decide school days (D20) are also shown in the calendar, as a quiet band per day rather than as events. Ranges with the same name from several feeds show once | Families set up the feed and expect to see the holidays; making them events would crowd "coming up" and the week grid with a fortnight of all-day entries. |

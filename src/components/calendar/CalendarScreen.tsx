@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState, type CSSProperties } from "react";
-import { ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Rss, Smartphone, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Rss, Smartphone, Trash2, TreePalm } from "lucide-react";
 import type { CalendarEvent, CalendarProvider, Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useNow } from "@/lib/useNow";
@@ -111,7 +111,7 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
   const { t, tx, fmt, region, weekOrder, weekdayName } = useI18n();
   const days = monthGrid(cursor, region.weekStartsOn);
   const [picked, setPicked] = useState<Date>(today);
-  const { eventsOn, getMember } = useStore();
+  const { eventsOn, getMember, holidaysOn } = useStore();
   return (
     <>
       <div className="overflow-hidden rounded-panel bg-surface">
@@ -128,10 +128,12 @@ function MonthView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<str
                 className={cn("flex min-h-[64px] flex-col gap-1 border-b border-r border-line p-1.5 text-left md:min-h-[118px]",
                   !inMonth && "bg-sunken/50 text-soft", sameDay(d, picked) && "max-md:bg-sunken")}>
                 <span className={cn("num grid h-7 w-7 place-items-center rounded-full text-sm font-bold", isToday && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
-                <span className="flex flex-wrap gap-1 md:hidden">
+                <span className="flex flex-wrap items-center gap-1 md:hidden">
+                  {holidaysOn(d).length > 0 && <TreePalm size={12} className="text-soft" aria-label={t("calendar.holiday")} />}
                   {evs.slice(0, 4).map((e) => <span key={e.id} style={evStyle(e, getMember)} className="m-bg h-1.5 w-1.5 rounded-full" />)}
                 </span>
                 <span className="hidden flex-col gap-1 md:flex">
+                  <HolidayBand day={d} />
                   {evs.slice(0, 3).map((e) => (
                     <span key={e.id} role="button" tabIndex={0} onClick={(ev) => { ev.stopPropagation(); onSelect(e); }} style={evStyle(e, getMember)}
                       className={cn("truncate rounded-md px-1.5 py-0.5 text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>
@@ -188,6 +190,7 @@ function WeekView({ cursor, filter, onSelect }: { cursor: Date; filter: Set<stri
                   <span className={cn("num grid h-8 min-w-8 place-items-center rounded-full px-1 font-display text-xl font-semibold", sameDay(d, today) && "bg-ink text-surface")}>{fmt.dayNum(d)}</span>
                 </div>
                 <div className="mt-1 flex flex-col gap-1">
+                  <HolidayBand day={d} />
                   {allDay.map((e) => (
                     <button key={e.id} onClick={() => onSelect(e)} style={evStyle(e, getMember)} className={cn("truncate rounded-md px-1.5 py-0.5 text-left text-xs font-bold", e.memberIds.length ? "tint m-text" : "bg-sunken")}>{tx(e.title)}</button>
                   ))}
@@ -258,20 +261,22 @@ function DayColumn({ day, filter, onSelect, now }: { day: Date; filter: Set<stri
 function AgendaView({ from, filter, onSelect }: { from: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void }) {
   const today = useToday();
   const { fmt } = useI18n();
-  const { eventsOn } = useStore();
+  const { eventsOn, holidaysOn } = useStore();
   const days = useMemo(() => Array.from({ length: 21 }, (_, i) => addDays(startOfDay(from), i)), [from]);
   return (
     <div className="flex flex-col gap-5">
-      {days.map((d) => {
+      {days.map((d, i) => {
         const evs = eventsOn(d, filter);
-        if (!evs.length) return null;
+        // Holidays show on the day they begin (or the first day listed), not on every day of a fortnight.
+        const holidays = holidaysOn(d).some((h) => i === 0 || h.start === dateKey(d));
+        if (!evs.length && !holidays) return null;
         return (
           <section key={d.toISOString()} className="grid gap-3 md:grid-cols-[180px_1fr]">
             <div className="md:pt-3">
               <p className="font-display text-xl font-semibold">{fmt.relDay(d, today)}</p>
               <p className="text-sm text-soft">{fmt.dateLong(d)}</p>
             </div>
-            <DayList day={d} filter={filter} onSelect={onSelect} />
+            <DayList day={d} filter={filter} onSelect={onSelect} holidays={holidays} />
           </section>
         );
       })}
@@ -279,13 +284,21 @@ function AgendaView({ from, filter, onSelect }: { from: Date; filter: Set<string
   );
 }
 
-function DayList({ day, filter, onSelect }: { day: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void }) {
+function DayList({ day, filter, onSelect, holidays = true }: { day: Date; filter: Set<string>; onSelect: (e: CalendarEvent) => void; holidays?: boolean }) {
   const { t, tx, fmt } = useI18n();
-  const { eventsOn, getMember, getSource } = useStore();
+  const { eventsOn, getMember, getSource, holidaysOn } = useStore();
   const evs = eventsOn(day, filter);
-  if (!evs.length) return <p className="rounded-card bg-surface p-4 text-soft">{t("home.freeDay")}</p>;
+  const hs = holidays ? holidaysOn(day) : [];
+  if (!evs.length && !hs.length) return <p className="rounded-card bg-surface p-4 text-soft">{t("home.freeDay")}</p>;
   return (
     <ul className="flex flex-col gap-1.5 rounded-card bg-surface p-2">
+      {hs.length > 0 && (
+        <li className="flex items-center gap-3 p-2 text-soft">
+          <span className="w-[86px] shrink-0 text-sm">{t("calendar.holiday")}</span>
+          <TreePalm size={16} className="shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 font-bold leading-snug">{hs.map((h) => h.summary).join(", ")}</span>
+        </li>
+      )}
       {evs.map((e) => {
         const ms = e.memberIds.flatMap((id) => getMember(id) ?? []);
         const S = getSource(e.sourceId);
@@ -306,6 +319,20 @@ function DayList({ day, filter, onSelect }: { day: Date; filter: Set<string>; on
         );
       })}
     </ul>
+  );
+}
+
+/** School holidays from the household's feeds: a quiet band, not an event (§5, §20 D41). */
+function HolidayBand({ day }: { day: Date }) {
+  const { t } = useI18n();
+  const { holidaysOn } = useStore();
+  const names = holidaysOn(day).map((h) => h.summary).join(", ");
+  if (!names) return null;
+  return (
+    <span title={`${t("calendar.holiday")}: ${names}`} className="flex min-w-0 items-center gap-1 rounded-md bg-sunken px-1.5 py-0.5 text-xs text-soft">
+      <TreePalm size={12} className="shrink-0" aria-label={t("calendar.holiday")} />
+      <span className="truncate">{names}</span>
+    </span>
   );
 }
 

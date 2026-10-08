@@ -1,4 +1,6 @@
 import type { Chore, HouseholdData, Member, Period, Routine } from "../types";
+
+type Holiday = HouseholdData["holidays"][number];
 import { occursOn, schoolDaysFrom } from "../recurrence";
 import { dateKey } from "../dates";
 
@@ -18,9 +20,15 @@ export function householdSelectors(d: HouseholdData) {
   const routineFor = (memberId: string, period: Period, day: Date): Routine | undefined =>
     routinesFor(memberId, day).find((r) => r.period === period);
   const choresOn = (day: Date): Chore[] => d.chores.filter((c) => occursOn(c.recurrence, day, isSchoolDay));
+  /** Holiday ranges covering a day, one per name (two feeds often list the same holiday). */
+  const holidaysOn = (day: Date): Holiday[] => {
+    const k = dateKey(day);
+    const seen = new Set<string>();
+    return d.holidays.filter((h) => h.start <= k && k <= h.end && !seen.has(h.summary) && !!seen.add(h.summary));
+  };
 
   return {
-    getMembers, getMember, children, routinesFor, routineFor, choresOn, isSchoolDay,
+    getMembers, getMember, children, routinesFor, routineFor, choresOn, isSchoolDay, holidaysOn,
     allRoutines: () => d.routines,
     allChores: () => d.chores,
   };
