@@ -83,6 +83,7 @@ const de: Messages = {
   tasks: {
     title: "Aufgaben", subtitle: "Einmalige Dinge, die erledigt werden müssen.", add: "Aufgabe hinzufügen", placeholder: "Was ist zu tun?",
     open: "Offen", done: "Erledigt", overdue: "Überfällig", due: "Fällig {date}", noDue: "Ohne Datum", unassigned: "Irgendwer",
+    remove: "„{title}“ löschen", removeConfirm: "„{title}“ löschen?",
   },
   shopping: {
     queued: "Offline: {n} Änderungen werden gesendet, sobald du wieder online bist.", offlineNow: "Offline: Die Liste funktioniert trotzdem, Änderungen werden später gesendet.",

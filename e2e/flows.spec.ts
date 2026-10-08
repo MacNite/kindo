@@ -63,3 +63,14 @@ test("the wall rolls over to the new day at midnight", async ({ page }) => {
   // Not just the clock: nothing on the wall may still be showing yesterday.
   await expect(page.getByText("Wednesday, 7 October")).toHaveCount(0);
 });
+
+test("a task added by mistake can be deleted", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/tasks");
+  await page.getByPlaceholder("What needs doing?").fill("Typo task");
+  await page.getByRole("button", { name: "Add a task" }).click();
+  await expect(page.getByText("Typo task")).toBeVisible();
+  page.once("dialog", (d) => d.accept());
+  await page.getByRole("button", { name: "Delete “Typo task”" }).click();
+  await expect(page.getByText("Typo task")).toBeHidden();
+});
