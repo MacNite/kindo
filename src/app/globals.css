@@ -136,3 +136,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
 }
+
+/* The birthday tile: below ~20rem the wheel shrinks so the next birthday keeps its space. */
+.bday-compact { container-type: inline-size; }
+@container (max-width: 20rem) {
+  .bday-compact-grid { grid-template-columns: 84px minmax(0, 1fr); gap: 0.75rem; }
+}

@@ -83,7 +83,7 @@ export function WallDashboard() {
     ),
     // The birthday wheel, when the household turned it on (D46).
     birthdays: (
-      <div className="wall-tile">
+      <div className="wall-tile wall-grow">
         <p className="wall-tile-title mb-2 text-lg font-bold text-soft">{t("widgets.birthdays")}</p>
         <BirthdaysCompact large />
       </div>

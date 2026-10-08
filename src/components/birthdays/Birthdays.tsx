@@ -236,9 +236,10 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
   const rest = list.filter((b) => b.id !== selected.id).slice(0, 3);
   const sleeps = selected.days > 0 && selected.days <= SLEEPS_FROM ? selected.days : 0;
   return (
-    <div className="flex flex-col gap-3">
-      <div className={cn("grid items-center gap-4", large ? "grid-cols-[150px_minmax(0,1fr)]" : "grid-cols-[120px_minmax(0,1fr)]")}>
-        <BirthdayWheel list={list} selected={selected} onSelect={select} compact />
+    // In a narrow slot (the wall's top strip) the wheel shrinks and the next birthday stays readable.
+    <div className="bday-compact flex flex-col gap-3">
+      <div className={cn("bday-compact-grid grid items-center gap-4", large ? "grid-cols-[150px_minmax(0,1fr)]" : "grid-cols-[120px_minmax(0,1fr)]")}>
+        <div className="bday-compact-wheel"><BirthdayWheel list={list} selected={selected} onSelect={select} compact /></div>
         <div className="min-w-0" aria-live="polite">
           <p className="text-xs font-bold uppercase tracking-wider text-soft">{t("birthdays.next")}</p>
           <p className={cn("font-display font-bold leading-tight", large ? "text-2xl" : "text-xl")}>{selected.name}</p>
