@@ -8,7 +8,6 @@ import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
 import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
-import { EMOJI_CHOICES } from "@/lib/pictograms";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
 import { Avatar } from "../ui/Avatar";
@@ -19,7 +18,12 @@ import { cn } from "../ui/cn";
 
 /** Calm, distinct member colours that read on both themes (§3, §16). */
 export const MEMBER_COLORS = ["#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B", "#C2477A", "#2A8C9E", "#B4443C", "#5B6A6D"];
-const AVATAR_EMOJI = ["🦊", "🐻", "🦄", "🦖", "🐼", "🐸", "🦁", "🐯", "🐨", "🐰", "🐙", "🦉", "🐝", "🐢", "🐳", "🌻"];
+/** Avatar choices: friendly animals first, then a few favourite things. Kept apart from task pictures. */
+const AVATAR_EMOJI = [
+  "🦊", "🐻", "🦄", "🐴", "🦖", "🐼", "🐸", "🦁", "🐯", "🐨", "🐰", "🐶", "🐱", "🐵", "🐷", "🐧",
+  "🦒", "🐘", "🦔", "🐙", "🦉", "🐝", "🦋", "🐞", "🐢", "🐬", "🐳", "🐉",
+  "🌻", "🌸", "🌈", "⭐", "🚀", "🚒", "⚽", "🎸", "🍓", "👑",
+];
 
 export function MemberEditor({ member, onClose }: { member: Member | null; onClose: () => void }) {
   const { t } = useI18n();
@@ -65,7 +69,7 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
               className={cn("grid aspect-square place-items-center rounded-tile font-display text-xl font-bold", avatar.kind === "initial" ? "tint-strong ring-2 ring-[var(--m)]" : "bg-sunken")}>
               {(name || "?")[0]}
             </button>
-            {[...new Set([...AVATAR_EMOJI, ...EMOJI_CHOICES])].slice(0, 23).map((e) => (
+            {[...new Set([...(member?.avatar.kind === "emoji" ? [member.avatar.value] : []), ...AVATAR_EMOJI])].map((e) => (
               <button type="button" key={e} aria-pressed={avatar.kind === "emoji" && avatar.value === e} onClick={() => setAvatar({ kind: "emoji", value: e })}
                 className={cn("grid aspect-square place-items-center rounded-tile text-2xl", avatar.kind === "emoji" && avatar.value === e ? "tint-strong ring-2 ring-[var(--m)]" : "bg-sunken")}>{e}</button>
             ))}
