@@ -97,6 +97,7 @@ const en = {
     title: "Tasks", subtitle: "One-off things that need doing.", add: "Add a task", placeholder: "What needs doing?",
     open: "Open", done: "Done", overdue: "Overdue", due: "Due {date}", noDue: "No date", unassigned: "Anyone",
     remove: "Delete “{title}”", removeConfirm: "Delete “{title}”?",
+    for: "For", dueDate: "Due date",
   },
   shopping: {
     queued: "Offline: {n} changes will be sent once you're back online.", offlineNow: "Offline: the list still works, changes are sent later.",
