@@ -19,7 +19,7 @@ import type { EventToWrite } from "./ical";
  * when Nextcloud is down. Writes go to the server first and are pulled back,
  * so Kindo never shows an event its calendar doesn't have.
  */
-export const SYNC_WINDOW = { before: 90, after: 400 };
+const SYNC_WINDOW = { before: 90, after: 400 };
 const syncMinutes = () => env().KINDO_SYNC_MINUTES;
 /** Re-read an unchanged calendar now and then anyway: the window moves with the days. */
 const FULL_RESYNC_MS = 6 * 3_600_000;
@@ -47,13 +47,10 @@ const providers: Partial<Record<Connection["kind"], CalendarProvider>> = {
   google: googleProvider,
 };
 
-export function registerCalendarProvider(kind: Connection["kind"], p: CalendarProvider) {
-  providers[kind] = p;
-}
 export const providerFor = (kind: Connection["kind"]) => providers[kind];
 
 /** Same occurrence, same id, sync after sync: screens keep their selection. */
-export const eventId = (sourceId: string, uid: string, start: Date) => `ev_${sha256(`${sourceId}|${uid}|${start.toISOString()}`).slice(0, 24)}`;
+const eventId = (sourceId: string, uid: string, start: Date) => `ev_${sha256(`${sourceId}|${uid}|${start.toISOString()}`).slice(0, 24)}`;
 
 function toRows(source: SourceRow, events: RemoteEvent[], memberIds: Set<string>): Prisma.EventCreateManyInput[] {
   const seen = new Set<string>();
@@ -74,7 +71,7 @@ function toRows(source: SourceRow, events: RemoteEvent[], memberIds: Set<string>
 }
 
 /** Pulls one calendar. `state` is the calendar's change marker from the listing, when the provider has one. */
-export async function syncSource(db: Tx, conn: Connection, source: SourceRow, opts: { state?: string; force?: boolean; now?: Date } = {}) {
+async function syncSource(db: Tx, conn: Connection, source: SourceRow, opts: { state?: string; force?: boolean; now?: Date } = {}) {
   const now = opts.now ?? new Date();
   const p = providerFor(conn.kind);
   if (!p) return false;

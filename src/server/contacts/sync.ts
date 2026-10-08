@@ -38,7 +38,7 @@ export const B = {
 };
 type In<K extends keyof typeof B> = z.output<(typeof B)[K]>;
 
-export const contactsConfig = (conn: Pick<Connection, "config">) => (conn.config as { contacts?: ContactsConfig } | null)?.contacts;
+const contactsConfig = (conn: Pick<Connection, "config">) => (conn.config as { contacts?: ContactsConfig } | null)?.contacts;
 const withContacts = (conn: Connection, contacts: ContactsConfig) => ({ ...(conn.config as object), contacts }) as unknown as Prisma.InputJsonValue;
 
 async function caldavConnection(db: Tx, connectionId: string) {

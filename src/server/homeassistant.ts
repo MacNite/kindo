@@ -29,7 +29,7 @@ export interface HaConfig {
   visitors?: string[];
 }
 /** States that mean "someone is here", for motion/occupancy sensors, person and device trackers. */
-export const DEFAULT_PRESENT = ["on", "home", "detected", "occupied"];
+const DEFAULT_PRESENT = ["on", "home", "detected", "occupied"];
 
 export const isPresent = (state: string, present = DEFAULT_PRESENT) => present.includes(state.toLowerCase());
 

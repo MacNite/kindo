@@ -62,7 +62,7 @@ async function firstSync(db: Tx, connectionId: string, run: () => Promise<unknow
 }
 
 /** Adds the calendars a connection has that Kindo doesn't know yet (and that nobody removed). */
-export async function discoverCalendars(db: Tx, conn: Connection) {
+async function discoverCalendars(db: Tx, conn: Connection) {
   const p = providerFor(conn.kind);
   if (!p) return 0;
   const ignored = new Set((conn.config as Config).ignored ?? []);

@@ -7,7 +7,7 @@ import { parseCalendar, type ParsedEvent } from "./calendar/ical";
 import { errorMessage, log } from "./log";
 
 /** How long a successful holiday sync stays fresh. */
-export const HOLIDAY_SYNC_HOURS = 24;
+const HOLIDAY_SYNC_HOURS = 24;
 
 /** Holiday events as inclusive date ranges. All-day events end the day before their exclusive end. */
 export function holidayRanges(events: ParsedEvent[]) {

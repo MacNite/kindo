@@ -11,7 +11,7 @@ import { errorMessage, log } from "./log";
  * its own SSE clients (`/api/stream`), which then refetch what changed. No
  * extra service, and correct with more than one container.
  */
-export const CHANNEL = "kindo_changes";
+const CHANNEL = "kindo_changes";
 
 /** What changed. Clients refetch the matching slice. */
 /**
@@ -84,9 +84,4 @@ export function subscribe(fn: (c: Change) => void): () => void {
   state.emitter.on("change", fn);
   void ensureListening();
   return () => state.emitter.off("change", fn);
-}
-
-/** Delivers a change to this instance's subscribers only (used by tests). */
-export function emitLocal(c: Change) {
-  state.emitter.emit("change", c);
 }

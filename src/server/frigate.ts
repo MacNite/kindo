@@ -121,7 +121,7 @@ function openSocket(u: URL, fingerprint: string | undefined, timeoutMs: number):
 }
 
 /** One request to Frigate: a fixed path on the configured address, bounded in time and size, no redirects. */
-export async function frigateRequest(t: Pick<FrigateTarget, "url" | "fingerprint">, path: string, { method = "GET", headers = {}, body, timeoutMs = 10_000, maxBytes = 2 * 1024 * 1024 }: Req = {}): Promise<Res> {
+async function frigateRequest(t: Pick<FrigateTarget, "url" | "fingerprint">, path: string, { method = "GET", headers = {}, body, timeoutMs = 10_000, maxBytes = 2 * 1024 * 1024 }: Req = {}): Promise<Res> {
   let u: URL;
   try {
     u = new URL(path, t.url.replace(/\/*$/, "/"));
