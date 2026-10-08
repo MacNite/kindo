@@ -45,6 +45,13 @@ test("the wall display opens the photo frame and a tap returns", async ({ page }
   await expect(saver).toBeHidden();
 });
 
+test("the wall shows what each child has collected", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/wall");
+  await expect(page.getByLabel("What Lena has collected")).toHaveText(/\d/);
+  await expect(page.getByLabel("What Paul has collected")).toHaveText(/\d/);
+});
+
 test("shopping quick-add puts the item on the list", async ({ page }) => {
   await prepare(page);
   await page.goto("/shopping");
