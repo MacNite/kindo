@@ -52,7 +52,9 @@ export function PhotosScreen() {
                       <button onClick={() => updateAlbum(a.id, { selected: !a.selected, weight: a.selected ? 0 : 20 })} aria-pressed={a.selected}
                         className={cn("flex w-full items-center gap-3 rounded-card border-2 p-3 text-left", a.selected ? "border-ink" : "border-line")}>
                         <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-tile">
-                          <PhotoPlaceholder seed={a.count % 17} className="h-full w-full" />
+                          {a.cover
+                            ? <img src={`/api/photos/${encodeURIComponent(a.cover)}?size=thumbnail`} alt="" loading="lazy" decoding="async" className="h-full w-full bg-sunken object-cover" />
+                            : <PhotoPlaceholder seed={a.count % 17} className="h-full w-full" />}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-bold">{a.name}</span>
