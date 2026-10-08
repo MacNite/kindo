@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 /** Neutral placeholder mark: four overlapping dots in the family colours. */
-export function Logo({ size = 30 }: { size?: number }) {
+function Logo({ size = 30 }: { size?: number }) {
   const { getMembers } = useStore();
   // Family colours, topped up with calm defaults for small or new households.
   const c = [...getMembers().map((m) => m.color), "#3B78C2", "#2E8B6E", "#8A5CD1", "#E39A1B"];

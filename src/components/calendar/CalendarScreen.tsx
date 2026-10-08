@@ -459,5 +459,3 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
     </Dialog>
   );
 }
-
-export { SourceList };

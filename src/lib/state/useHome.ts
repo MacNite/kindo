@@ -5,7 +5,7 @@ import { allOff as allOffAction, readHome, setSwitch } from "../services/home";
 import { useStore } from "./store";
 
 /** How often an open Home control view reads the switches and the solar flow. */
-export const HOME_POLL_MS = 15_000;
+const HOME_POLL_MS = 15_000;
 
 /**
  * Home control (§21) for one screen: reads the switches and the solar flow

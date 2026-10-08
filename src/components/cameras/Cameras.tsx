@@ -127,7 +127,7 @@ export function CamerasScreen() {
  * sound, and Talk where the camera has a speaker. Closing it ends everything:
  * the stream, the microphone and the talk lease.
  */
-export function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: CameraInfo; onClose: () => void; ringing?: boolean; onTouch?: () => void }) {
+function LiveCamera({ camera, onClose, ringing, onTouch }: { camera: CameraInfo; onClose: () => void; ringing?: boolean; onTouch?: () => void }) {
   const { t } = useI18n();
   const talk = useTalk(camera.id);
   const { media, state, error, retry } = useCameraStream(camera.id, { mic: talk.mic, screen: talk.mic ? talk.screen : undefined });

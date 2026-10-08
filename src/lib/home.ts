@@ -5,7 +5,6 @@
 
 /** Domains Kindo may switch on and off. Everything else stays read-only. */
 export const SWITCHABLE_DOMAINS = ["light", "switch", "fan", "input_boolean"] as const;
-export type SwitchDomain = (typeof SWITCHABLE_DOMAINS)[number];
 
 export const domainOf = (entityId: string) => entityId.split(".")[0] ?? "";
 export const isSwitchable = (entityId: string): boolean => (SWITCHABLE_DOMAINS as readonly string[]).includes(domainOf(entityId));

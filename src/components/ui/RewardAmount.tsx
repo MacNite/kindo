@@ -17,7 +17,7 @@ function Coin({ size, className }: { size: number; className?: string }) {
 }
 
 /** The picture for a point: a filled star or a coin. Money has none, it is shown as an amount. */
-export function RewardIcon({ mode, size = 16, className }: { mode: RewardMode; size?: number; className?: string }) {
+function RewardIcon({ mode, size = 16, className }: { mode: RewardMode; size?: number; className?: string }) {
   if (mode === "tokens") return <Coin size={size} className={className} />;
   if (mode === "stars") return <Star size={size} className={cn("text-star", className)} fill="currentColor" strokeWidth={2} aria-hidden />;
   return null;

@@ -32,7 +32,7 @@ const isOffline = () => typeof navigator !== "undefined" && navigator.onLine ===
  * Components call these actions and selectors; they never talk to the server
  * or mutate data themselves.
  */
-export function hydrate({ generatedAt: _generatedAt, ...w }: HouseholdWire): HouseholdData {
+function hydrate({ generatedAt: _generatedAt, ...w }: HouseholdWire): HouseholdData {
   return {
     ...w,
     meals: w.meals.map((m) => {

@@ -17,7 +17,7 @@ const SLEEPS_FROM = 14;
 const NEUTRAL = "rgb(var(--soft))";
 
 /** Everyone on the birthday wheel, soonest first (§12, D46). `filter` keeps people and whatever belongs to them. */
-export function useBirthdays(filter?: Set<string>) {
+function useBirthdays(filter?: Set<string>) {
   const today = useToday();
   const { tx } = useI18n();
   const { data } = useStore();
@@ -55,7 +55,7 @@ function useWords() {
 const colorOf = (b: { memberId?: string }, getMember: (id?: string) => Member | undefined) => getMember(b.memberId)?.color ?? NEUTRAL;
 
 /** A person's own picture; anyone else gets their initials in the colour of the person they belong to. */
-export function BirthdayAvatar({ b, size = "md" }: { b: UpcomingBirthday; size?: "sm" | "md" }) {
+function BirthdayAvatar({ b, size = "md" }: { b: UpcomingBirthday; size?: "sm" | "md" }) {
   const { getMember } = useStore();
   const m = getMember(b.memberId);
   if (b.origin === "member" && m) return <Avatar member={m} size={size} />;
@@ -78,7 +78,7 @@ const point = (f: number, r: number) => {
  * The year as a circle, January at the top, each birthday a dot (D46). A tap
  * on a dot selects it; the arc runs from today to the selected birthday.
  */
-export function BirthdayWheel({ list, selected, onSelect, compact = false }: {
+function BirthdayWheel({ list, selected, onSelect, compact = false }: {
   list: UpcomingBirthday[]; selected?: UpcomingBirthday; onSelect: (id: string) => void; compact?: boolean;
 }) {
   const today = useToday();
