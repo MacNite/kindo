@@ -1,6 +1,7 @@
 import { createDAVClient, type DAVCalendar } from "tsdav";
 import { UserError } from "../errors";
 import { errorMessage } from "../log";
+import { timedFetch } from "../http";
 import { parseCalendar, buildEventIcs, updateEventIcs, type EventToWrite, type ParsedEvent } from "./ical";
 
 /**
@@ -18,6 +19,7 @@ async function client(a: CalDavAccount) {
       credentials: { username: a.username, password: a.password },
       authMethod: "Basic",
       defaultAccountType: "caldav",
+      fetch: timedFetch(),
     });
   } catch (e) {
     const msg = errorMessage(e);

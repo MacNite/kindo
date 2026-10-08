@@ -2,7 +2,7 @@ import type { CalendarSource, Connection, Event as EventRow } from "@prisma/clie
 import { decryptSecret } from "../crypto";
 import { env } from "../env";
 import { UserError } from "../errors";
-import { fetchChecked } from "../http";
+import { fetchChecked, readJson } from "../http";
 import type { RemoteCalendar, RemoteEvent } from "./caldav";
 import type { EventToWrite } from "./ical";
 import type { CalendarProvider } from "./sync";
@@ -27,7 +27,7 @@ export async function exchangeCode(code: string, redirectUri: string) {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ code, client_id: client.id, client_secret: client.secret, redirect_uri: redirectUri, grant_type: "authorization_code" }),
   });
-  const body = (await res.json()) as { refresh_token?: string; access_token?: string; id_token?: string; error?: string };
+  const body = await readJson<{ refresh_token?: string; access_token?: string; id_token?: string; error?: string }>(res);
   if (!res.ok || !body.refresh_token) throw new UserError("remote", `Google: ${body.error ?? "no refresh token"}`);
   let email = "Google";
   try {
@@ -48,7 +48,7 @@ async function accessToken(c: Connection): Promise<string> {
     method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ refresh_token: decryptSecret(c.secret!), client_id: client.id, client_secret: client.secret, grant_type: "refresh_token" }),
   });
-  const body = (await res.json()) as { access_token?: string; expires_in?: number; error?: string };
+  const body = await readJson<{ access_token?: string; expires_in?: number; error?: string }>(res);
   if (!res.ok || !body.access_token) throw new UserError("remote", `Google: ${body.error ?? `HTTP ${res.status}`}`);
   tokens.set(c.id, { token: body.access_token, until: Date.now() + (body.expires_in ?? 3600) * 1000 });
   return body.access_token;
@@ -62,7 +62,7 @@ async function api<T>(c: Connection, path: string, init: RequestInit = {}): Prom
   if (res.status === 403) throw new UserError("readOnly", "Google: no write access");
   if (res.status === 412) throw new UserError("conflict", "Google: changed elsewhere");
   if (!res.ok) throw new UserError("remote", `Google: HTTP ${res.status}`);
-  return (await res.json()) as T;
+  return readJson<T>(res);
 }
 
 type GDate = { date?: string; dateTime?: string };

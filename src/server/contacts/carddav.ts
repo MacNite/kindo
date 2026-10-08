@@ -1,6 +1,7 @@
 import { createDAVClient } from "tsdav";
 import { UserError } from "../errors";
 import { errorMessage } from "../log";
+import { timedFetch } from "../http";
 import type { CalDavAccount } from "../calendar/caldav";
 import { parseVCardBirthdays, type VCardBirthday } from "./vcard";
 
@@ -18,6 +19,7 @@ async function client(a: CalDavAccount) {
       credentials: { username: a.username, password: a.password },
       authMethod: "Basic",
       defaultAccountType: "carddav",
+      fetch: timedFetch(),
     });
   } catch (e) {
     const msg = errorMessage(e);

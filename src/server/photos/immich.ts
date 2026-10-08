@@ -1,5 +1,5 @@
 import { UserError } from "../errors";
-import { fetchChecked } from "../http";
+import { fetchChecked, readJson } from "../http";
 
 /**
  * Immich (§13, §19.6). Several servers can be connected; each has its own API
@@ -20,7 +20,7 @@ async function call<T>(s: ImmichServer, path: string, body?: unknown): Promise<T
   });
   if (res.status === 401 || res.status === 403) throw new UserError("remote", "Immich refused the API key");
   if (!res.ok) throw new UserError("remote", `Immich: HTTP ${res.status}`);
-  return (await res.json()) as T;
+  return readJson<T>(res);
 }
 const get = <T>(s: ImmichServer, path: string) => call<T>(s, path);
 
