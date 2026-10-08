@@ -20,7 +20,8 @@ export interface Member {
   avatar: { kind: "emoji"; value: string } | { kind: "initial" } | { kind: "photo"; url: string };
   birthday?: string; // ISO date
   /** People and accounts are separate: children usually have none. */
-  account?: { email: string; lastSeen?: string };
+  /** The email only for admins and the person themselves; everyone else just sees that there is a login. */
+  account?: { email?: string; lastSeen?: string };
   /**
    * Points for routine steps while a child gets used to them (§9, D49). Off
    * keeps the number, so switching back on restores it.

@@ -31,6 +31,11 @@ const schema = z.object({
   OIDC_NAME: z.string().default("authentik"),
   /** `false` leaves single sign-on as the only way to sign in. Ignored while single sign-on isn't set up (§20 D42). */
   KINDO_PASSWORD_LOGIN: boolOn,
+  /**
+   * A reverse proxy in front of Kindo sets X-Forwarded-For. Only then is that
+   * header the client's address; without a proxy anyone could write it.
+   */
+  KINDO_TRUST_PROXY: bool,
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });
 

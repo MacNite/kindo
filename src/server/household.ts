@@ -10,6 +10,7 @@ import { UserError, notFound } from "./errors";
 import { toStoredEvent } from "./events";
 import { createRemoteEvent, deleteRemoteEvent, updateRemoteEvent } from "./calendar/sync";
 import type { S } from "./validation";
+import { assertAnotherAdminLogin } from "./accounts";
 
 /**
  * Household mutations (§19.2). Plain functions over a database handle, so the
@@ -234,7 +235,7 @@ export async function updateHousehold(db: Tx, input: In<"household">) {
 export async function saveMember(db: Tx, input: In<"member">) {
   const data = { name: input.name, role: input.role, color: input.color, avatar: json(input.avatar), birthday: input.birthday ?? null };
   if (input.id) {
-    if (input.role !== "admin") await assertAnotherAdmin(db, input.id);
+    if (input.role !== "admin") await assertAnotherAdminLogin(db, input.id);
     await db.member.update({ where: { id: input.id }, data });
     return input.id;
   }
@@ -243,19 +244,11 @@ export async function saveMember(db: Tx, input: In<"member">) {
 }
 
 export async function deleteMember(db: Tx, input: In<"byId">) {
-  await assertAnotherAdmin(db, input.id);
+  await assertAnotherAdminLogin(db, input.id);
   const m = await db.member.findUnique({ where: { id: input.id }, select: { userId: true } });
   await db.member.deleteMany({ where: { id: input.id } });
   // A login always belongs to a person: it goes with them.
   if (m?.userId) await db.user.deleteMany({ where: { id: m.userId } });
-}
-
-/** A household always keeps at least one admin, or nobody could change settings any more. */
-async function assertAnotherAdmin(db: Tx, memberId: string) {
-  const me = await db.member.findUnique({ where: { id: memberId }, select: { role: true } });
-  if (me?.role !== "admin") return;
-  const others = await db.member.count({ where: { role: "admin", id: { not: memberId } } });
-  if (!others) throw new UserError("invalid", "the last admin stays");
 }
 
 // ── Routines and chores: editing ────────────────────────────────────────────

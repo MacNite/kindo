@@ -32,7 +32,10 @@ export const PIN_TTL_MS = 10 * 60_000;
 export function can(actor: Actor | null, level: Level): boolean {
   if (!actor) return false;
   if (level === "view" || level === "tick") return true;
-  if (actor.kind === "device") return actor.elevated;
+  // The PIN makes a wall a grown-up's screen, never an admin's (§20 D27): the
+  // PIN is shared and short, so people, logins, devices and integrations stay
+  // with a signed-in admin.
+  if (actor.kind === "device") return level === "manage" && actor.elevated;
   return level === "manage" ? actor.role !== "child" : actor.role === "admin";
 }
 
@@ -76,7 +79,7 @@ export async function viewerOf(actor: Actor, db: Tx = prisma): Promise<Viewer> {
   const h = await db.household.findUnique({ where: { id: 1 }, select: { settingsPinHash: true } });
   const pinSet = Boolean(h?.settingsPinHash);
   if (actor.kind === "device") {
-    return { kind: "device", name: actor.name, canManage: actor.elevated, isAdmin: actor.elevated, elevated: actor.elevated, pinSet };
+    return { kind: "device", name: actor.name, canManage: can(actor, "manage"), isAdmin: false, elevated: actor.elevated, pinSet };
   }
   return { kind: "user", name: actor.name, memberId: actor.memberId, role: actor.role, canManage: can(actor, "manage"), isAdmin: can(actor, "admin"), pinSet };
 }
