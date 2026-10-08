@@ -52,7 +52,7 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
   const period = periodAt(now);
   const routine = routineFor(member.id, period, routineDay);
   const events = eventsForMember(member.id, today);
-  const chores = choresOn(routineDay).filter((c) => c.memberId === member.id && c.item.value.kind === "expected");
+  const chores = choresOn(routineDay).filter((c) => c.memberId === member.id);
   const left = routine ? routine.items.filter((i) => !isDone(i.id)).length : 0;
   const isChild = member.role === "child";
   const tomorrow = eventsForMember(member.id, addDays(today, 1)).filter((e) => !e.background);

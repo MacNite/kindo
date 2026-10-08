@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  currentPeriod, fromRRule, householdDay, householdDayKeyIn, nextOccurrences, occurrences, occursOn, schoolDaysFrom, toICalLines, toRRule,
+  currentPeriod, fromRRule, householdDay, householdDayKeyIn, nextOccurrences, normalizeRecurrence, occurrences, occursOn, sameRecurrence, schoolDaysFrom,
+  toICalLines, toRRule,
 } from "./recurrence";
 import type { Recurrence } from "./types";
 
@@ -173,5 +174,22 @@ describe("occursOn across daylight-saving changes", () => {
     // 2026-01-05 is a Monday; 52 Mondays span both DST switches in DST-observing zones.
     const hits = Array.from({ length: 52 }, (_, w) => occursOn(r, new Date(2026, 0, 5 + w * 7)));
     hits.forEach((h, w) => expect(h, `week ${w}`).toBe(hits[0] === (w % 2 === 0)));
+  });
+});
+
+describe("recurrenceKey", () => {
+  it("treats the same weekdays in any order as one rhythm", () => {
+    expect(sameRecurrence({ kind: "weekdays", days: [5, 1, 3] }, { kind: "weekdays", days: [1, 3, 5, 3] })).toBe(true);
+    expect(normalizeRecurrence({ kind: "weekdays", days: [5, 1, 3] })).toEqual({ kind: "weekdays", days: [1, 3, 5] });
+  });
+
+  it("all seven days are every day", () => {
+    expect(sameRecurrence({ kind: "weekdays", days: [0, 1, 2, 3, 4, 5, 6] }, { kind: "daily" })).toBe(true);
+  });
+
+  it("keeps different rhythms apart", () => {
+    expect(sameRecurrence({ kind: "weekdays", days: [1, 2, 3, 4, 5] }, { kind: "schoolDays" })).toBe(false);
+    expect(sameRecurrence({ kind: "weekly", day: 6, interval: 2, from: "2026-10-10" }, { kind: "weekly", day: 6, interval: 2, from: "2026-10-17" })).toBe(false);
+    expect(sameRecurrence({ kind: "monthly", dayOfMonth: 1 }, { kind: "monthly", dayOfMonth: 2 })).toBe(false);
   });
 });

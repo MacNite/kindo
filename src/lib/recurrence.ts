@@ -85,6 +85,28 @@ export function nextOccurrences(r: Recurrence, from: Date, count: number, isScho
   return out;
 }
 
+// ── Comparing ───────────────────────────────────────────────────────────────
+/** One spelling per rhythm: weekdays sorted and unique, all seven days are "daily". */
+export function normalizeRecurrence(r: Recurrence): Recurrence {
+  if (r.kind !== "weekdays") return r;
+  const days = [...new Set(r.days)].sort((a, b) => a - b);
+  return days.length === 7 ? { kind: "daily" } : { kind: "weekdays", days };
+}
+
+/** A stable key for a rhythm: two recurrences with the same key fall on the same days. */
+export function recurrenceKey(r: Recurrence): string {
+  const n = normalizeRecurrence(r);
+  switch (n.kind) {
+    case "weekdays": return `weekdays:${n.days.join(",")}`;
+    case "weekly": return `weekly:${n.day}:${n.interval}:${n.from ?? ""}`;
+    case "monthly": return `monthly:${n.dayOfMonth}`;
+    case "once": return `once:${n.date}`;
+    default: return n.kind;
+  }
+}
+
+export const sameRecurrence = (a: Recurrence, b: Recurrence) => recurrenceKey(a) === recurrenceKey(b);
+
 // ── RFC 5545 ────────────────────────────────────────────────────────────────
 const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const ymd = (s: string) => s.replaceAll("-", "");

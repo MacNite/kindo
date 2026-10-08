@@ -144,8 +144,10 @@ export function Stepper({ value, onChange, min = 0, max = 999, step = 1 }: { val
 }
 
 // ── Pictogram picker ────────────────────────────────────────────────────────
-export function PictogramPicker({ value, onChange }: { value: string; onChange: (id: string) => void }) {
+/** Picks one picture, or with `selected` marks several and leaves adding and removing to `onChange`. */
+export function PictogramPicker({ value, onChange, selected }: { value: string; onChange: (id: string) => void; selected?: string[] }) {
   const { t, tx } = useI18n();
+  const on = (id: string) => (selected ? selected.includes(id) : value === id);
   const [tab, setTab] = useState<"builtin" | "emoji" | "photo">(value.startsWith("emoji:") ? "emoji" : value.startsWith("img:") ? "photo" : "builtin");
   const [cat, setCat] = useState<PictoCategory>(PICTOGRAMS.find((p) => p.id === value)?.category ?? "morning");
   return (
@@ -162,8 +164,8 @@ export function PictogramPicker({ value, onChange }: { value: string; onChange: 
           </div>
           <div className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-6">
             {PICTOGRAMS.filter((p) => p.category === cat).map((p) => (
-              <button key={p.id} onClick={() => onChange(p.id)} aria-pressed={value === p.id} title={tx(p.label)} aria-label={tx(p.label)}
-                className={cn("grid aspect-square place-items-center rounded-tile transition-colors", value === p.id ? "m-bg text-white" : "bg-sunken m-text hover:bg-line")}>
+              <button key={p.id} onClick={() => onChange(p.id)} aria-pressed={on(p.id)} title={tx(p.label)} aria-label={tx(p.label)}
+                className={cn("grid aspect-square place-items-center rounded-tile transition-colors", on(p.id) ? "m-bg text-white" : "bg-sunken m-text hover:bg-line")}>
                 <p.Icon className="h-7 w-7" strokeWidth={1.75} />
               </button>
             ))}
@@ -173,8 +175,8 @@ export function PictogramPicker({ value, onChange }: { value: string; onChange: 
       {tab === "emoji" && (
         <div className="mt-3 grid grid-cols-6 gap-2 sm:grid-cols-8">
           {EMOJI_CHOICES.map((e) => (
-            <button key={e} onClick={() => onChange(`emoji:${e}`)} aria-pressed={value === `emoji:${e}`}
-              className={cn("grid aspect-square place-items-center rounded-tile text-2xl", value === `emoji:${e}` ? "tint-strong ring-2 ring-[var(--m)]" : "bg-sunken")}>{e}</button>
+            <button key={e} onClick={() => onChange(`emoji:${e}`)} aria-pressed={on(`emoji:${e}`)}
+              className={cn("grid aspect-square place-items-center rounded-tile text-2xl", on(`emoji:${e}`) ? "tint-strong ring-2 ring-[var(--m)]" : "bg-sunken")}>{e}</button>
           ))}
         </div>
       )}

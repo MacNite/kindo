@@ -77,7 +77,8 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
           </div>
         ) : (
           <div className={cn("grid gap-4 sm:gap-6", GRID[Math.min(items.length, 5)])}>
-            {items.map((i, n) => <TaskCard key={i.id} item={i} done={isDone(i.id)} onToggle={() => toggleTaskItem(member.id, i)} next={!isDone(i.id) && items.findIndex((x) => !isDone(x.id)) === n} />)}
+            {items.map((i, n) => <TaskCard key={i.id} item={i} done={isDone(i.id)} onToggle={() => toggleTaskItem(member.id, i)} next={!isDone(i.id) && items.findIndex((x) => !isDone(x.id)) === n}
+              showReward={rewardMode !== "off"} />)}
           </div>
         )}
 
