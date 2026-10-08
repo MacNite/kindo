@@ -11,8 +11,10 @@ import { IconButton } from "./Button";
  * panel (not the first input, so touch screens don't pop up a keyboard) and
  * returns to the opener on close.
  */
-export function Dialog({ open, onClose, title, children, footer, wide }: {
+export function Dialog({ open, onClose, title, children, footer, wide, top }: {
   open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; wide?: boolean;
+  /** Above everything, the photo frame and a live camera included (the PIN). */
+  top?: boolean;
 }) {
   const { t } = useI18n();
   const root = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ export function Dialog({ open, onClose, title, children, footer, wide }: {
 
   if (!open || typeof document === "undefined") return null;
   return createPortal(
-    <div ref={root} className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+    <div ref={root} className={`fixed inset-0 ${top ? "z-[130]" : "z-50"} flex items-end justify-center sm:items-center sm:p-6`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button aria-label={t("common.close")} tabIndex={-1} className="absolute inset-0 bg-ink/30 backdrop-blur-[2px] animate-fade [animation-duration:200ms]" onClick={onClose} />
       <div ref={panel} tabIndex={-1} className={`relative flex max-h-[92dvh] w-full flex-col rounded-t-panel bg-surface outline-none sm:rounded-panel animate-rise ${wide ? "sm:max-w-3xl" : "sm:max-w-lg"}`}>
         <header className="flex items-center justify-between gap-3 px-6 pb-2 pt-5">

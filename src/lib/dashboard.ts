@@ -1,10 +1,11 @@
 import type { WallTile, WallTileId, WidgetConfig, WidgetId } from "./types";
 
 /** Every home-screen widget, so a widget added in a later version shows up hidden in "Customize". */
-export const WIDGET_IDS: readonly WidgetId[] = ["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "birthdays", "photos", "home"];
-/** The wall display before anyone customises it: as it always looked, Home control off (§4, §21). */
+export const WIDGET_IDS: readonly WidgetId[] = ["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "birthdays", "photos", "home", "cameras"];
+/** The wall display before anyone customises it: as it always looked, Home control and cameras off (§4, §21, §22). */
 export const DEFAULT_WALL_TILES: readonly WallTile[] = [
   { id: "weather", enabled: true }, { id: "meal", enabled: true }, { id: "shopping", enabled: true }, { id: "dates", enabled: true }, { id: "birthdays", enabled: false }, { id: "home", enabled: false },
+  { id: "cameras", enabled: false },
 ];
 export const WALL_TILE_IDS: readonly WallTileId[] = DEFAULT_WALL_TILES.map((t) => t.id);
 
@@ -13,7 +14,7 @@ export function completeWidgets(stored: unknown): WidgetConfig[] {
   const list = (Array.isArray(stored) ? stored : []) as WidgetConfig[];
   const known = list.filter((w, i) => WIDGET_IDS.includes(w?.id) && list.findIndex((x) => x.id === w.id) === i);
   const missing = WIDGET_IDS.filter((id) => !known.some((w) => w.id === id));
-  return [...known, ...missing.map((id): WidgetConfig => ({ id, enabled: false, size: id === "home" ? "m" : "s" }))];
+  return [...known, ...missing.map((id): WidgetConfig => ({ id, enabled: false, size: id === "home" || id === "cameras" ? "m" : "s" }))];
 }
 
 /** The stored wall tiles, the same way; nothing stored yet means the defaults. */

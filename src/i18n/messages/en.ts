@@ -8,7 +8,7 @@ const en = {
   nav: {
     home: "Home", calendar: "Calendar", routines: "Routines", tasks: "Tasks", shopping: "Shopping",
     meals: "Meals", rewards: "Rewards", photos: "Photos", settings: "Settings", more: "More",
-    wall: "Wall display", kids: "Kids", homeControl: "Home control",
+    wall: "Wall display", kids: "Kids", homeControl: "Home control", cameras: "Cameras",
   },
   common: {
     delete: "Delete", saved: "Saved",
@@ -39,7 +39,7 @@ const en = {
   widgets: {
     clock: "Clock", weather: "Weather", agenda: "Today", upcoming: "Coming up", routines: "Routines",
     chores: "Chores", meals: "Meals", shopping: "Shopping", dates: "Dates to remember", photos: "Photos",
-    home: "Home control", birthdays: "Birthdays",
+    home: "Home control", birthdays: "Birthdays", cameras: "Cameras",
   },
   calendar: {
     holiday: "School holidays", recurringHint: "Part of a repeating series: change it in the calendar app it comes from.",
@@ -150,6 +150,21 @@ const en = {
     on: "On", off: "Off", unavailable: "Not reachable",
     allOff: "Everything off", allOffConfirm: "Turn everything off", allOffHint: "Turns off every switch shown here ({n}). Everything else in Home Assistant stays as it is.",
   },
+  cameras: {
+    title: "Cameras", subtitle: "Tap a camera to watch it live.", notSetUp: "No cameras yet. An admin connects Frigate and picks cameras under Settings → Integrations → Frigate.", setUp: "Set up in Settings",
+    watch: "Watch {name} live", connecting: "Connecting…", unavailable: "The camera can't be shown right now.", retry: "Try again", tapForSound: "Tap for sound",
+    doorbell: "Someone is at the door", dismiss: "Dismiss",
+    talk: "Talk", holdToTalk: "Hold to talk", talking: "Talking…", stopTalk: "Stop talking", micLive: "Microphone on", micMuted: "Microphone off",
+  },
+  cameraSetup: {
+    open: "Cameras", title: "Cameras", hint: "Pick the cameras the family sees. Everyone can watch them; only adults, or a wall display unlocked with the PIN, can talk through a doorbell.",
+    loading: "Asking Frigate…", none: "No cameras yet.", add: "Add a camera from Frigate", remove: "Remove camera", name: "Name",
+    picture: "Picture", pictureHint: "Frigate's camera for the still picture on the wall.", noPicture: "No picture",
+    stream: "Live stream", streamHint: "The go2rtc stream to watch and listen to. Leave its two-way twin for talking.",
+    talkStream: "Talk stream", talkStreamHint: "The go2rtc stream with the camera's speaker (a bare rtsp:// source without # options).", noTalk: "No talking",
+    visitor: "Doorbell button", visitorHint: "Home Assistant's visitor sensor of this doorbell. A press opens the camera on every screen.", visitorNeedsHa: "Connect Home Assistant to let the doorbell ring in Kindo.", noRing: "Doesn't ring",
+    fingerprint: "Trusted certificate: {fingerprint}",
+  },
   homeSetup: {
     open: "Home control", title: "Home control", hint: "Pick what the family may switch and where the solar numbers come from. Anyone at the wall display can switch these, so leave out anything that shouldn't be (doors, heating, alarms).",
     switches: "Switches", noSwitches: "No switches yet.", nameOf: "Name for {entity}", removeSwitch: "Remove {name}", addSwitch: "Add a light or switch", search: "Search by name",
@@ -165,7 +180,7 @@ const en = {
     choose: "Who are you?", back: "Family screen", allDone: "All done",
     nextUp: "Next", parentHint: "Hold to leave",
   },
-  errors: { pin: "This needs the settings PIN.", noPin: "No settings PIN has been set yet.", wrongPin: "That PIN isn't right.", tooManyAttempts: "Too many tries. Please wait a minute.", wrongLogin: "Email or password isn't right.", sso: "Single sign-on didn't work. Is your email set up for a login?", notFound: "That no longer exists. The screen has been refreshed.", invalid: "Please check your entries.", forbidden: "You aren't allowed to do that.", unauthenticated: "Please sign in again.", conflict: "That has already been done.", notEnoughPoints: "Not enough points yet.", readOnly: "This calendar is read only.", remote: "The connected service didn't answer. Please try again later.", server: "Something went wrong. Please try again.", network: "No connection. Please try again." },
+  errors: { pin: "This needs the settings PIN.", noPin: "No settings PIN has been set yet.", wrongPin: "That PIN isn't right.", tooManyAttempts: "Too many tries. Please wait a minute.", wrongLogin: "Email or password isn't right.", sso: "Single sign-on didn't work. Is your email set up for a login?", notFound: "That no longer exists. The screen has been refreshed.", invalid: "Please check your entries.", forbidden: "You aren't allowed to do that.", unauthenticated: "Please sign in again.", conflict: "That has already been done.", notEnoughPoints: "Not enough points yet.", readOnly: "This calendar is read only.", remote: "The connected service didn't answer. Please try again later.", server: "Something went wrong. Please try again.", busy: "Someone else is talking through this camera right now.", micDenied: "Kindo may not use the microphone. Allow it in the browser's site settings.", insecure: "Talking needs Kindo to be opened over https.", aborted: "Stopped.", network: "No connection. Please try again." },
   setup: { claimIntro: "This household has no login yet. Create the admin's login to continue.", passwordHint: "At least 8 characters.", ssoHint: "Use the email of your {name} account. You sign in with {name} next.", title: "Welcome to Kindo", intro: "Set up your household. You can add more people, calendars and photos later in Settings.", household: "Household name", householdPlaceholder: "e.g. The Müllers", you: "Your name", youHint: "You become the household admin.", demo: "Start with the demo family", demoHint: "Loads the Müller family with routines, events and photos, to try everything out.", timezone: "Time zone: {zone}. You can change it later.", start: "Get started" },
   history: { empty: "Nobody has routines or chores yet.", hint: "The last two weeks. A circle fills as a routine gets done.", nothingDue: "nothing due" },
   login: { email: "Email", password: "Password", signIn: "Sign in", or: "or", sso: "Sign in with {name}", pairHint: "Set up this screen as a wall display" },
@@ -174,7 +189,7 @@ const en = {
   account: { signOut: "Sign out", changePassword: "Change password", currentPassword: "Current password", newPassword: "New password" },
   devices: { hint: "Wall displays need no login. Open /pair on the tablet, then confirm the code it shows here.", pair: "Pair a wall display", name: "Name", defaultName: "Kitchen", approve: "Pair", approved: "Paired. The display opens the wall in a moment.", paired: "Paired displays", none: "No display paired yet.", lastSeen: "Last seen {when}", revoke: "Unpair" },
   logins: { none: "No login yet.", give: "Give a login", manage: "Login", create: "Login for {name}", edit: "{name}'s login", remove: "Remove login", resetHint: "Sets a new password and signs the person out everywhere.", ssoHint: "Leave empty to sign in only with {name}, using this email.", ssoOnlyHint: "Signs in with {name}, using this email." },
-  integrations: { subscribe: "Subscribe", icsNamePlaceholder: "e.g. Waste collection", feedUrl: "Feed address", feedUrlHint: "An .ics or webcal:// address. Kept encrypted, since private feeds work like a password.", googleContinue: "Continue to Google", googleHint: "Google asks which account to connect and whether Kindo may read and add events. Kindo then lists the account's calendars here.", google_connected: "Google account connected.", google_failed: "Connecting Google didn't work. Please try again.", google_notConfigured: "Google needs the household's own OAuth client: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the Kindo server (redirect URI: <your Kindo address>/api/integrations/google/callback).", haHint: "Connect Home Assistant for presence on the wall and, afterwards, for a few switches and the solar view in Home control.", haToken: "Long-lived access token", haTokenHint: "In Home Assistant: your profile → Security → Long-lived access tokens. Stored encrypted on the Kindo server only.", haEntity: "Presence sensor", haEntityHint: "Optional. When someone is there, the wall wakes from the photo frame; when nobody is, it goes back to photos. A motion, occupancy or person entity. \"on\", \"home\", \"detected\" and \"occupied\" count as someone being there.", immichNameHint: "Shown above its albums, e.g. whose server it is.", immichNamePlaceholder: "e.g. Oma & Opa", apiKey: "API key", immichKeyHint: "In Immich: Account settings → API keys. It needs the permissions album.read, asset.read and asset.view. It is stored encrypted on the Kindo server only.", failed: "Last sync failed: {error}", synced: "synced {when}", waiting: "Waiting for the first sync", syncNow: "Sync now", remove: "Disconnect", removeConfirm: "Disconnect {name}? Its calendars and events leave Kindo; nothing is deleted on the server.", addAnother: "Add another", connect: "Connect", connecting: "Connecting…", serverUrl: "Server address", caldavUrlHint: "For Nextcloud: your Nextcloud address followed by /remote.php/dav", username: "Username", appPassword: "App password", appPasswordHint: "Create one in Nextcloud under Settings → Security → Devices & sessions. It is stored encrypted on the Kindo server only." },
+  integrations: { frigateHint: "Connect Frigate to show its cameras on the wall and let a doorbell ring on every screen. Kindo signs in with a Frigate user; video goes straight from Frigate to the screen.", frigateUrlHint: "Frigate's authenticated address with its port: 8971 in the container, or the port it is published on (e.g. https://nvr.local:30193).", frigateUserHint: "Ideally a Frigate user just for Kindo. Its password is stored encrypted on the Kindo server only.", password: "Password", trustCertificate: "Trust Frigate's own certificate", trustCertificateHint: "Frigate uses a self-signed certificate unless you gave it one. Kindo then trusts exactly the certificate it sees now, and nothing else.", subscribe: "Subscribe", icsNamePlaceholder: "e.g. Waste collection", feedUrl: "Feed address", feedUrlHint: "An .ics or webcal:// address. Kept encrypted, since private feeds work like a password.", googleContinue: "Continue to Google", googleHint: "Google asks which account to connect and whether Kindo may read and add events. Kindo then lists the account's calendars here.", google_connected: "Google account connected.", google_failed: "Connecting Google didn't work. Please try again.", google_notConfigured: "Google needs the household's own OAuth client: set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the Kindo server (redirect URI: <your Kindo address>/api/integrations/google/callback).", haHint: "Connect Home Assistant for presence on the wall and, afterwards, for a few switches and the solar view in Home control.", haToken: "Long-lived access token", haTokenHint: "In Home Assistant: your profile → Security → Long-lived access tokens. Stored encrypted on the Kindo server only.", haEntity: "Presence sensor", haEntityHint: "Optional. When someone is there, the wall wakes from the photo frame; when nobody is, it goes back to photos. A motion, occupancy or person entity. \"on\", \"home\", \"detected\" and \"occupied\" count as someone being there.", immichNameHint: "Shown above its albums, e.g. whose server it is.", immichNamePlaceholder: "e.g. Oma & Opa", apiKey: "API key", immichKeyHint: "In Immich: Account settings → API keys. It needs the permissions album.read, asset.read and asset.view. It is stored encrypted on the Kindo server only.", failed: "Last sync failed: {error}", synced: "synced {when}", waiting: "Waiting for the first sync", syncNow: "Sync now", remove: "Disconnect", removeConfirm: "Disconnect {name}? Its calendars and events leave Kindo; nothing is deleted on the server.", addAnother: "Add another", connect: "Connect", connecting: "Connecting…", serverUrl: "Server address", caldavUrlHint: "For Nextcloud: your Nextcloud address followed by /remote.php/dav", username: "Username", appPassword: "App password", appPasswordHint: "Create one in Nextcloud under Settings → Security → Devices & sessions. It is stored encrypted on the Kindo server only." },
   sources: { background: "Daily attendance", backgroundHint: "School or Kita: shown quietly, left out of “coming up”.", readOnlyHint: "Nobody can add or change events here from Kindo.", whoHint: "Events take these people's colours unless Kindo assigned them itself.", remove: "Remove from Kindo", localHint: "Kindo's own calendar, stored in Kindo's database." },
   offline: { title: "No connection", body: "This page hasn't been opened on this device before. The shopping list works offline once you've opened it with a connection." },
   settings: {
@@ -215,8 +230,8 @@ const en = {
       kiosk: "Wall display", kioskHint: "Full screen, no admin controls, photo frame when idle.", openKiosk: "Open wall display",
       pin: "Settings need a PIN on the wall display",
       wallTiles: "Wall display tiles", wallTilesHint: "What the wall shows beside the family lanes, from top to bottom.",
-      wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control", wallTile_birthdays: "Birthday wheel",
-      wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.",
+      wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control", wallTile_cameras: "Cameras", wallTile_birthdays: "Birthday wheel",
+      wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.", wallCamerasHint: "Shows once Frigate cameras are set up.",
     },
     appearance: { theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large" },
     language: {
@@ -230,7 +245,7 @@ const en = {
       immich: "Immich", immichBody: "Albums for the screensaver and photo card. Several servers can be added.",
       google: "Google Calendar", googleBody: "Calendars from Google accounts.",
       ics: "Calendar subscriptions (ICS)", icsBody: "Read-only feeds like school holidays or waste collection.",
-      homeassistant: "Home Assistant", homeassistantBody: "Presence for the photo frame, a few switches and the solar view in Home control. Not a full smart-home panel.",
+      homeassistant: "Home Assistant", homeassistantBody: "Presence for the photo frame, a few switches and the solar view in Home control. Not a full smart-home panel.", frigate: "Frigate", frigateBody: "Cameras on the wall, and the doorbell with talking back. Video stays in the house.",
     },
     dates: { hint: "Birthdays, anniversaries and school dates, with a countdown on the family screen.", add: "Add date", edit: "Edit date", kind: "Kind", date: "Date", yearly: "Every year", yearlyHint: "For birthdays and anniversaries, the original date, so ages can be counted.", who: "Whose date" },
   },

@@ -33,8 +33,8 @@ The member's colour is used consistently on events, chores, routines and avatars
 
 - The home screen is built around **family lanes**: one column per person with their colour, current routine, appointments and chores.
 - Household context sits around the lanes: clock, weather, tonight's meal, shopping count and important dates.
-- Widgets can be shown or hidden, reordered and resized: clock, weather, today, coming up, routines, chores, meals, shopping, dates, birthdays (§12), photos, home control (§21).
-- The wall display's household column is configurable in Settings → Dashboard: weather, tonight's dinner, shopping, dates, the birthday wheel and home control, each shown or hidden and in any order (D45, D46).
+- Widgets can be shown or hidden, reordered and resized: clock, weather, today, coming up, routines, chores, meals, shopping, dates, birthdays (§12), photos, home control (§21), cameras (§22).
+- The wall display's household column is configurable in Settings → Dashboard: weather, tonight's dinner, shopping, dates, the birthday wheel, home control and cameras, each shown or hidden and in any order (D45, D46, D48).
 - There are separate presentations for the wall (`/wall`), phones and the child view.
 
 ## §5 Calendar
@@ -105,7 +105,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 
 ## §15 Settings
 
-Sections: Family, Members, Dates, Birthdays (address books and contacts for the birthday wheel, admins only), Calendar, Routines & chores, Rewards, Photos, Dashboard (home screen, wall display tiles, PIN), Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant with its Home control setup).
+Sections: Family, Members, Dates, Birthdays (address books and contacts for the birthday wheel, admins only), Calendar, Routines & chores, Rewards, Photos, Dashboard (home screen, wall display tiles, PIN), Appearance, Language & region, Integrations (Nextcloud/CalDAV, Immich, Google Calendar, ICS, Home Assistant with its Home control setup, Frigate with its camera setup).
 
 ## §16 Appearance
 
@@ -139,6 +139,7 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 7. **PWA:** installable, offline shopping list, wake lock on the wall. *(done)*
 8. Google Calendar, ICS, Home Assistant (presence for the photo frame). *(done)*
 9. Home control: Home Assistant switches, "everything off" and the solar flow, on their own page and as a wall tile (§21). *(done)*
+10. Cameras and the doorbell: Frigate's cameras on the wall and their own page, a ring from Home Assistant on every screen, and talking back (§22). *(done; two-way talk still to be confirmed on the household's doorbell and tablet)*
 
 ## §20 Decisions
 
@@ -190,6 +191,7 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 | D45 | The wall display's household column is a list of tiles (`Household.wallTiles`: weather, meal, shopping, dates, home) with an order and a switch each, set in Settings → Dashboard. A household that never set it gets the old layout, with Home control off. Home control is also a home-screen widget, hidden until someone adds it | Families asked to put Home control on the wall; the tile list is the smallest customisation that makes room for it without a layout editor on the wall. |
 | D46 | Contact birthdays come from Nextcloud address books over CardDAV, read hourly with the CalDAV connection's credentials, into `ContactBirthday` (name and day from the vCard's FN and BDAY; a missing or Apple "omitted" year means no age). The household's own choices (shown, alias, member) live on the same row and survive syncs, keyed by the vCard UID; nothing is written back. New contacts are hidden unless the admin chose "show new contacts at once". Non-admin viewers and wall displays receive only the shown contacts. The wheel lists each person once: a Kindo birthday for a member who has one, or a contact with the same name and day as a Kindo birthday, is left out. The calendar's "Important day" button opens the Dates editor | The family wants the grandparents and friends on the wall without typing their birthdays twice, under the names the children use, and without exposing the whole address book. The "Contact birthdays" calendar Nextcloud generates was not used: it carries the year only in its title and has no stable link to the contact. |
 | D47 | The solar view's grid comes from two unsigned sensors, feed-in and grid draw (grid = draw − feed-in; one not set up counts as zero, one without a reading leaves the grid unknown). House consumption is "Calculate" by default (solar + grid, never below zero); a house sensor, when picked and reading, wins. A stored signed grid sensor (D44) is still read and stays in the dialog until cleared, but feed-in and draw win over it | Many meters and inverters report feed-in and draw as two positive values and have no house consumption sensor; the family should not need a Home Assistant template sensor to see the house. |
+| D48 | Cameras (§22) come from Frigate, signed in on the server with a Frigate user (address with port; password encrypted, D28); an https address with a certificate the system doesn't trust needs the admin to trust it, and then only that certificate (SHA-256 fingerprint, checked before anything is sent). Live view is WebRTC through Frigate's bundled go2rtc: the screen's offer goes to `POST /api/cameras/<id>/webrtc`, Kindo checks the viewer, picks the stream from the admin's setup and forwards the offer to Frigate's authenticated `/api/go2rtc/webrtc`; go2rtc's complete answer comes back the same way, and media flows directly between the screen and go2rtc's port 8555. An offer that sends media is refused unless it is for the two-way stream, from someone at manage level, holding the camera's talk lease (`TalkLease`: one holder per camera and screen, 30 s, renewed every 10 s, so a crashed screen frees the camera on its own). Rings: Home Assistant's `subscribe_trigger` on the visitor sensors from `off` to `on`, by the instance that runs the jobs, stored as `DoorbellRing` (shown for 60 s; presses within 15 s are one) and announced as a `doorbell` topic without data (D12); each screen asks for the ring that is still going on. Still pictures go through `/api/cameras/<id>/snapshot`, uncached | A one-shot HTTP handshake (go2rtc's non-trickle API) works inside the standalone Next.js image; the WebSocket gateway or sidecar a WebSocket handshake would need is not. Frigate's authenticated port keeps go2rtc's API off the network, and the browser never learns an address, a password or a stream name. Pinning a fingerprint is safer than turning certificate checks off, which is what a self-signed Frigate otherwise forces. A ring is stored so a sleeping or reconnecting wall still sees it. Talking is for adults, so a child doesn't speak to strangers at the door. |
 
 ## §21 Home control
 
@@ -198,3 +200,12 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 - **On the wall:** a Home control tile in the household column, if the household turns it on (D45), with the same switches as chips and power now. A wall display may switch without the PIN (D44).
 - **Setup:** Settings → Integrations → Home Assistant → Home control lists what Home Assistant has, so nobody types entity ids. Locks, covers, climate, alarms and scripts are never offered.
 - Home Assistant's address and token stay on the server (§17); devices only see names and entity ids.
+
+## §22 Cameras and the doorbell
+
+- **Source:** Frigate, one connection per household: its authenticated address with the port, a Frigate user and its password (§17). Frigate's own self-signed certificate can be trusted by pinning its fingerprint when connecting (D48).
+- **Setup:** Settings → Integrations → Frigate → Cameras lists Frigate's cameras and go2rtc's streams by name. Per camera: the family's name, Frigate's camera for the still picture, the go2rtc stream to watch, optionally the two-way stream to talk through, and optionally Home Assistant's visitor sensor of a doorbell. Up to 12 cameras.
+- **Watching:** a *Cameras* wall tile and home-screen widget (both off until someone turns them on) show still pictures; `/cameras` shows them large. A tap opens a camera live with sound, over the whole screen. Everyone who sees the household may watch, a wall display without the PIN included.
+- **The doorbell:** a press (the visitor sensor going from off to on) opens the doorbell's camera full screen on every open screen, over the photo frame too, for a minute; a screen that wakes or reconnects during that minute shows it as well. *Dismiss* closes it on that screen only and leaves the wall as it was.
+- **Talking:** adults, or a wall display unlocked with the PIN, tap *Talk*, then hold the big button to speak; the microphone is never opened before that tap, and while someone holds the button the visitor's sound pauses (no echo). One screen per camera talks at a time. Closing the view or hiding the page ends it; a ring's view also closes itself a minute after the last touch.
+- **Never:** doors or gates are not unlocked from Kindo (§21). No recordings, events or detections: that stays Frigate's job (§1).

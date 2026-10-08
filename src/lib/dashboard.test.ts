@@ -7,7 +7,8 @@ describe("completeWidgets (§4)", () => {
     expect(w[0]).toEqual({ id: "agenda", enabled: true, size: "m" });
     expect(w.find((x) => x.id === "home")).toEqual({ id: "home", enabled: false, size: "m" });
     expect(w.find((x) => x.id === "birthdays")).toEqual({ id: "birthdays", enabled: false, size: "s" });
-    expect(w).toHaveLength(12);
+    expect(w.find((x) => x.id === "cameras")).toEqual({ id: "cameras", enabled: false, size: "m" });
+    expect(w).toHaveLength(13);
   });
 
   it("drops unknown and repeated widgets", () => {
@@ -27,7 +28,7 @@ describe("completeWallTiles (§4, §21)", () => {
 
   it("keeps the household's order and adds what is missing", () => {
     const t = completeWallTiles([{ id: "home", enabled: true }, { id: "dates", enabled: false }]);
-    expect(t.map((x) => x.id)).toEqual(["home", "dates", "weather", "meal", "shopping", "birthdays"]);
+    expect(t.map((x) => x.id)).toEqual(["home", "dates", "weather", "meal", "shopping", "birthdays", "cameras"]);
     expect(t[0].enabled).toBe(true);
   });
 });

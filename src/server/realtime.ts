@@ -14,8 +14,11 @@ import { errorMessage, log } from "./log";
 export const CHANNEL = "kindo_changes";
 
 /** What changed. Clients refetch the matching slice. */
-/** `home` (switches changed) and `presence` are news from Home Assistant, not stored data. */
-export type Topic = "household" | "events" | "photos" | "presence" | "home";
+/**
+ * `home` (switches changed) and `presence` are news from Home Assistant, not
+ * stored data. `doorbell`: someone rang (§22); screens ask for the ring itself.
+ */
+export type Topic = "household" | "events" | "photos" | "presence" | "home" | "doorbell";
 export interface Change { topic: Topic; present?: boolean }
 
 export async function notify(topic: Topic, extra: Omit<Change, "topic"> = {}) {

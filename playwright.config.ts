@@ -25,6 +25,7 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 const OIDC_MOCK_PORT = Number(process.env.OIDC_MOCK_PORT ?? 3199);
 const IMMICH_MOCK_PORT = Number(process.env.IMMICH_MOCK_PORT ?? 3198);
 const HA_MOCK_PORT = Number(process.env.HA_MOCK_PORT ?? 3197);
+const FRIGATE_MOCK_PORT = Number(process.env.FRIGATE_MOCK_PORT ?? 3196);
 
 /** Prefer a Chromium the environment already provides (as in BrewCore). */
 function providedChromium(): string | undefined {
@@ -46,7 +47,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     locale: "en-GB",
-    launchOptions: { executablePath: providedChromium() },
+    // A fake microphone, so talking through the doorbell can be tested (§22).
+    launchOptions: { executablePath: providedChromium(), args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
   },
   projects: [
     // Signs the demo admin in once; the other projects start from that session.
@@ -79,6 +81,13 @@ export default defineConfig({
           url: `http://127.0.0.1:${HA_MOCK_PORT}/health`,
           reuseExistingServer: !process.env.CI,
           env: { HA_MOCK_PORT: String(HA_MOCK_PORT) },
+        },
+        {
+          // A stand-in Frigate (e2e/frigate-mock.mjs).
+          command: "node e2e/frigate-mock.mjs",
+          url: `http://127.0.0.1:${FRIGATE_MOCK_PORT}/health`,
+          reuseExistingServer: !process.env.CI,
+          env: { FRIGATE_MOCK_PORT: String(FRIGATE_MOCK_PORT) },
         },
         {
           // A fresh demo household in the suite's own database (e2e/prepare-db.ts), then the production server.

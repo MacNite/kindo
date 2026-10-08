@@ -8,7 +8,7 @@ People → Today → Routines & Tasks → Calendar → Rewards
 
 Kindo puts one screen on the wall that the whole family can read at a glance: what's happening today, and what each person still has to do. Young children who can't read yet follow their morning and evening routines through large picture cards. Parents get the same data on their phones.
 
-> **Status: v0.2.** Roadmap steps 1–9 are in (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*): PostgreSQL with live sync between screens, the recurrence engine, logins with single sign-on and paired wall displays, Nextcloud/CalDAV, Immich, ICS, Google Calendar, Home Assistant presence and Home control (a few switches and the solar flow), and an installable PWA with an offline shopping list. A new install starts empty; the Müller demo family can be loaded on the first-run screen.
+> **Status: v0.2.** Roadmap steps 1–10 are in (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*): PostgreSQL with live sync between screens, the recurrence engine, logins with single sign-on and paired wall displays, Nextcloud/CalDAV, Immich, ICS, Google Calendar, Home Assistant presence and Home control (a few switches and the solar flow), Frigate cameras with the doorbell and talking back, and an installable PWA with an offline shopping list. A new install starts empty; the Müller demo family can be loaded on the first-run screen.
 
 | Wall display | Child view |
 |---|---|
@@ -121,6 +121,7 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the abov
 | `/wall` | Wall display (kiosk) with photo frame |
 | `/kids`, `/kids/lena`, `/kids/paul` | Child view |
 | `/calendar`, `/routines`, `/tasks`, `/shopping`, `/meals`, `/rewards`, `/photos`, `/settings` | Management screens |
+| `/home-control`, `/cameras` | Home control and cameras, once set up |
 | `/screensaver` | The photo frame on its own |
 
 ### Project structure
@@ -174,7 +175,39 @@ Everything below runs on the server. Passwords, API keys and tokens are entered 
 - **ICS subscriptions:** paste a feed address (school calendar, waste collection, `webcal://` works too), choose whose it is and whether it's daily attendance. Read-only, refreshed every half hour. The address is stored encrypted, since private feeds work like a password.
 - **Google Calendar:** needs the household's own OAuth client. Create one in the Google Cloud console (type *Web application*, redirect URI `<APP_URL>/api/integrations/google/callback`, Calendar API enabled) and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Then Settings → Integrations → Google signs an account in; its calendars sync like Nextcloud's, and writable ones accept new events and edits of single events.
 - **Home Assistant (presence for the photo frame):** the Home Assistant address, a long-lived access token and, optionally, one presence entity (motion, occupancy or a person). Kindo follows it over Home Assistant's WebSocket API: someone there wakes the wall from the photo frame, nobody there lets it go back to photos.
+- **Home Assistant (doorbell):** a doorbell's *Visitor* sensor rings on every screen; it is picked in the Frigate camera setup.
 - **Home Assistant (Home control):** once connected, *Home control* on the connection picks the lights, switches, fans or helpers the family may switch (with their own names) and the power sensors for the solar view: solar production, and optionally house consumption and grid power (W or kW). They show on `/home-control`, as a home-screen widget, and on the wall once the *Home control* tile is turned on in Settings → Dashboard. Anyone at the wall can switch them without the PIN, so leave out doors, heating and alarms; "Everything off" turns off exactly the switches on that list.
+- **Frigate (cameras and the doorbell):** see below.
+
+### Cameras and the doorbell (Frigate)
+
+Kindo shows [Frigate](https://frigate.video)'s cameras as still pictures on the wall (the *Cameras* tile in Settings → Dashboard), as a home-screen widget and on `/cameras`; a tap opens one live, with sound. A doorbell press, reported by Home Assistant, opens the doorbell's camera full screen on every screen, over the photo frame too. Adults, or a wall display unlocked with the PIN, can hold *Talk* to speak through the doorbell. Kindo never offers to unlock a door.
+
+**First make it work in Frigate itself**, from the tablet that will hang on the wall: live view with sound, and two-way talk in Frigate's own UI. If Frigate can't talk to the doorbell, Kindo can't either. For a Reolink doorbell, Frigate's docs (*Camera specific → Reolink*, *Live view → Two way talk*, *Restream → Preventing go2rtc from blocking two-way audio*) suggest:
+
+```yaml
+go2rtc:
+  streams:
+    front_door:                 # watching, recording, detection
+      - "ffmpeg:http://DOORBELL_IP/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=USER&password=PASSWORD#video=copy#audio=copy#audio=opus"
+    front_door_twt:             # talking: the bare rtsp:// source carries the speaker, so no # options on it
+      - "ffmpeg:http://DOORBELL_IP/flv?port=1935&app=bcs&stream=channel0_main.bcs&user=USER&password=PASSWORD#video=copy#audio=copy#audio=opus"
+      - "rtsp://USER:PASSWORD@DOORBELL_IP:554/Preview_01_sub"
+  webrtc:
+    candidates:
+      - FRIGATE_LAN_IP:8555     # the address the wall tablet reaches Frigate at
+```
+
+Any other rtsp:// source of the same camera that recording or detection uses needs `#backchannel=0`, or go2rtc keeps the speaker for itself. Check the exact source URLs against Frigate's current docs for your model and firmware.
+
+**Then in Kindo:**
+1. Settings → Integrations → *Home Assistant* (for the ring), then *Frigate*: Frigate's authenticated address **with its port**: 8971 in the container, or the port it is published on (`https://nvr.local:30193`). Use a Frigate user just for Kindo. Frigate's default certificate is self-signed: turn on *Trust Frigate's own certificate* and Kindo pins exactly that certificate (its SHA-256 fingerprint is shown in the camera setup); any other certificate at that address is refused before the password is sent.
+2. *Cameras* on the Frigate connection: add cameras, give them the family's names, check the live and talk streams Kindo guessed (`front_door`, `front_door_twt`) and pick the doorbell's *Visitor* sensor from Home Assistant (Reolink: `binary_sensor.<name>_visitor`).
+
+**Network and browser:**
+- Video and sound go directly between the screen and go2rtc's WebRTC port: allow **8555 TCP and UDP** from the wall tablet (and phones) to Frigate. Kindo only relays the handshake, through Frigate's authenticated API; keep go2rtc's API (1984) and Frigate's unauthenticated port (5000) away from the LAN.
+- Browsers allow the microphone only on https (or `localhost`): open Kindo over https with a certificate the tablet trusts to talk. Watching and the ring work over http too.
+- A wall display plays the visitor's sound only after someone has touched the page once (browser autoplay rules); otherwise it shows *Tap for sound*. In a kiosk browser you can allow autoplay instead.
 
 ## License
 

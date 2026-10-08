@@ -18,6 +18,7 @@ import { Photo } from "../ui/PhotoPlaceholder";
 import { RewardAmount } from "../ui/RewardAmount";
 import { cn } from "../ui/cn";
 import { HomeWidget } from "../home/HomeControl";
+import { CamerasWidget } from "../cameras/Cameras";
 import { BirthdaysCompact } from "../birthdays/Birthdays";
 
 // ── Clock ───────────────────────────────────────────────────────────────────
@@ -307,5 +308,5 @@ function PhotosWidget() {
 
 export const WIDGETS: Record<WidgetId, () => JSX.Element> = {
   clock: ClockWidget, weather: WeatherWidget, agenda: AgendaWidget, upcoming: UpcomingWidget, routines: RoutinesWidget,
-  chores: ChoresWidget, meals: MealsWidget, shopping: ShoppingWidget, dates: DatesWidget, birthdays: BirthdaysWidget, photos: PhotosWidget, home: HomeWidget,
+  chores: ChoresWidget, meals: MealsWidget, shopping: ShoppingWidget, dates: DatesWidget, birthdays: BirthdaysWidget, photos: PhotosWidget, home: HomeWidget, cameras: CamerasWidget,
 };
