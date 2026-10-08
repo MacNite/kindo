@@ -68,7 +68,10 @@ test("Home control: switches, everything off and solar, on its page and on the w
   await expect(dialog.getByRole("button", { name: /Front door/ })).toHaveCount(0);
   await dialog.getByLabel("Name for light.kitchen").fill("Kitchen");
   await dialog.getByLabel("Solar power").selectOption("sensor.solar_power");
-  await dialog.getByLabel("House consumption").selectOption("sensor.house_power");
+  await dialog.getByLabel(/^Feed-in/).selectOption("sensor.grid_feed_in");
+  await dialog.getByLabel(/^Grid draw/).selectOption("sensor.grid_draw");
+  // The house is worked out from the three unless a sensor is picked for it.
+  await expect(dialog.getByLabel("House consumption")).toHaveValue("");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
 
@@ -94,7 +97,7 @@ test("Home control: switches, everything off and solar, on its page and on the w
   await page.goto("/wall");
   const tile = page.getByTestId("home-tile");
   await expect(tile).toBeVisible();
-  await request.post(`${HA}/__power`, { data: { solar: "0.5" } });
+  await request.post(`${HA}/__power`, { data: { solar: "0.5", feedIn: "0", draw: "700" } });
   await tile.getByRole("switch", { name: "Kitchen" }).click();
   await expect(tile.getByRole("switch", { name: "Kitchen" })).toHaveAttribute("aria-checked", "true");
   await expect(tile.getByTestId("energy-solar")).toContainText("500");

@@ -58,17 +58,20 @@ function HomeSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () 
 
   const save = async () => {
     setBusy(true);
-    const e = energy.solar ? { solar: energy.solar, house: energy.house || undefined, grid: energy.grid || undefined, gridInvert: energy.grid ? Boolean(energy.gridInvert) : undefined } : null;
+    const e = energy.solar ? {
+      solar: energy.solar, feedIn: energy.feedIn || undefined, draw: energy.draw || undefined, house: energy.house || undefined,
+      grid: energy.grid || undefined, gridInvert: energy.grid ? Boolean(energy.gridInvert) : undefined,
+    } : null;
     const r = await run(() => saveHomeSetup({ id: conn.id, controls: controls.map((c) => ({ ...c, name: c.name.trim() || c.entityId })), energy: e }));
     setBusy(false);
     if (r.ok) onClose();
     else setError(r.error);
   };
 
-  const sensorSelect = (key: "solar" | "house" | "grid", label: string, hint: string) => (
+  const sensorSelect = (key: "solar" | "feedIn" | "draw" | "house" | "grid", label: string, hint: string, empty = t("homeSetup.none")) => (
     <Field label={label} hint={hint}>
       <select className={inputCls} value={energy[key] ?? ""} onChange={(e) => setEnergy((x) => ({ ...x, [key]: e.target.value || undefined }))}>
-        <option value="">{t("homeSetup.none")}</option>
+        <option value="">{empty}</option>
         {(choices?.sensors ?? []).map((s) => <option key={s.entityId} value={s.entityId}>{s.name} ({s.unit ?? "W"})</option>)}
         {/* A stored sensor Home Assistant no longer lists stays selectable, so saving doesn't drop it silently. */}
         {energy[key] && !choices?.sensors.some((s) => s.entityId === energy[key]) && <option value={energy[key]}>{energy[key]}</option>}
@@ -79,7 +82,7 @@ function HomeSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () 
   return (
     <Dialog open onClose={onClose} wide title={t("homeSetup.title")}
       footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={busy || (!energy.solar && Boolean(energy.house || energy.grid))} onClick={save}>{t("common.save")}</Button></>}>
+        <Button variant="primary" disabled={busy || (!energy.solar && Boolean(energy.feedIn || energy.draw || energy.house || energy.grid))} onClick={save}>{t("common.save")}</Button></>}>
       <div className="flex flex-col gap-6">
         <p className="text-sm text-soft">{t("homeSetup.hint")}</p>
 
@@ -121,8 +124,11 @@ function HomeSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () 
         <section className="flex flex-col gap-4">
           <h3 className="font-bold">{t("homeSetup.energy")}</h3>
           {sensorSelect("solar", t("homeSetup.solar"), t("homeSetup.solarHint"))}
-          {sensorSelect("house", t("homeSetup.house"), t("homeSetup.houseHint"))}
-          {sensorSelect("grid", t("homeSetup.grid"), t("homeSetup.gridHint"))}
+          {sensorSelect("feedIn", t("homeSetup.feedIn"), t("homeSetup.feedInHint"))}
+          {sensorSelect("draw", t("homeSetup.draw"), t("homeSetup.drawHint"))}
+          {sensorSelect("house", t("homeSetup.house"), t("homeSetup.houseHint"), t("homeSetup.calculate"))}
+          {/* Older setups with one signed grid sensor keep it until it is cleared. */}
+          {stored.energy?.grid && sensorSelect("grid", t("homeSetup.grid"), t("homeSetup.gridHint"))}
           {energy.grid && (
             <div className="flex items-center justify-between gap-3">
               <span><span className="block font-bold">{t("homeSetup.gridInvert")}</span><span className="text-sm text-soft">{t("homeSetup.gridInvertHint")}</span></span>

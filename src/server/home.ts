@@ -24,7 +24,10 @@ export const H = {
     id,
     controls: z.array(z.object({ entityId: entityId.refine(isSwitchable, "a light, switch, fan or helper"), name: z.string().trim().min(1).max(40) })).max(24)
       .refine((c) => new Set(c.map((x) => x.entityId)).size === c.length, "each entity once"),
-    energy: z.object({ solar: sensorId, house: sensorId.optional(), grid: sensorId.optional(), gridInvert: z.boolean().optional() }).nullable(),
+    energy: z.object({
+      solar: sensorId, feedIn: sensorId.optional(), draw: sensorId.optional(), house: sensorId.optional(),
+      grid: sensorId.optional(), gridInvert: z.boolean().optional(),
+    }).nullable(),
   }),
   byId: z.object({ id }),
   none: z.object({}).optional(),
@@ -61,24 +64,29 @@ export async function readHome(db: Tx, now = Date.now()): Promise<HomeState | nu
 
 async function fetchHome(conn: Connection): Promise<HomeState> {
   const cfg = haConfig(conn);
-  const sensors = cfg.energy ? [cfg.energy.solar, cfg.energy.house, cfg.energy.grid].filter((x): x is string => Boolean(x)) : [];
+  const e = cfg.energy;
+  const sensors = e ? [e.solar, e.feedIn, e.draw, e.house, e.grid].filter((x): x is string => Boolean(x)) : [];
   const ids = [...new Set([...cfg.controls.map((c) => c.entityId), ...sensors])];
   const results = await Promise.allSettled(ids.map((e) => readState(cfg.url, cfg.token, e)));
   const states = new Map<string, HaState>();
   results.forEach((r, i) => r.status === "fulfilled" && states.set(ids[i], r.value));
   const reachable = results.some((r) => r.status === "fulfilled");
   if (!reachable && results[0]?.status === "rejected") log.warn("home assistant unreachable", { error: errorMessage(results[0].reason) });
-  const watts = (e?: string) => {
-    const s = e ? states.get(e) : undefined;
+  const watts = (id: string) => {
+    const s = states.get(id);
     return s ? toWatts(s.state, s.attributes.unit_of_measurement) : null;
   };
+  // A sensor that isn't set up stays undefined, so energyFlow can tell it from one without a reading.
+  const opt = (id?: string) => (id ? watts(id) : undefined);
   return {
     reachable,
     switches: cfg.controls.map((c) => {
       const s = states.get(c.entityId)?.state;
       return { ...c, on: isOn(s), available: isAvailable(s) };
     }),
-    energy: cfg.energy ? energyFlow(watts(cfg.energy.solar), watts(cfg.energy.house), watts(cfg.energy.grid), cfg.energy.gridInvert) : null,
+    energy: e ? energyFlow({
+      solar: watts(e.solar), feedIn: opt(e.feedIn), draw: opt(e.draw), house: opt(e.house), grid: opt(e.grid), gridInvert: e.gridInvert,
+    }) : null,
   };
 }
 
@@ -123,7 +131,11 @@ export async function listChoices(db: Tx, input: In<"byId">): Promise<HaEntityCh
 export async function saveSetup(db: Tx, input: In<"setup">) {
   const conn = await db.connection.findUnique({ where: { id: input.id } });
   if (!conn || conn.kind !== "homeassistant") throw notFound("connection");
-  if (input.energy && [input.energy.house, input.energy.grid].includes(input.energy.solar)) throw new UserError("invalid", "solar, house and grid are different sensors");
+  if (input.energy) {
+    const { solar, feedIn, draw, house, grid } = input.energy;
+    const picked = [solar, feedIn, draw, house, grid].filter(Boolean);
+    if (new Set(picked).size !== picked.length) throw new UserError("invalid", "solar, feed-in, draw, house and grid are different sensors");
+  }
   const cfg = (conn.config ?? {}) as HaStoredConfig;
   const next: HaStoredConfig = { ...cfg, controls: input.controls, energy: input.energy ?? undefined };
   await db.connection.update({ where: { id: conn.id }, data: { config: next as Prisma.InputJsonValue } });

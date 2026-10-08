@@ -17,18 +17,39 @@ describe("toWatts (§21)", () => {
 });
 
 describe("energyFlow (§21)", () => {
-  it("works the grid out from house and solar without a grid sensor", () => {
-    expect(energyFlow(3000, 1000, null)).toEqual({ solar: 3000, house: 1000, grid: -2000 });
-    expect(energyFlow(500, 1500, null)).toEqual({ solar: 500, house: 1500, grid: 1000 });
+  it("works the house out from solar, feed-in and draw", () => {
+    expect(energyFlow({ solar: 3200, feedIn: 2000, draw: 0 })).toEqual({ solar: 3200, house: 1200, grid: -2000 });
+    expect(energyFlow({ solar: 500, feedIn: 0, draw: 1000 })).toEqual({ solar: 500, house: 1500, grid: 1000 });
   });
 
-  it("prefers the grid sensor, turned around when it counts feed-in as positive", () => {
-    expect(energyFlow(3000, 1000, -1900)).toEqual({ solar: 3000, house: 1000, grid: -1900 });
-    expect(energyFlow(3000, 1000, 1900, true)).toEqual({ solar: 3000, house: 1000, grid: -1900 });
+  it("counts a feed-in or draw sensor that isn't set up as nothing", () => {
+    expect(energyFlow({ solar: 0, draw: 800 })).toEqual({ solar: 0, house: 800, grid: 800 });
+    expect(energyFlow({ solar: 3000, feedIn: 1000 })).toEqual({ solar: 3000, house: 2000, grid: -1000 });
   });
 
-  it("leaves the grid out when it can't be known", () => {
-    expect(energyFlow(3000, null, null).grid).toBeNull();
+  it("never shows a house below zero while sensors catch up", () => {
+    expect(energyFlow({ solar: 500, feedIn: 2000, draw: 0 }).house).toBe(0);
+  });
+
+  it("prefers the house sensor when there is one", () => {
+    expect(energyFlow({ solar: 3000, feedIn: 1900, draw: 0, house: 1000 })).toEqual({ solar: 3000, house: 1000, grid: -1900 });
+  });
+
+  it("works the grid out from house and solar without grid sensors", () => {
+    expect(energyFlow({ solar: 3000, house: 1000 })).toEqual({ solar: 3000, house: 1000, grid: -2000 });
+    expect(energyFlow({ solar: 500, house: 1500 })).toEqual({ solar: 500, house: 1500, grid: 1000 });
+  });
+
+  it("still reads a signed grid sensor, turned around when it counts feed-in as positive", () => {
+    expect(energyFlow({ solar: 3000, house: 1000, grid: -1900 })).toEqual({ solar: 3000, house: 1000, grid: -1900 });
+    expect(energyFlow({ solar: 3000, house: 1000, grid: 1900, gridInvert: true })).toEqual({ solar: 3000, house: 1000, grid: -1900 });
+    expect(energyFlow({ solar: 3000, grid: -1900 })).toEqual({ solar: 3000, house: 1100, grid: -1900 });
+  });
+
+  it("leaves out what can't be known", () => {
+    expect(energyFlow({ solar: 3000 })).toEqual({ solar: 3000, house: null, grid: null });
+    expect(energyFlow({ solar: 3000, feedIn: null, draw: 0 })).toEqual({ solar: 3000, house: null, grid: null });
+    expect(energyFlow({ solar: null, feedIn: 0, draw: 500 })).toEqual({ solar: null, house: null, grid: 500 });
   });
 });
 
