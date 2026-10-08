@@ -217,7 +217,7 @@ export async function setDayTimes(db: Tx, input: In<"dayTimes">) {
 /** Saves the holiday feeds. Changing them makes the next job tick fetch them again. */
 export async function setHolidayFeeds(db: Tx, input: In<"holidayFeeds">) {
   const urls = [...new Set(input.urls.map((u) => u.trim()).filter(Boolean))];
-  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null } });
+  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null, holidaysFailedAt: null, holidaysFailures: 0 } });
   if (!urls.length) await db.holidayRange.deleteMany();
 }
 

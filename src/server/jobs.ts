@@ -129,6 +129,13 @@ export async function wakeJob(name: string) {
   }
 }
 
+/**
+ * How long to wait after `failures` failed attempts in a row: 2, 4, 8 …
+ * minutes, never longer than the job's normal interval. A source that is
+ * down isn't asked every minute, and one that comes back is soon read again.
+ */
+export const retryDelayMs = (failures: number, intervalMs: number) => Math.min(intervalMs, TICK_MS * 2 ** Math.min(Math.max(1, failures), 20));
+
 export function startJobs() {
   if (state.started || process.env.KINDO_JOBS === "off") return;
   state.started = true;

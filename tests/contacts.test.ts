@@ -4,6 +4,7 @@ import * as C from "@/server/connections";
 import { addressBooksOf, dueContactConnections, setContactBooks, syncContacts, updateContactBirthday } from "@/server/contacts/sync";
 import { loadSnapshot } from "@/server/snapshot";
 import { seedDemo } from "@/server/demo/seed";
+import { encryptSecret } from "@/server/crypto";
 import { TEST_DB, VIEWER, resetTestDatabase } from "./db";
 
 /**
@@ -85,5 +86,35 @@ describe.skipIf(!TEST_DB || !URL_)("Contact birthdays from CardDAV (D46)", () =>
   it("forgets the contacts when no address book is chosen any more", async () => {
     await setContactBooks(db, { id: connectionId, books: [], autoShow: false });
     expect(await db.contactBirthday.count({ where: { connectionId } })).toBe(0);
+  });
+});
+
+describe.skipIf(!TEST_DB)("contacts from a server that is down", () => {
+  let db: PrismaClient;
+  beforeAll(async () => {
+    db = await resetTestDatabase();
+  }, 60_000);
+  afterAll(() => db?.$disconnect());
+
+  it("backs off instead of asking every minute, and is due again once it worked", async () => {
+    const books = ["http://127.0.0.1:9/addressbooks/anna/family/"]; // nothing listens there
+    const conn = await db.connection.create({
+      data: { kind: "caldav", name: "Nextcloud", url: "http://127.0.0.1:9/", username: "anna", secret: encryptSecret("pw"), config: { contacts: { books, autoShow: false } } },
+    });
+    const now = new Date("2026-10-08T10:00:00Z");
+    const at = (minutes: number) => new Date(now.getTime() + minutes * 60_000);
+    const due = async (when: Date) => (await dueContactConnections(db, when)).some((c) => c.id === conn.id);
+    expect(await due(now)).toBe(true);
+    await expect(syncContacts(db, conn, now)).rejects.toThrow();
+    expect(await due(at(1))).toBe(false);
+    expect(await due(at(2))).toBe(true);
+    await expect(syncContacts(db, await db.connection.findUniqueOrThrow({ where: { id: conn.id } }), at(2))).rejects.toThrow();
+    expect(await due(at(5))).toBe(false);
+    expect(await due(at(6))).toBe(true);
+    // Never longer than the hourly read.
+    const cfg = { contacts: { books, autoShow: false, failedAt: now.toISOString(), failures: 30 } };
+    await db.connection.update({ where: { id: conn.id }, data: { config: cfg } });
+    expect(await due(at(59))).toBe(false);
+    expect(await due(at(60))).toBe(true);
   });
 });

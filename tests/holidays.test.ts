@@ -56,6 +56,28 @@ describe.skipIf(!TEST_DB)("school holidays (§7, §19.3)", () => {
     expect((await db.household.findUniqueOrThrow({ where: { id: 1 } })).holidaysError).toMatch(/HTTP 500/);
   });
 
+  it("backs off after failures instead of retrying every minute, and is fresh again once it worked", async () => {
+    const failed = new Date(2026, 9, 8); // the failure above
+    const at = (minutes: number) => new Date(failed.getTime() + minutes * 60_000);
+    expect(await holidaysDue(db, at(1))).toBe(false);
+    expect(await holidaysDue(db, at(2))).toBe(true);
+    fail = true;
+    await expect(syncHolidays(db, at(2))).rejects.toThrow();
+    fail = false;
+    expect(await holidaysDue(db, at(5))).toBe(false);
+    expect(await holidaysDue(db, at(6))).toBe(true);
+    await syncHolidays(db, at(6));
+    expect(await db.household.findUniqueOrThrow({ where: { id: 1 } })).toMatchObject({ holidaysError: null, holidaysFailures: 0, holidaysFailedAt: null });
+    expect(await holidaysDue(db, at(60))).toBe(false);
+  });
+
+  it("a sync from Settings and the job at once don't double the holidays", async () => {
+    const before = await db.holidayRange.count();
+    const now = new Date(2026, 9, 9);
+    await Promise.all([syncHolidays(db, now), syncHolidays(db, now), syncHolidays(db, now)]);
+    expect(await db.holidayRange.count()).toBe(before);
+  });
+
   it("removing every feed clears the holidays", async () => {
     await setHolidayFeeds(db, { urls: [] });
     expect(await db.holidayRange.count()).toBe(0);
