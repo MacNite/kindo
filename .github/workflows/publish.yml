@@ -32,24 +32,14 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # A broken image must never reach the registry, so the fast checks run first.
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run lint
-      - run: npm run typecheck
-      # Unit tests only: the integration tests need PostgreSQL and run in CI.
-      - run: npm test
+  # A broken image must never reach the registry: the whole CI suite (unit,
+  # integration and end-to-end tests, the image smoke test) passes first, for
+  # this exact commit.
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   publish:
-    needs: verify
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -123,10 +123,10 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 
 ## §18 Deployment
 
-- Two images from one multi-stage Dockerfile on `node:22-alpine`: `ghcr.io/macnite/kindo` (Next.js `standalone` output, no Prisma CLI) and `ghcr.io/macnite/kindo-migrate` (one-shot `prisma migrate deploy`). Both run as non-root user `kindo` (uid 1001). The app has a healthcheck on `/api/health`, which includes a database round-trip.
+- Two images from one multi-stage Dockerfile on `node:26-alpine` (CI tests on the same Node major; `engines` still allows 22 for development): `ghcr.io/macnite/kindo` (Next.js `standalone` output, no Prisma CLI) and `ghcr.io/macnite/kindo-migrate` (one-shot `prisma migrate deploy`). Both run as non-root user `kindo` (uid 1001). The app has a healthcheck on `/api/health`, which includes a database round-trip.
 - Compose runs `db` (PostgreSQL 17), `migrate` and `app`; the app waits for `migrate` to complete.
 - `docker-compose.yml` uses `APP_IMAGE` and keeps `build:` so `--build` works from source.
-- Publishing: see README *Images*. arm64 builds only on release tags and manual runs, because emulated builds are slow.
+- Publishing: see README *Images*. An image is pushed only after the whole CI workflow passed for that commit. arm64 builds only on release tags and manual runs, because emulated builds are slow.
 
 ## §19 Roadmap
 
