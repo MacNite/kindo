@@ -139,10 +139,19 @@ export async function setPin(db: Tx, input: In<"setPin">) {
   await db.household.update({ where: { id: 1 }, data: { settingsPinHash: input.pin ? await hashPassword(input.pin) : null } });
 }
 
-/** Failed PIN attempts per device: five, then a pause, so a PIN can't be guessed by trying. */
-const attempts = new Map<string, { fails: number; until: number }>();
+/**
+ * Failed PIN attempts per device: five, then a pause that doubles with every
+ * further round of wrong tries (a minute, two, four, up to an hour) until the
+ * right PIN comes, so even a four-digit PIN can't be guessed by trying. Kept
+ * in memory: only a paired display can try, and it can't restart the server.
+ */
+const attempts = new Map<string, { fails: number; lockouts: number; until: number }>();
 const MAX_FAILS = 5;
 const LOCKOUT_MS = 60_000;
+const MAX_LOCKOUT_MS = 60 * 60_000;
+
+/** How long the n-th pause in a row lasts. */
+export const pinLockoutMs = (n: number) => Math.min(LOCKOUT_MS * 2 ** Math.max(0, n - 1), MAX_LOCKOUT_MS);
 
 export async function checkPin(db: Tx, deviceId: string, input: In<"checkPin">, now = Date.now()): Promise<boolean> {
   const a = attempts.get(deviceId);
@@ -155,6 +164,7 @@ export async function checkPin(db: Tx, deviceId: string, input: In<"checkPin">, 
     return true;
   }
   const fails = (a?.fails ?? 0) + 1;
-  attempts.set(deviceId, { fails: fails >= MAX_FAILS ? 0 : fails, until: fails >= MAX_FAILS ? now + LOCKOUT_MS : 0 });
+  const lockouts = a?.lockouts ?? 0;
+  attempts.set(deviceId, fails >= MAX_FAILS ? { fails: 0, lockouts: lockouts + 1, until: now + pinLockoutMs(lockouts + 1) } : { fails, lockouts, until: 0 });
   return false;
 }

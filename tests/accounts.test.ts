@@ -129,6 +129,22 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     await expect(Acc.checkPin(db, "dev-b", { pin: "2468" }, 2_000)).rejects.toMatchObject({ code: "tooManyAttempts" });
     expect(await Acc.checkPin(db, "dev-b", { pin: "2468" }, 70_000)).toBe(true);
   });
+
+  it("makes each pause in a row twice as long, up to an hour, until the right PIN", async () => {
+    expect([1, 2, 3, 7, 30].map(Acc.pinLockoutMs)).toEqual([60_000, 120_000, 240_000, 3_600_000, 3_600_000]);
+    const wrong = async (at: number) => {
+      for (let i = 0; i < 5; i++) expect(await Acc.checkPin(db, "dev-c", { pin: "0000" }, at)).toBe(false);
+    };
+    await wrong(0); // paused until 60 s
+    await wrong(61_000); // paused for two minutes, until 181 s
+    await expect(Acc.checkPin(db, "dev-c", { pin: "2468" }, 150_000)).rejects.toMatchObject({ code: "tooManyAttempts" });
+    await wrong(182_000); // four minutes, until 422 s
+    await expect(Acc.checkPin(db, "dev-c", { pin: "2468" }, 400_000)).rejects.toMatchObject({ code: "tooManyAttempts" });
+    expect(await Acc.checkPin(db, "dev-c", { pin: "2468" }, 423_000)).toBe(true);
+    // The right PIN starts over at a minute.
+    await wrong(424_000);
+    expect(await Acc.checkPin(db, "dev-c", { pin: "2468" }, 485_000)).toBe(true);
+  });
 });
 
 describe.skipIf(!TEST_DB)("only single sign-on (§20 D42)", () => {
