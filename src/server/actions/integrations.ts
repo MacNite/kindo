@@ -1,5 +1,6 @@
 "use server";
 import * as C from "../connections";
+import * as K from "../cameras";
 import { act } from "./act";
 
 /** Integrations (§15, §19.5–8): admin only; secrets go in, never come out. */
@@ -11,6 +12,7 @@ export const addCalDav = act(C.C.addCalDav, async (db, input) => {
 }, { level: "admin", topic: "events" });
 export const addIcs = act(C.C.addIcs, async (db, input) => C.addIcs(db, input), { level: "admin", topic: "events" });
 export const addHomeAssistant = act(C.C.addHomeAssistant, async (db, input) => C.addHomeAssistant(db, input), { level: "admin", topic: "household" });
+export const addFrigate = act(K.K.addFrigate, async (db, input) => K.addFrigate(db, input), { level: "admin", topic: "household" });
 export const addImmich = act(C.C.addImmich, async (db, input) => C.addImmich(db, input), { level: "admin", topic: "household" });
 export const updateSource = act(C.C.source, C.updateSource, { level: "admin", topic: "events" });
 export const removeSource = act(C.C.byId, C.removeSource, { level: "admin", topic: "events" });

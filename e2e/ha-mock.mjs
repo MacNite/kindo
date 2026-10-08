@@ -2,20 +2,23 @@
  * A stand-in Home Assistant: the REST API (states, services) and the
  * WebSocket API. One presence entity whose state tests set through
  * `POST /__state` ("on" / "off"), two lights, a plug, a lock Kindo must
- * never switch, and solar, house, feed-in and grid draw power sensors
- * (`POST /__power`).
+ * never switch, solar, house, feed-in and grid draw power sensors
+ * (`POST /__power`), and a doorbell's visitor sensor (`POST /__ring`
+ * presses it: on, then off again).
  */
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
 export const HA_TOKEN = "e2e-home-assistant-long-lived-token";
 const ENTITY = "binary_sensor.hallway_motion";
+export const VISITOR = "binary_sensor.front_door_visitor";
 
 const initial = () => ({
   [ENTITY]: { state: "off", attributes: { friendly_name: "Hallway motion", device_class: "motion" } },
   "light.kitchen": { state: "on", attributes: { friendly_name: "Kitchen light" } },
   "light.living_room": { state: "off", attributes: { friendly_name: "Living room" } },
   "switch.coffee": { state: "on", attributes: { friendly_name: "Coffee machine" } },
+  [VISITOR]: { state: "off", attributes: { friendly_name: "Front door Visitor" } },
   "lock.front_door": { state: "locked", attributes: { friendly_name: "Front door" } },
   "sensor.solar_power": { state: "3.2", attributes: { friendly_name: "Inverter output", unit_of_measurement: "kW", device_class: "power" } },
   "sensor.house_power": { state: "1200", attributes: { friendly_name: "Smart meter", unit_of_measurement: "W", device_class: "power" } },
@@ -30,8 +33,9 @@ export function startHaMock(port = 0) {
   const calls = [];
   const subscribers = new Set();
   const set = (id, state) => {
+    const old = states[id]?.state;
     states[id] = { ...states[id], state };
-    for (const s of subscribers) s(id, state);
+    for (const s of subscribers) s(id, state, old);
   };
   const body = (req) => new Promise((resolve) => {
     let b = "";
@@ -53,6 +57,11 @@ export function startHaMock(port = 0) {
       if (p.house !== undefined) set("sensor.house_power", String(p.house));
       if (p.feedIn !== undefined) set("sensor.grid_feed_in", String(p.feedIn));
       if (p.draw !== undefined) set("sensor.grid_draw", String(p.draw));
+      return res.writeHead(200).end();
+    }
+    if (url.pathname === "/__ring" && req.method === "POST") {
+      set(VISITOR, "on");
+      setTimeout(() => set(VISITOR, "off"), 200);
       return res.writeHead(200).end();
     }
     if (url.pathname === "/__reset" && req.method === "POST") {
@@ -93,7 +102,8 @@ export function startHaMock(port = 0) {
       if (msg.type === "get_states") ws.send(JSON.stringify({ id: msg.id, type: "result", success: true, result: Object.entries(states).map(([entity_id, s]) => ({ entity_id, ...s })) }));
       if (msg.type === "subscribe_trigger") {
         const watched = [msg.trigger.entity_id].flat();
-        const send = (id, state) => watched.includes(id) && ws.send(JSON.stringify({ id: msg.id, type: "event", event: { variables: { trigger: { entity_id: id, to_state: { state } } } } }));
+        const { from, to } = msg.trigger;
+        const send = (id, state, old) => watched.includes(id) && (!to || to === state) && (!from || from === old) && ws.send(JSON.stringify({ id: msg.id, type: "event", event: { variables: { trigger: { entity_id: id, to_state: { state } } } } }));
         subscribers.add(send);
         mine.push(send);
       }

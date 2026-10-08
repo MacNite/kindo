@@ -4,6 +4,7 @@
  * from the service and state layers, never from the server or seed data.
  */
 import type { HomeSetup } from "./home";
+import type { CameraInfo } from "./cameras";
 
 /** User-entered text is a plain string. Mock data ships both languages so the
  *  demo reads naturally in either UI language. */
@@ -226,17 +227,17 @@ export interface Weather {
   days: { date: Date; sky: Sky; high: number; low: number }[];
 }
 
-export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" | "chores" | "meals" | "shopping" | "dates" | "birthdays" | "photos" | "home";
+export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" | "chores" | "meals" | "shopping" | "dates" | "birthdays" | "photos" | "home" | "cameras";
 export type WidgetSize = "s" | "m" | "l";
 export interface WidgetConfig { id: WidgetId; enabled: boolean; size: WidgetSize }
 /** The household tiles beside the lanes on the wall display (§4, §21). */
-export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "birthdays" | "home";
+export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "birthdays" | "home" | "cameras";
 export interface WallTile { id: WallTileId; enabled: boolean }
 
 /** A connection to an outside service, as an admin's Settings screen sees it: never its secret (§17). */
 export interface ConnectionInfo {
   id: string;
-  kind: "caldav" | "google" | "ics" | "immich" | "homeassistant";
+  kind: "caldav" | "google" | "ics" | "immich" | "homeassistant" | "frigate";
   name: string;
   url?: string;
   username?: string;
@@ -248,7 +249,7 @@ export interface ConnectionInfo {
 }
 
 export interface Integration {
-  id: "nextcloud" | "immich" | "google" | "ics" | "homeassistant";
+  id: "nextcloud" | "immich" | "google" | "ics" | "homeassistant" | "frigate";
   status: "connected" | "partial" | "off";
   detail?: Text;
 }
@@ -327,6 +328,8 @@ export interface HouseholdData {
   features: { google: boolean };
   /** Home control (§21): the switches and whether there is a solar view; null when not set up. */
   home: HomeSetup | null;
+  /** Cameras from Frigate (§22): names and what they can do; empty when none are set up. */
+  cameras: CameraInfo[];
 }
 
 /** The snapshot as it crosses the wire: dates of days are filled in on the device. */

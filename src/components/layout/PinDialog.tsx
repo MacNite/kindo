@@ -41,7 +41,7 @@ export function PinDialog() {
   const press = (k: string) => setPin((p) => (k === "⌫" ? p.slice(0, -1) : p.length < 8 ? p + k : p));
 
   return (
-    <Dialog open onClose={close} title={t("pin.title")}>
+    <Dialog open top onClose={close} title={t("pin.title")}>
       {!viewer.pinSet ? (
         <p className="flex items-center gap-3 text-soft"><Lock size={20} />{t("pin.notSet")}</p>
       ) : (

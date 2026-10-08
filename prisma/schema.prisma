@@ -59,6 +59,7 @@ enum ConnectionKind {
   ics
   immich
   homeassistant
+  frigate
 }
 
 enum ConnectionStatus {
@@ -492,11 +493,11 @@ model PairingRequest {
 }
 
 /// A connection to an outside service (§17): a Nextcloud account, a Google
-/// account, an ICS feed, an Immich server, Home Assistant. Its secret (app
-/// password, API key, refresh token, private feed URL) is encrypted with
+/// account, an ICS feed, an Immich server, Home Assistant, Frigate. Its secret
+/// (app password, API key, refresh token, private feed URL) is encrypted with
 /// KINDO_SECRET_KEY and never leaves the server.
 model Connection {
-  id         String           @id @default(cuid())
+  id         String            @id @default(cuid())
   kind       ConnectionKind
   name       String
   url        String?
@@ -504,12 +505,35 @@ model Connection {
   /// Encrypted (see src/server/crypto.ts).
   secret     String?
   /// Kind-specific settings, never secret.
-  config     Json             @default("{}")
-  status     ConnectionStatus @default(pending)
+  config     Json              @default("{}")
+  status     ConnectionStatus  @default(pending)
   lastError  String?
   lastSyncAt DateTime?
-  createdAt  DateTime         @default(now())
+  createdAt  DateTime          @default(now())
   sources    CalendarSource[]
   albums     PhotoAlbum[]
   contacts   ContactBirthday[]
+}
+
+/// A press of a doorbell (§22): Home Assistant's visitor sensor went from off
+/// to on. Every screen shows it until `endsAt`, and a screen that reconnects
+/// asks for the ring that is still going on. Old rings are pruned.
+model DoorbellRing {
+  id       String   @id @default(cuid())
+  /// The camera in the Frigate connection's config (`CameraSetup.id`).
+  cameraId String
+  at       DateTime @default(now())
+  endsAt   DateTime
+
+  @@index([cameraId, at])
+}
+
+/// Who may talk through a camera right now (§22): one speaker per camera, held
+/// by one screen and renewed while it talks. An expired lease is free again,
+/// so a screen that crashed mid-talk doesn't block the door.
+model TalkLease {
+  cameraId String   @id
+  /// `<actor>:<screen>`: the person or device, and the screen it talks from.
+  holder   String
+  until    DateTime
 }

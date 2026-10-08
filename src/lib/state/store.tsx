@@ -62,6 +62,8 @@ function useHousehold(initial: HouseholdWire) {
   const [presence, setPresence] = useState<{ present: boolean; at: number } | null>(null);
   /** Counts "a switch changed" news from Home Assistant, so Home control reads the switches again (§21). */
   const [homeTick, setHomeTick] = useState(0);
+  /** Counts doorbell news and reconnects, so the ring overlay asks whether someone is at the door (§22). */
+  const [ringTick, setRingTick] = useState(0);
   const [pinRequest, setPinRequest] = useState<{ retry: () => Promise<unknown> } | null>(null);
   const pending = useRef(0);
   const stale = useRef(false);
@@ -191,6 +193,8 @@ function useHousehold(initial: HouseholdWire) {
     es.onopen = () => {
       setSync("live");
       void refresh();
+      // A ring may have come while this screen was away.
+      setRingTick((n) => n + 1);
     };
     es.onerror = () => setSync(navigator.onLine ? "connecting" : "offline");
     es.addEventListener("change", (ev) => {
@@ -201,6 +205,7 @@ function useHousehold(initial: HouseholdWire) {
       // Presence (Home Assistant) is news for the wall, not a data change (§19.8).
       if (change.topic === "presence") setPresence({ present: Boolean(change.present), at: Date.now() });
       else if (change.topic === "home") setHomeTick((n) => n + 1);
+      else if (change.topic === "doorbell") setRingTick((n) => n + 1);
       else void refresh();
     });
     const onVisible = () => document.visibilityState === "visible" && void refresh();
@@ -328,6 +333,7 @@ function useHousehold(initial: HouseholdWire) {
     tasks: data.tasks, toggleTask, addTask, deleteTask,
     widgets: data.household.widgets, moveWidget, updateWidget,
     wallTiles: data.household.wallTiles, moveWallTile, showWallTile, home: data.home, homeTick,
+    cameras: data.cameras, ringTick,
     albums: data.albums, updateAlbum, idleMinutes: data.household.idleMinutes, setIdleMinutes,
     showPhotoMeta: data.household.showPhotoMeta, setShowPhotoMeta,
   };

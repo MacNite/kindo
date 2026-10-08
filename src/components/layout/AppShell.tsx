@@ -12,6 +12,7 @@ import { useStore } from "@/lib/state/store";
 import { Avatar } from "../ui/Avatar";
 import { PinDialog } from "./PinDialog";
 import { ErrorToast } from "../ui/ErrorText";
+import { DoorbellWatcher } from "../cameras/Cameras";
 
 /**
  * Management shell for phones, tablets and desktops.
@@ -21,9 +22,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { t } = useI18n();
   const [more, setMore] = useState(false);
-  const { getMembers, getMember, viewer, home } = useStore();
+  const { getMembers, getMember, viewer, home, cameras } = useStore();
   const me = getMember(viewer.memberId);
-  const NAV = navFor(Boolean(home));
+  const NAV = navFor(Boolean(home), cameras.length > 0);
 
   return (
     <div className="min-h-dvh md:flex">
@@ -80,6 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </nav>
 
+      <DoorbellWatcher />
       <PinDialog />
       <ErrorToast />
       <Dialog open={more} onClose={() => setMore(false)} title={t("nav.more")}>

@@ -11,6 +11,7 @@ import { syncPhotos } from "./photos/sync";
 import { ICS_REMOTE_ID, readFeed } from "./calendar/ics";
 import { parseCalendar } from "./calendar/ical";
 import { checkToken, readEntity, syncPresenceWatchers, type HaStoredConfig } from "./homeassistant";
+import { listFrigate, frigateTarget } from "./frigate";
 
 /**
  * Connections to outside services and the calendars they bring (§5, §15,
@@ -184,6 +185,17 @@ export async function syncNow(db: Tx, input: In<"byId">) {
   if (!conn) throw notFound("connection");
   if (conn.kind === "immich") return syncPhotos(db, conn);
   if (conn.kind === "homeassistant") return syncPresenceWatchers(db);
+  if (conn.kind === "frigate") {
+    // Nothing to sync: check that Frigate still answers and the login still works.
+    try {
+      await listFrigate(frigateTarget(conn));
+      await db.connection.update({ where: { id: conn.id }, data: { status: "ok", lastError: null, lastSyncAt: new Date() } });
+    } catch (e) {
+      await db.connection.update({ where: { id: conn.id }, data: { status: "error", lastError: (e instanceof Error ? e.message : String(e)).slice(0, 500), lastSyncAt: new Date() } });
+      throw e;
+    }
+    return;
+  }
   await discoverCalendars(db, conn);
   await syncConnection(db, conn, { force: true });
 }

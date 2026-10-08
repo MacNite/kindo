@@ -1,10 +1,10 @@
 "use client";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { Cloud, Globe, House, ImageIcon, Lock, Pencil, Plus, RefreshCw, Rss, Trash2 } from "lucide-react";
+import { Cctv, Cloud, Globe, House, ImageIcon, Lock, Pencil, Plus, RefreshCw, Rss, Trash2 } from "lucide-react";
 import type { ActionResult, CalendarSource, ConnectionInfo, Integration } from "@/lib/types";
 import { useI18n, type MessageKey } from "@/i18n";
 import { useStore } from "@/lib/state/store";
-import { addCalDav, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
+import { addCalDav, addFrigate, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
 import { useSearchParams } from "next/navigation";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
 import { Button } from "../ui/Button";
@@ -15,11 +15,12 @@ import { AvatarStack } from "../ui/Avatar";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 import { HomeSetupButton } from "./HomeSetup";
+import { CameraSetupButton } from "./CameraSetup";
 import { toggled } from "@/lib/sets";
 
 type Done = { ok: boolean; error?: string };
-const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, immich: ImageIcon, google: Globe, ics: Rss, homeassistant: House };
-const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: "caldav", immich: "immich", google: "google", ics: "ics", homeassistant: "homeassistant" };
+const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, immich: ImageIcon, google: Globe, ics: Rss, homeassistant: House, frigate: Cctv };
+const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: "caldav", immich: "immich", google: "google", ics: "ics", homeassistant: "homeassistant", frigate: "frigate" };
 
 /** Extra integration-specific pieces (forms, details) registered by later steps. */
 export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode>> = {
@@ -28,6 +29,7 @@ export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: ()
   ics: ({ onClose }) => <IcsForm onClose={onClose} />,
   homeassistant: ({ onClose }) => <HomeAssistantForm onClose={onClose} />,
   google: ({ onClose }) => <GoogleConnect onClose={onClose} />,
+  frigate: ({ onClose }) => <FrigateForm onClose={onClose} />,
 };
 
 /** Settings → Integrations (§15): connect services; passwords go to the server and stay there (§17). */
@@ -89,6 +91,7 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
                 </span>
               </span>
               {c.kind === "homeassistant" && <HomeSetupButton conn={c} />}
+              {c.kind === "frigate" && <CameraSetupButton conn={c} />}
               <Button size="sm" variant="ghost" disabled={busy === c.id} onClick={() => act(c.id, () => syncConnectionNow({ id: c.id }))}>
                 <RefreshCw size={14} className={cn(busy === c.id && "animate-spin")} />{t("integrations.syncNow")}
               </Button>
@@ -248,6 +251,45 @@ function HomeAssistantForm({ onClose }: { onClose: () => void }) {
         <Field label={t("integrations.serverUrl")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://homeassistant.local:8123" /></Field>
         <Field label={t("integrations.haToken")} hint={t("integrations.haTokenHint")}><input className={inputCls} type="password" value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" /></Field>
         <Field label={t("integrations.haEntity")} hint={t("integrations.haEntityHint")}><input className={inputCls} value={entityId} onChange={(e) => setEntityId(e.target.value.trim())} placeholder="binary_sensor.hallway_motion" /></Field>
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
+}
+
+/**
+ * Frigate (§22): its address with the port (8971 inside the container, often
+ * mapped to another one outside), a Frigate user, and whether to trust the
+ * self-signed certificate Frigate uses by default.
+ */
+function FrigateForm({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const { run } = useStore();
+  const [url, setUrl] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [trustCertificate, setTrust] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    setBusy(true);
+    const r = await run(() => addFrigate({ url, username, password, trustCertificate }));
+    setBusy(false);
+    if (r.ok) onClose();
+    else setError(r.error);
+  };
+  return (
+    <Dialog open onClose={onClose} title={t("settings.integrations.frigate")}
+      footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" disabled={busy || !url || !username || !password} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <p className="text-sm text-soft">{t("integrations.frigateHint")}</p>
+        <Field label={t("integrations.serverUrl")} hint={t("integrations.frigateUrlHint")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://frigate.local:8971" /></Field>
+        <Field label={t("integrations.username")} hint={t("integrations.frigateUserHint")}><input className={inputCls} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></Field>
+        <Field label={t("integrations.password")}><input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" /></Field>
+        <div className="flex items-center justify-between gap-3"><span><span className="block font-bold">{t("integrations.trustCertificate")}</span><span className="text-sm text-soft">{t("integrations.trustCertificateHint")}</span></span>
+          <Switch label={t("integrations.trustCertificate")} checked={trustCertificate} onChange={setTrust} /></div>
         <button type="submit" hidden />
       </form>
     </Dialog>

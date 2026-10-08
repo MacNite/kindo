@@ -4,11 +4,13 @@ import type {
 } from "@/lib/types";
 import { addDays, dateKey, startOfDay } from "@/lib/dates";
 import { routineStepValue } from "@/lib/ledger";
+import type { Prisma } from "@prisma/client";
 import type { Tx } from "./db";
 import { fromStoredEvent } from "./events";
 import { demoWeather } from "./demo/data";
 import { completeWallTiles, completeWidgets } from "@/lib/dashboard";
 import { homeSetupOf } from "./home";
+import { camerasOf } from "./cameras";
 
 /** How far back completions travel to the devices: enough for a two-week history view. */
 export const HISTORY_DAYS = 35;
@@ -119,10 +121,11 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     })) : [],
     features: { google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) },
     home: homeSetupOf(connections.find((c) => c.kind === "homeassistant")),
+    cameras: camerasOf(connections.find((c) => c.kind === "frigate")),
   };
 }
 
-type ConnRow = { id: string; kind: ConnectionInfo["kind"]; status: ConnectionInfo["status"] };
+type ConnRow = { id: string; kind: ConnectionInfo["kind"]; status: ConnectionInfo["status"]; config: Prisma.JsonValue };
 
 /** Integration status for Settings, from the household's connections (or the demo's pretend ones). */
 function integrationsFor(demo: boolean, connections: ConnRow[], sources: { connectionId: string | null }[]): Integration[] {
@@ -131,12 +134,16 @@ function integrationsFor(demo: boolean, connections: ConnRow[], sources: { conne
     if (!mine.length) return { id, status: "off" };
     const calendars = sources.filter((s) => mine.some((c) => c.id === s.connectionId)).length;
     const status = mine.every((c) => c.status === "ok") ? "connected" : "partial";
-    const detail = kinds.includes("immich") || kinds.includes("homeassistant")
+    const cameras = kinds.includes("frigate") ? camerasOf(mine[mine.length - 1]).length : 0;
+    const detail = kinds.includes("frigate") ? { en: `${cameras} cameras`, de: `${cameras} Kameras` }
+      : kinds.includes("immich") || kinds.includes("homeassistant")
       ? { en: `${mine.length} connected`, de: `${mine.length} verbunden` }
       : { en: `${calendars} calendars`, de: `${calendars} Kalender` };
     return { id, status, detail };
   };
-  const real: Integration[] = [card("nextcloud", ["caldav"]), card("immich", ["immich"]), card("google", ["google"]), card("ics", ["ics"]), card("homeassistant", ["homeassistant"])];
+  const real: Integration[] = [
+    card("nextcloud", ["caldav"]), card("immich", ["immich"]), card("google", ["google"]), card("ics", ["ics"]), card("homeassistant", ["homeassistant"]), card("frigate", ["frigate"]),
+  ];
   if (!demo || connections.length) return real;
   return [
     { id: "nextcloud", status: "connected", detail: { en: "Demo: 2 calendars", de: "Demo: 2 Kalender" } },
@@ -144,5 +151,6 @@ function integrationsFor(demo: boolean, connections: ConnRow[], sources: { conne
     { id: "google", status: "partial", detail: { en: "Demo: 1 read-only calendar", de: "Demo: 1 Kalender, nur lesen" } },
     { id: "ics", status: "connected", detail: { en: "Demo: school, waste collection", de: "Demo: Schule, Abfallkalender" } },
     { id: "homeassistant", status: "off" },
+    { id: "frigate", status: "off" },
   ];
 }

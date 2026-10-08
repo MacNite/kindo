@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Cake, ImageIcon, LayoutGrid, Lightbulb, Smile } from "lucide-react";
+import { Cake, Cctv, ImageIcon, LayoutGrid, Lightbulb, Smile } from "lucide-react";
 import type { WallTileId } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -13,6 +13,7 @@ import { BigClock, WeatherNow, DatesList } from "./Widgets";
 import { Screensaver } from "../photos/Screensaver";
 import { Avatar } from "../ui/Avatar";
 import { HomeTile } from "../home/HomeControl";
+import { CamerasTile } from "../cameras/Cameras";
 import { BirthdaysCompact, BirthdaysFullscreen } from "../birthdays/Birthdays";
 import { useGreeting } from "./HomeScreen";
 
@@ -25,7 +26,7 @@ import { useGreeting } from "./HomeScreen";
 export function WallDashboard() {
   const today = useToday();
   const { t, tx } = useI18n();
-  const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync, wallTiles, home } = useStore();
+  const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync, wallTiles, home, cameras } = useStore();
   const greeting = useGreeting();
   const [saver, setSaver] = useState(false);
   /** The birthday wheel over the whole screen (D46). */
@@ -89,6 +90,8 @@ export function WallDashboard() {
     ),
     // Switches and solar from Home Assistant (§21), when the household turned the tile on.
     home: <HomeTile large />,
+    // Frigate's cameras as still pictures, live on a tap (§22). A ring opens over everything on its own.
+    cameras: <CamerasTile large />,
   };
 
   return (
@@ -107,6 +110,7 @@ export function WallDashboard() {
           <button onClick={() => setWheel(true)} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><Cake size={26} />{t("widgets.birthdays")}</button>
           <WallBtn href="/kids" label={t("nav.kids")}><Smile size={26} /></WallBtn>
           {home && <WallBtn href="/home-control" label={t("nav.homeControl")}><Lightbulb size={26} /></WallBtn>}
+          {cameras.length > 0 && <WallBtn href="/cameras" label={t("nav.cameras")}><Cctv size={26} /></WallBtn>}
           <button onClick={() => setSaver(true)} className="flex h-16 items-center gap-3 rounded-full bg-surface px-6 text-lg font-bold"><ImageIcon size={26} />{t("nav.photos")}</button>
           <WallBtn href="/" label={t("nav.home")}><LayoutGrid size={26} /></WallBtn>
         </nav>
