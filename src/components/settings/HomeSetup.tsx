@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Lightbulb, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Settings, X } from "lucide-react";
 import type { ConnectionInfo } from "@/lib/types";
 import type { EnergySensors, HaEntityChoices, HomeControl } from "@/lib/home";
 import { useI18n } from "@/i18n";
@@ -18,7 +18,7 @@ export function HomeSetupButton({ conn }: { conn: ConnectionInfo }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}><Lightbulb size={14} />{t("homeSetup.open")}</Button>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Settings size={14} />{t("homeSetup.open")}</Button>
       {open && <HomeSetupDialog conn={conn} onClose={() => setOpen(false)} />}
     </>
   );
