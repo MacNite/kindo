@@ -1,7 +1,7 @@
 "use client";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Coins, Euro, Pencil, Plus, PowerOff, Star, Trash2 } from "lucide-react";
+import { Banknote, Coins, Pencil, Plus, PowerOff, Star, Trash2 } from "lucide-react";
 import type { Reward, RewardMode } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -17,7 +17,7 @@ import { RewardAmount } from "../ui/RewardAmount";
 import { cn } from "../ui/cn";
 
 const MODES: { id: RewardMode; Icon: typeof Star }[] = [
-  { id: "off", Icon: PowerOff }, { id: "stars", Icon: Star }, { id: "tokens", Icon: Coins }, { id: "money", Icon: Euro },
+  { id: "off", Icon: PowerOff }, { id: "stars", Icon: Star }, { id: "tokens", Icon: Coins }, { id: "money", Icon: Banknote },
 ];
 
 export function RewardModePicker() {

@@ -209,7 +209,7 @@ export function RoutineSettings() {
           <ErrorText code={state.error} />
         </div>
         <p className="text-sm text-soft">
-          {h.holidaysError ? <span className="font-bold text-[#B4443C] dark:text-[#E98A80]">{t("settings.routines.syncFailed", { error: h.holidaysError })}</span>
+          {h.holidaysError ? <span className="font-bold text-danger">{t("settings.routines.syncFailed", { error: h.holidaysError })}</span>
             : h.holidaysSyncedAt ? t("settings.routines.synced", { when: `${fmt.dateMedium(h.holidaysSyncedAt)} ${fmt.time(h.holidaysSyncedAt)}`, n: data.holidays.length })
             : h.holidayIcsUrls.length ? t("settings.routines.notSynced") : t("settings.routines.noFeeds")}
         </p>

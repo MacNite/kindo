@@ -83,7 +83,7 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
         <ul className="flex flex-col divide-y divide-line rounded-card bg-sunken px-3">
           {mine.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center gap-2 py-2.5">
-              <span className={cn("h-2.5 w-2.5 rounded-full", c.status === "ok" ? "bg-ok" : c.status === "error" ? "bg-[#B4443C]" : "bg-line")} />
+              <span className={cn("h-2.5 w-2.5 rounded-full", c.status === "ok" ? "bg-ok" : c.status === "error" ? "bg-danger" : "bg-line")} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold">{c.name}{c.username && <span className="font-normal text-soft">, {c.username}</span>}</span>
                 <span className="block text-sm text-soft">

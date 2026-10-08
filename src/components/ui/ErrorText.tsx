@@ -8,7 +8,7 @@ export function ErrorText({ code, detail, className }: { code: string | null | u
   const { t } = useI18n();
   if (!code) return null;
   return (
-    <span role="alert" className={`text-sm font-bold text-[#B4443C] dark:text-[#E98A80] ${className ?? ""}`}>
+    <span role="alert" className={`text-sm font-bold text-danger ${className ?? ""}`}>
       {t(`errors.${code}` as MessageKey)}
       {detail && <span className="block break-words font-normal">{detail}</span>}
     </span>

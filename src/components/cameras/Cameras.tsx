@@ -225,7 +225,7 @@ function TalkControls({ talk }: { talk: ReturnType<typeof useTalk> }) {
       <>
         <Button size="lg" variant="outline" disabled={talk.state === "starting"} onClick={() => void talk.start()}
           className="h-16 !border-white/40 px-8 text-xl !text-white hover:!bg-white/15"><Mic size={26} />{talk.state === "starting" ? t("cameras.connecting") : t("cameras.talk")}</Button>
-        <ErrorText code={talk.error} className="!text-[#F2B8B0]" />
+        <ErrorText code={talk.error} className="!text-danger-on-dark" />
       </>
     );
   }
@@ -239,7 +239,7 @@ function TalkControls({ talk }: { talk: ReturnType<typeof useTalk> }) {
           onKeyDown={(e) => (e.key === " " || e.key === "Enter") && !e.repeat && talk.speak(true)} onKeyUp={(e) => (e.key === " " || e.key === "Enter") && talk.speak(false)}
           onContextMenu={(e) => e.preventDefault()}
           className={cn("flex h-24 min-w-64 touch-none select-none items-center justify-center gap-3 rounded-full px-10 text-2xl font-bold transition-colors",
-            talk.speaking ? "bg-[#C2453B] text-white" : "bg-white text-ink")}>
+            talk.speaking ? "bg-danger-solid text-white" : "bg-white text-ink")}>
           <Mic size={32} aria-hidden />{talk.speaking ? t("cameras.talking") : t("cameras.holdToTalk")}
         </button>
         <Button size="lg" variant="ghost" onClick={talk.stop} className="!text-white hover:!bg-white/15">{t("cameras.stopTalk")}</Button>
