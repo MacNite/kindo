@@ -1,5 +1,5 @@
 "use client";
-import { ArrowRight, Check, Play, Plus, Server, Radar } from "lucide-react";
+import { ArrowRight, Check, Moon, Play, Plus, Server, Radar } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { usePhotoPlaylist } from "@/lib/state/photos";
@@ -13,7 +13,7 @@ const WEIGHT_COLORS = ["#3B78C2", "#8A5CD1", "#E39A1B", "#2E8B6E", "#C2477A", "#
 
 export function PhotosScreen() {
   const { t, fmt } = useI18n();
-  const { albums, updateAlbum, idleMinutes, setIdleMinutes, showPhotoMeta, setShowPhotoMeta } = useStore();
+  const { albums, updateAlbum, idleMinutes, setIdleMinutes, showPhotoMeta, setShowPhotoMeta, night, setNight } = useStore();
   const photos = usePhotoPlaylist();
   const servers = [...new Set(albums.map((a) => a.server))];
   const pool = albums.filter((a) => a.selected);
@@ -109,6 +109,22 @@ export function PhotosScreen() {
               <Switch label={t("photos.showMeta")} checked={showPhotoMeta} onChange={setShowPhotoMeta} />
             </div>
             <p className="mt-4 flex items-center gap-2 text-sm text-soft"><Radar size={16} />{t("photos.presence")}</p>
+            <div className="mt-5 flex items-center justify-between gap-3 border-t border-line pt-5">
+              <span className="flex items-center gap-2 font-bold"><Moon size={18} />{t("photos.night")}</span>
+              <Switch label={t("photos.night")} checked={night.on} onChange={(on) => setNight({ on })} />
+            </div>
+            {night.on && (
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                {(["from", "until"] as const).map((k) => (
+                  <label key={k} className="flex items-center gap-2 font-bold">
+                    {t(k === "from" ? "photos.nightFrom" : "photos.nightUntil")}
+                    <input type="time" required value={night[k]} className="h-10 rounded-full bg-sunken px-4 font-bold"
+                      onChange={(e) => /^\d{2}:\d{2}$/.test(e.target.value) && setNight({ [k]: e.target.value })} />
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-sm text-soft">{t("photos.nightHint")}</p>
           </Panel>
         </div>
       </div>

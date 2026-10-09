@@ -144,6 +144,8 @@ const de: Messages = {
     behaviour: "Wann er startet", idle: "Nach Inaktivität von", showMeta: "Datum, Ort und Album anzeigen",
     start: "Bilderrahmen starten", flowActive: "Übersicht", flowIdle: "Keine Berührung", flowSaver: "Fotos", flowTouch: "Berührung",
     presence: "Mit Home Assistant (Einstellungen → Integrationen) weckt Anwesenheit die Wandanzeige.", wake: "Tippen zum Zurückkehren",
+    night: "Nachtruhe", nightFrom: "Von", nightUntil: "Bis",
+    nightHint: "Statt Fotos bleibt der Bildschirm schwarz und darf nach der Bildschirm-Zeitsperre des Geräts ausgehen. Eine Berührung weckt ihn; morgens bleibt er dunkel, bis ihn jemand berührt.",
   },
   homeControl: {
     title: "Zuhause", subtitle: "Ein paar Schalter und die Sonne auf dem Dach, aus Home Assistant.",
