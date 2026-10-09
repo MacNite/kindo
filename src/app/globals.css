@@ -1,7 +1,8 @@
 /* Fonts: Bricolage Grotesque for the clock/headings, Atkinson Hyperlegible for
    everything you read — designed for legibility, which matters on a wall
    screen read from across the kitchen. Fallbacks keep it usable offline. */
-@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap");
+/* The other families belong to the design styles (designs.css); browsers only load the ones in use. */
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&family=Archivo+Black&family=Rajdhani:wght@500;600;700&family=Orbitron:wght@500;700&display=swap");
 
 @tailwind base;
 @tailwind components;

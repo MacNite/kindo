@@ -110,7 +110,8 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 ## §16 Appearance
 
 - Light, dark and system themes.
-- Warm, modern, calm and touch-first. Avoid a corporate SaaS look, heavy gradients, childish cartoons and dense admin layouts.
+- Warm, modern, calm and touch-first. Avoid a corporate SaaS look, heavy gradients, childish cartoons and dense admin layouts. This is Kindo's own style, **Warm**, and the default.
+- Four further styles are optional, per device (Settings → Appearance, D54): **Minimal** (flat, thin borders, Inter), **Glass** (frosted tiles over a pastel gradient, light only), **Neo-brutal** (thick black borders, hard shadows, bold colour, light only) and **Futuristic** (dark grid, glowing outlines, dark only). They restyle the same tokens and classes under `html[data-design]` (`src/app/designs.css`); member colours, avatars and pictograms keep their meaning in every style.
 - Tokens are CSS variables (`src/app/globals.css`). Member colours are applied through `--m`.
 - Typefaces: Bricolage Grotesque (clock, headings) and Atkinson Hyperlegible (body text).
 
@@ -203,6 +204,7 @@ Still open:
 | D51 | The pictogram picker has a **personal care** category (washing hands, face and hair, shower, bath, towel, toilet, teeth, hair, cream, nails, medicine, plaster). Brush teeth, brush hair, bath and wash face moved there from morning and evening; ids stay the same | Hygiene steps belong to both morning and evening routines, and washing had only one picture. Keeping the ids leaves saved routines untouched. |
 | D53 | Guessable ways in are limited without trusting the client. The settings PIN unlocks *manage* on a wall display, never *admin* (D27). An admin who can sign in always remains: an admin is deleted, demoted or loses their login only while another admin with a login exists. Sign-in failures count per email (ten in 15 minutes) and for everyone together (a hundred); `X-Forwarded-For` counts only with `KINDO_TRUST_PROXY=true`, and then its last entry. Pairing codes are rate-limited and at most ten wait at once. Five wrong PINs pause a display for a minute, each further round twice as long, up to an hour, until the right PIN (kept in memory, per device). Login emails reach admins and their owners only | The PIN is short and shared, and an empty login table would hand the household to whoever opens /setup. A header anyone can write must not decide whose attempts are counted; a lockout that a wall display cannot reset needs no database table. |
 | D52 | Routines, chores, the current period and the daily reset follow the household's time zone (Settings → Family) on every device, read with `Intl`; calendars, clocks and "now" markers keep the device's own time, as events are shown in it | A phone travelling with a parent, or set to the wrong zone, must still tick off the family's today, and the same day the server accepts (D19). |
+| D54 | Besides Warm, four optional design styles (minimal, glass, neo-brutal, futuristic), chosen per device next to theme and text size (`kindo.prefs`, applied before first paint). Glass and neo-brutal are always light, futuristic always dark; there the device's scheme choice is disabled. Warm stays the default | Other looks were asked for, the wall display above all; the wall tablet and a parent's phone may want different ones. §16's "no heavy gradients" stays true for Warm; the others are an explicit opt-in. A style only fixes a scheme where the other one would be a different design, not a variant. |
 
 ## §21 Home control
 

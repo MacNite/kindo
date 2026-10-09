@@ -241,7 +241,12 @@ const en = {
       wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control", wallTile_cameras: "Cameras", wallTile_birthdays: "Birthday wheel",
       wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.", wallCamerasHint: "Shows once Frigate cameras are set up.",
     },
-    appearance: { theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large" },
+    appearance: {
+      theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large",
+      design: "Style", designHint: "How this screen looks, the wall display included. Each device keeps its own.",
+      designs: { warm: "Warm", minimal: "Minimal", glass: "Glass", brutal: "Neo-brutal", future: "Futuristic" },
+      fixedLight: "{style} is always light.", fixedDark: "{style} is always dark.",
+    },
     language: {
       language: "Language", region: "Formats", preview: "Preview", date: "Date", time: "Time",
       weekStart: "Week starts", number: "Number", currency: "Currency",
