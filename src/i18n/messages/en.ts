@@ -148,6 +148,8 @@ const en = {
     behaviour: "When it starts", idle: "After no touch for", showMeta: "Show date, place and album",
     start: "Start screensaver", flowActive: "Dashboard", flowIdle: "No touch", flowSaver: "Photos", flowTouch: "Touch",
     presence: "With Home Assistant (Settings → Integrations), presence wakes the wall display.", wake: "Tap to return",
+    night: "Night rest", nightFrom: "From", nightUntil: "Until",
+    nightHint: "Instead of photos the screen stays black and may turn off after the device's own screen timeout. A touch wakes it; in the morning it stays dark until someone touches it.",
   },
   homeControl: {
     title: "Home control", subtitle: "A few switches and the sun on the roof, from Home Assistant.",
@@ -226,7 +228,7 @@ const en = {
       weatherError: "No weather found for this place. Check the spelling, or add the country after a comma." },
     members: {
       edit: "Edit person", name: "Name", role: "Role", avatar: "Picture",
-      add: "Add person", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
+      add: "Add person", email: "Email for signing in", emailSsoHint: "Optional. Gives this person a login: they sign in with {name}, using this email. A password can be set later under Login.", emailHint: "Optional. Gives this person a login with this email. Set a password for it under Login afterwards.", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
       color: "Colour", hint: "People and logins are separate. Children don't need an account.",
     },
     calendar: { hint: "Each calendar belongs to one or more people, so its events take their colour.", belongsTo: "Belongs to" },

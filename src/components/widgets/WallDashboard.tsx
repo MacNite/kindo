@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
 import { useWakeLock } from "@/lib/useWakeLock";
+import { useNight } from "@/lib/state/useNight";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { BigClock, WeatherNow, DatesList } from "./Widgets";
@@ -31,8 +32,9 @@ export function WallDashboard() {
   const [saver, setSaver] = useState(false);
   /** The birthday wheel over the whole screen (D46). */
   const [wheel, setWheel] = useState(false);
-  // The wall stays on; the photo frame is its screensaver (§13).
-  useWakeLock();
+  // The wall stays on, the photo frame is its screensaver (§13), except in the night rest (D57).
+  const night = useNight();
+  useWakeLock(!night);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const poke = useCallback(() => {
@@ -48,13 +50,15 @@ export function WallDashboard() {
   }, [poke]);
 
   // Home Assistant presence: someone there wakes the wall, nobody there brings the photos back (§13).
+  // At night only a touch wakes it.
   useEffect(() => {
     if (!presence) return;
     if (presence.present) {
+      if (night) return;
       setSaver(false);
       poke();
     } else setSaver(true);
-  }, [presence, poke]);
+  }, [presence, poke, night]);
 
   const tonight = data.meals.find((m) => sameDay(m.date, today));
   const cook = getMember(tonight?.cookId);

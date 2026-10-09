@@ -1,5 +1,5 @@
 "use client";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Cake, CalendarHeart, ChevronRight, GraduationCap, Heart, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import type { ImportantDate, ImportantDateKind, Member, Role, Text } from "@/lib/types";
 import { editText } from "@/lib/text";
@@ -9,6 +9,7 @@ import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
 import { dateKey } from "@/lib/dates";
 import { parseDay } from "@/lib/recurrence";
+import { getAccountAdmin } from "@/lib/services/accounts";
 import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
 import { Dialog } from "../ui/Dialog";
 import { Button, LinkButton } from "../ui/Button";
@@ -35,6 +36,18 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
   const [color, setColor] = useState(member?.color ?? MEMBER_COLORS.find((c) => !used.has(c)) ?? MEMBER_COLORS[0]);
   const [avatar, setAvatar] = useState<Member["avatar"]>(member?.avatar ?? { kind: "emoji", value: "🐼" });
   const [birthday, setBirthday] = useState(member?.birthday ?? "");
+  const [email, setEmail] = useState("");
+  const [sso, setSso] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    getAccountAdmin().then((r) => live && r.ok && setSso(r.data.oidc), () => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  // An adult without a login can get one right here, for single sign-on with that email (§20 D57).
+  const offerLogin = role !== "child" && !member?.account;
+  const loginEmail = offerLogin && email.trim() ? email.trim() : undefined;
   const [error, setError] = useState<string | null>(null);
   const preview: Member = { id: "preview", name: name || "?", role, color, avatar, birthday };
   const done = (r: { ok: boolean; error?: string }) => (r.ok ? onClose() : setError(r.error ?? "server"));
@@ -45,8 +58,8 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
         {member && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => deleteMember({ id: member.id })))}><Trash2 size={16} />{t("common.delete")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={!name.trim()}
-          onClick={async () => done(await run(() => saveMember({ id: member?.id, name, role, color, avatar, birthday: birthday || undefined })))}>{t("common.save")}</Button>
+        <Button variant="primary" disabled={!name.trim() || (loginEmail !== undefined && !loginEmail.includes("@"))}
+          onClick={async () => done(await run(() => saveMember({ id: member?.id, name, role, color, avatar, birthday: birthday || undefined, email: loginEmail })))}>{t("common.save")}</Button>
       </>}>
       <div className="flex flex-col gap-5" style={{ "--m": color } as CSSProperties}>
         <div className="flex items-center gap-4">
@@ -77,6 +90,11 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
           </div>
         </Field>
         <Field label={t("settings.members.birthday")}><input type="date" className={inputCls} value={birthday} onChange={(e) => setBirthday(e.target.value)} /></Field>
+        {offerLogin && (
+          <Field label={t("settings.members.email")} hint={sso ? t("settings.members.emailSsoHint", { name: sso }) : t("settings.members.emailHint")}>
+            <input type="email" autoComplete="off" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} />
+          </Field>
+        )}
       </div>
     </Dialog>
   );

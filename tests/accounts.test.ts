@@ -72,6 +72,18 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     await expect(Acc.createLogin(db, { memberId: "max", email: "other@example.test" })).rejects.toMatchObject({ code: "conflict" });
   });
 
+  it("a person can get a login with an email right when added, or nothing is saved", async () => {
+    const oma = await saveMember(db, { name: "Oma", role: "adult", color: "#2E8B6E", avatar: { kind: "initial" }, email: "Oma@Example.test" });
+    const m = await db.member.findUniqueOrThrow({ where: { id: oma }, include: { user: { include: { accounts: true } } } });
+    expect(m.user?.email).toBe("oma@example.test");
+    expect(m.user?.accounts).toHaveLength(0); // single sign-on only
+    const before = await db.member.count();
+    await expect(saveMember(db, { name: "Opa", role: "adult", color: "#3B78C2", avatar: { kind: "initial" }, email: "oma@example.test" })).rejects.toMatchObject({ code: "conflict" });
+    await expect(saveMember(db, { name: "Kid", role: "child", color: "#3B78C2", avatar: { kind: "initial" }, email: "kid@example.test" })).rejects.toMatchObject({ code: "invalid" });
+    expect(await db.member.count()).toBe(before);
+    await deleteMember(db, { id: oma });
+  });
+
   it("login emails reach admins and their owners only, never a wall display", async () => {
     const emails = async (viewer: Viewer) => Object.fromEntries((await loadSnapshot(db, viewer))!.members.filter((m) => m.account).map((m) => [m.id, m.account!.email]));
     expect(await emails(VIEWER)).toEqual({ anna: "anna@example.test", max: "max@example.test" });

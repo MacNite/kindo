@@ -81,6 +81,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     household: {
       name: household.name, timezone: household.timezone, location: household.location ?? undefined, rewardMode: household.rewardMode,
       pointValue: household.pointValue, idleMinutes: household.idleMinutes, showPhotoMeta: household.showPhotoMeta,
+      night: { on: household.nightOn, from: household.nightFrom, until: household.nightUntil },
       widgets: completeWidgets(household.widgets), wallTiles: completeWallTiles(household.wallTiles), demo: household.demo,
       dayStartsAt: household.dayStartsAt, morningUntil: household.morningUntil, afternoonUntil: household.afternoonUntil,
       holidayIcsUrls: household.holidayIcsUrls, holidaysSyncedAt: household.holidaysSyncedAt ?? undefined, holidaysError: household.holidaysError ?? undefined,

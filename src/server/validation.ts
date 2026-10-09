@@ -56,14 +56,21 @@ export const S = {
   widgets: z.object({ widgets: z.array(z.object({ id: widgetId, enabled: z.boolean(), size: z.enum(["s", "m", "l"]) })).max(20) }),
   wallTiles: z.object({ tiles: z.array(z.object({ id: wallTileId, enabled: z.boolean() })).max(10).refine((t) => new Set(t.map((x) => x.id)).size === t.length, "each tile once") }),
   album: z.object({ id, selected: z.boolean().optional(), weight: z.number().int().min(0).max(100).optional() }),
-  photoPrefs: z.object({ idleMinutes: z.number().min(0.25).max(240).optional(), showPhotoMeta: z.boolean().optional() }),
+  photoPrefs: z.object({
+    idleMinutes: z.number().min(0.25).max(240).optional(), showPhotoMeta: z.boolean().optional(),
+    nightOn: z.boolean().optional(), nightFrom: time.optional(), nightUntil: time.optional(),
+  }),
 
   household: z.object({ name: z.string().trim().min(1).max(80), timezone: z.string().min(1).max(64), location: z.string().trim().max(80).optional() }),
   dayTimes: z.object({ dayStartsAt: time, morningUntil: time, afternoonUntil: time })
     .refine((t) => t.morningUntil < t.afternoonUntil, { message: "morning ends before afternoon", path: ["afternoonUntil"] })
     .refine((t) => t.dayStartsAt < t.morningUntil, { message: "the day starts before morning ends", path: ["dayStartsAt"] }),
   holidayFeeds: z.object({ urls: z.array(z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "http(s) only")).max(5) }),
-  member: z.object({ id: id.optional(), name: z.string().trim().min(1).max(40), role, color, avatar, birthday: day.optional() }),
+  member: z.object({
+    id: id.optional(), name: z.string().trim().min(1).max(40), role, color, avatar, birthday: day.optional(),
+    /** Gives an adult without a login one with this email, for single sign-on (§3, §20 D57). */
+    email: z.string().trim().toLowerCase().email().max(200).optional(),
+  }),
 
   routineStep: z.object({
     /** Existing step to edit; omit to add one. */

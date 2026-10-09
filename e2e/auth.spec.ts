@@ -110,3 +110,30 @@ test("a wall display is paired with a code, ticks routines, and needs the PIN fo
   await wall.goto("/wall");
   await expect(wall).toHaveURL(/\/login/);
 });
+
+test("an adult added with an email signs in through single sign-on (§20 D57)", async ({ browser, request }) => {
+  const admin = await (await browser.newContext({ storageState: ADMIN_STATE })).newPage();
+  await prepare(admin);
+  await admin.goto("/settings?section=members");
+  await admin.getByRole("button", { name: "Add person" }).click();
+  const dialog = admin.getByRole("dialog");
+  await dialog.getByLabel("Name").fill("Oma");
+  await dialog.getByRole("radio", { name: "Adult" }).click();
+  await dialog.getByLabel("Email for signing in").fill("oma@example.test");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(admin.getByText("oma@example.test")).toBeVisible();
+
+  await request.post(`${OIDC}/__identity`, { data: { sub: "authentik-oma", email: "oma@example.test", name: "Oma" } });
+  const oma = await (await browser.newContext()).newPage();
+  await prepare(oma);
+  await oma.goto("/login");
+  await oma.getByRole("button", { name: "Sign in with authentik" }).click();
+  await expect(oma).toHaveURL(/127\.0\.0\.1:\d+\/$/);
+  await expect(oma.getByRole("heading", { name: "Oma", exact: true })).toBeVisible();
+
+  // Leave the family as the other tests expect it.
+  await admin.getByRole("button", { name: "Edit: Oma" }).click();
+  await admin.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+  await expect(admin.getByText("oma@example.test")).toHaveCount(0);
+});

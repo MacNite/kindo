@@ -8,6 +8,7 @@ import { dateKey } from "../dates";
 import { hydrateEvent } from "../events";
 import { completionOutcome, doneKey, resolveRoutineValues } from "../ledger";
 import { currentPeriod } from "../recurrence";
+import { DEFAULT_NIGHT, type NightRest } from "../night";
 import { guessCategory } from "../shopping";
 import { useToday } from "../useToday";
 import { calendarSelectors } from "../services/calendar";
@@ -357,6 +358,11 @@ function useHousehold(initial: HouseholdWire) {
     mutate((d) => ({ ...d, household: { ...d.household, idleMinutes } }), () => A.setPhotoPrefs({ idleMinutes }));
   const setShowPhotoMeta = (showPhotoMeta: boolean) =>
     mutate((d) => ({ ...d, household: { ...d.household, showPhotoMeta } }), () => A.setPhotoPrefs({ showPhotoMeta }));
+  /** The wall's night rest (§13, D57). */
+  const setNight = (patch: Partial<NightRest>) => {
+    const night = { ...(data.household.night ?? DEFAULT_NIGHT), ...patch };
+    return mutate((d) => ({ ...d, household: { ...d.household, night } }), () => A.setPhotoPrefs({ nightOn: night.on, nightFrom: night.from, nightUntil: night.until }));
+  };
 
   /** Runs any other action (editors, settings) and refreshes afterwards. */
   const run = <T,>(call: () => Promise<ActionResult<T>>) => mutate(null, call);
@@ -374,7 +380,7 @@ function useHousehold(initial: HouseholdWire) {
     wallTiles: data.household.wallTiles, moveWallTile, showWallTile, home: data.home, homeTick,
     cameras: data.cameras, ringTick,
     albums: data.albums, updateAlbum, idleMinutes: data.household.idleMinutes, setIdleMinutes,
-    showPhotoMeta: data.household.showPhotoMeta, setShowPhotoMeta,
+    showPhotoMeta: data.household.showPhotoMeta, setShowPhotoMeta, night: data.household.night ?? DEFAULT_NIGHT, setNight,
   };
 }
 

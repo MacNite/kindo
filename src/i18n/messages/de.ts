@@ -144,6 +144,8 @@ const de: Messages = {
     behaviour: "Wann er startet", idle: "Nach Inaktivität von", showMeta: "Datum, Ort und Album anzeigen",
     start: "Bilderrahmen starten", flowActive: "Übersicht", flowIdle: "Keine Berührung", flowSaver: "Fotos", flowTouch: "Berührung",
     presence: "Mit Home Assistant (Einstellungen → Integrationen) weckt Anwesenheit die Wandanzeige.", wake: "Tippen zum Zurückkehren",
+    night: "Nachtruhe", nightFrom: "Von", nightUntil: "Bis",
+    nightHint: "Statt Fotos bleibt der Bildschirm schwarz und darf nach der Bildschirm-Zeitsperre des Geräts ausgehen. Eine Berührung weckt ihn; morgens bleibt er dunkel, bis ihn jemand berührt.",
   },
   homeControl: {
     title: "Zuhause", subtitle: "Ein paar Schalter und die Sonne auf dem Dach, aus Home Assistant.",
@@ -222,7 +224,7 @@ const de: Messages = {
       weatherError: "Für diesen Ort wurde kein Wetter gefunden. Schreibweise prüfen oder das Land nach einem Komma ergänzen." },
     members: {
       edit: "Person bearbeiten", name: "Name", role: "Rolle", avatar: "Bild",
-      add: "Person hinzufügen", login: "Anmeldung", noLogin: "Keine Anmeldung. Nutzt die Familienansicht.", birthday: "Geburtstag",
+      add: "Person hinzufügen", email: "E-Mail für die Anmeldung", emailSsoHint: "Optional. Richtet ein Login ein: Die Person meldet sich mit {name} über diese E-Mail an. Ein Passwort lässt sich später unter Login setzen.", emailHint: "Optional. Richtet ein Login mit dieser E-Mail ein. Ein Passwort dafür danach unter Login setzen.", login: "Anmeldung", noLogin: "Keine Anmeldung. Nutzt die Familienansicht.", birthday: "Geburtstag",
       color: "Farbe", hint: "Personen und Logins sind getrennt. Kinder brauchen kein Konto.",
     },
     calendar: { hint: "Jeder Kalender gehört zu einer oder mehreren Personen, seine Termine übernehmen deren Farbe.", belongsTo: "Gehört zu" },
