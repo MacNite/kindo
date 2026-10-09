@@ -11,7 +11,7 @@ import { UserError, notFound } from "./errors";
 import { toStoredEvent } from "./events";
 import { createRemoteEvent, deleteRemoteEvent, updateRemoteEvent } from "./calendar/sync";
 import type { S } from "./validation";
-import { assertAnotherAdminLogin } from "./accounts";
+import { assertAnotherAdminLogin, createLogin } from "./accounts";
 
 /**
  * Household mutations (§19.2). Plain functions over a database handle, so the
@@ -243,7 +243,22 @@ export async function updateHousehold(db: Tx, input: In<"household">) {
 }
 
 // ── Members ─────────────────────────────────────────────────────────────────
+/**
+ * Adds or edits a person. With an email, an adult who has no login yet gets
+ * one in the same step: without a password, so single sign-on with that email
+ * (§20 D57). A password can still be set under the person's login.
+ */
 export async function saveMember(db: Tx, input: In<"member">) {
+  if (!input.email) return saveMemberOnly(db, input);
+  const email = input.email;
+  return inTx(db, async (tx) => {
+    const memberId = await saveMemberOnly(tx, input);
+    await createLogin(tx, { memberId, email });
+    return memberId;
+  });
+}
+
+async function saveMemberOnly(db: Tx, input: In<"member">) {
   const data = { name: input.name, role: input.role, color: input.color, avatar: json(input.avatar), birthday: input.birthday ?? null };
   if (input.id) {
     if (input.role !== "admin") await assertAnotherAdminLogin(db, input.id);
