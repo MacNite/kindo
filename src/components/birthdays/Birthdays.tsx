@@ -241,19 +241,19 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
       <div className={cn("bday-compact-grid grid items-center gap-4", large ? "grid-cols-[150px_minmax(0,1fr)]" : "grid-cols-[120px_minmax(0,1fr)]")}>
         <div className="bday-compact-wheel"><BirthdayWheel list={list} selected={selected} onSelect={select} compact /></div>
         <div className="min-w-0" aria-live="polite">
-          <p className="text-xs font-bold uppercase tracking-wider text-soft">{t("birthdays.next")}</p>
-          <p className={cn("font-display font-bold leading-tight", large ? "text-2xl" : "text-xl")}>{selected.name}</p>
-          {selected.turns && <p className="font-bold" style={{ color: colorOf(selected, getMember) }}>{words.turns(selected)}</p>}
-          <p className={cn("num font-display font-semibold", large ? "text-xl" : "text-lg")}>{words.when(selected)}</p>
+          <p className="bday-compact-label text-xs font-bold uppercase tracking-wider text-soft">{t("birthdays.next")}</p>
+          <p className={cn("bday-compact-name font-display font-bold leading-tight", large ? "text-2xl" : "text-xl")}>{selected.name}</p>
+          {selected.turns && <p className="bday-compact-turns font-bold" style={{ color: colorOf(selected, getMember) }}>{words.turns(selected)}</p>}
+          <p className={cn("bday-compact-when num font-display font-semibold", large ? "text-xl" : "text-lg")}>{words.when(selected)}</p>
           {sleeps > 0 && (
-            <p className="mt-1 flex flex-wrap gap-1" role="img" aria-label={words.sleeps(sleeps)} title={words.sleeps(sleeps)}>
+            <p className="bday-compact-sleeps mt-1 flex flex-wrap gap-1" role="img" aria-label={words.sleeps(sleeps)} title={words.sleeps(sleeps)}>
               {Array.from({ length: sleeps }, (_, i) => <span key={i} className="h-3 w-3 rounded-full bg-star" />)}
             </p>
           )}
         </div>
       </div>
       {rest.length > 0 && (
-        <ul className="flex flex-col gap-2 border-t border-line pt-3">
+        <ul className="bday-compact-rest flex flex-col gap-2 border-t border-line pt-3">
           {rest.map((b) => (
             <li key={b.id}>
               <button onClick={() => select(b.id)} className="flex w-full items-center gap-2.5 text-left" style={{ "--m": colorOf(b, getMember) } as CSSProperties}>
@@ -269,7 +269,7 @@ export function BirthdaysCompact({ large = false }: { large?: boolean }) {
   );
 }
 
-/** The wall display's full-screen birthday wheel, opened from the button below the lanes (D46). */
+/** The wall display's full-screen birthday wheel, opened from the button above the lanes (D46, D57). */
 export function BirthdaysFullscreen({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const root = useRef<HTMLDivElement>(null);

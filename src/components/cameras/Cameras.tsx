@@ -81,8 +81,8 @@ export function CamerasTile({ large }: { large?: boolean }) {
   const [open, setOpen] = useState<CameraInfo | null>(null);
   if (!cameras.length) return null;
   return (
-    <section data-testid="cameras-tile" className={cn("flex flex-col gap-3 rounded-panel bg-surface", large ? "p-6" : "p-5")}>
-      <Link href="/cameras" className={cn("font-bold hover:underline underline-offset-4", large ? "text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("cameras.title")}</Link>
+    <section data-testid="cameras-tile" className={cn("cameras-tile flex flex-col gap-3 rounded-panel bg-surface", large ? "p-6" : "p-5")}>
+      <Link href="/cameras" className={cn("font-bold hover:underline underline-offset-4", large ? "wall-tile-label text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("cameras.title")}</Link>
       <ul className={cn("grid gap-3", cameras.length > 1 && "grid-cols-2")}>
         {cameras.map((c) => <li key={c.id}><CameraButton camera={c} large={large} onOpen={() => setOpen(c)} /></li>)}
       </ul>

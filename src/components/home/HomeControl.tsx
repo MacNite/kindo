@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ChevronRight, Fan, House, Lightbulb, Plug, Power, Sun, ToggleRight, UtilityPole, type LucideIcon } from "lucide-react";
+import { ChevronRight, Fan, House, Lightbulb, Plug, Plus, Power, Sun, ToggleRight, UtilityPole, type LucideIcon } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useHome } from "@/lib/state/useHome";
@@ -68,18 +68,29 @@ export function HomeTile({ large }: { large?: boolean }) {
   const { t } = useI18n();
   const { setup, state, loading, toggle, allOff } = useHome();
   if (!setup) return null;
+  const switches = state?.switches ?? setup.controls.map((c) => ({ ...c, on: false, available: false }));
+  // In the wall's top strip only one row fits: the first switch and a way to the others.
+  const more = large && switches.length > 2 ? switches.length - 1 : 0;
   return (
-    <section data-testid="home-tile" className={cn("flex flex-col gap-4 rounded-panel bg-surface", large ? "p-6" : "p-5")}>
+    <section data-testid="home-tile" className={cn("home-tile flex flex-col gap-4 rounded-panel bg-surface", large ? "p-6" : "p-5")}>
       <header className="flex items-center justify-between gap-3">
-        <Link href="/home-control" className={cn("font-bold hover:underline underline-offset-4", large ? "text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("homeControl.title")}</Link>
+        <Link href="/home-control" className={cn("min-w-0 font-bold hover:underline underline-offset-4", large ? "wall-tile-label text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("homeControl.title")}</Link>
         {setup.controls.length > 0 && <AllOffButton count={setup.controls.length} onConfirm={allOff} size={large ? "md" : "sm"} />}
       </header>
       {setup.energy && <EnergyView energy={state?.energy ?? null} loading={loading} compact />}
       {setup.controls.length > 0 && (
-        <ul className="grid grid-cols-2 gap-2">
-          {(state?.switches ?? setup.controls.map((c) => ({ ...c, on: false, available: false }))).map((s) => (
+        <ul className={cn("home-tile-chips grid grid-cols-2 gap-2", more > 0 && "home-tile-chips-more")}>
+          {switches.map((s) => (
             <li key={s.entityId}><SwitchChip s={s} pending={!state} onToggle={toggle} large={large} /></li>
           ))}
+          {more > 0 && (
+            <li className="home-tile-more">
+              <Link href="/home-control" aria-label={t("homeControl.moreSwitches", { n: more })}
+                className="flex h-14 w-full items-center justify-center gap-1 rounded-full border-2 border-line text-lg font-bold">
+                <Plus size={20} aria-hidden />{more}
+              </Link>
+            </li>
+          )}
         </ul>
       )}
     </section>
@@ -121,7 +132,7 @@ function EnergyView({ energy, loading, large, compact }: { energy: EnergyFlow | 
       <ul className={cn("grid gap-3", compact ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-3")}>
         {items.map(({ key, Icon, label, watts, tone }) => (
           <li key={key} data-testid={`energy-${key}`} className={cn("flex items-center gap-3 rounded-card", compact ? "" : "bg-sunken/60 p-4")}>
-            <span className={cn("grid shrink-0 place-items-center rounded-full", tone, large ? "h-14 w-14" : "h-11 w-11")}><Icon size={large ? 26 : 20} aria-hidden /></span>
+            <span className={cn("energy-icon grid shrink-0 place-items-center rounded-full", tone, large ? "h-14 w-14" : "h-11 w-11")}><Icon size={large ? 26 : 20} aria-hidden /></span>
             <span className="min-w-0">
               <span className="block text-sm font-bold text-soft">{label}</span>
               <Watts watts={watts} className={cn("font-display font-semibold leading-none", large ? "text-4xl" : "text-2xl")} />
