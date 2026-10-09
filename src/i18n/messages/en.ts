@@ -28,7 +28,7 @@ const en = {
   /** Member colours, by name rather than hex code. */
   colors: { blue: "Blue", green: "Green", purple: "Purple", orange: "Orange", pink: "Pink", teal: "Teal", red: "Red", grey: "Grey" },
   sky: { sun: "Sunny", partly: "Partly cloudy", cloud: "Cloudy", rain: "Rain", snow: "Snow" },
-  weather: { none: "No weather source yet.", range: "{high}° / {low}°" },
+  weather: { none: "Set the place for the weather in Settings → Family.", range: "{high}° / {low}°" },
   home: {
     familyToday: "Today in the family",
     customize: "Customize", doneCustomizing: "Done",
@@ -221,7 +221,9 @@ const en = {
       date: "Birthday", whose: "Belongs to", nobody: "Nobody",
       wallHint: "The wheel can also go on the wall display (Settings → Dashboard) and on the home screen (Customize).",
     },
-    family: { name: "Family name", location: "Location for weather", timezone: "Time zone", hint: "Shown on the wall display greeting." },
+    family: { name: "Family name", location: "Location for weather", timezone: "Time zone", hint: "Shown on the wall display greeting.",
+      locationHint: "A town or city, e.g. \"Herten\" or \"Herten, Germany\".", weatherFor: "Weather for {place}.", weatherLoading: "Looking up the weather…",
+      weatherError: "No weather found for this place. Check the spelling, or add the country after a comma." },
     members: {
       edit: "Edit person", name: "Name", role: "Role", avatar: "Picture",
       add: "Add person", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
@@ -246,6 +248,7 @@ const en = {
       design: "Style", designHint: "How this screen looks, the wall display included. Each device keeps its own.",
       designs: { warm: "Warm", minimal: "Minimal", glass: "Glass", brutal: "Neo-brutal", future: "Futuristic" },
       fixedLight: "{style} is always light.", fixedDark: "{style} is always dark.",
+      memberColors: "Family colours", memberColorsHint: "Tap a person to change their colour. It shows on every screen.",
     },
     language: {
       language: "Language", region: "Formats", preview: "Preview", date: "Date", time: "Time",

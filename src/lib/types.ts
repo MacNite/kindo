@@ -287,6 +287,8 @@ export interface HouseholdSettings {
   holidayIcsUrls: string[];
   holidaysSyncedAt?: Date;
   holidaysError?: string;
+  /** For admins: why the weather for `location` couldn't be fetched (§20 D55). */
+  weatherError?: string;
   location?: string;
   rewardMode: RewardMode;
   /** Pocket-money mode: what one point is worth. */

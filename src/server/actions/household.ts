@@ -5,6 +5,8 @@ import { loadSnapshot } from "../snapshot";
 import { photoPlaylist } from "../photos/playlist";
 import { albumSelected } from "../photos/sync";
 import { syncHolidays } from "../holidays";
+import { wakeJob } from "../jobs";
+import { WEATHER_JOB } from "../weather";
 import { z } from "zod";
 import * as H from "../household";
 import { S } from "../validation";
@@ -52,7 +54,10 @@ export const updateAlbum = act(S.album, async (db, input) => {
   if (input.selected) await albumSelected(db, input.id);
 });
 export const setPhotoPrefs = act(S.photoPrefs, H.setPhotoPrefs);
-export const updateHousehold = act(S.household, H.updateHousehold, { level: "admin" });
+export const updateHousehold = act(S.household, async (db, input) => {
+  const { moved } = await H.updateHousehold(db, input);
+  if (moved) await wakeJob(WEATHER_JOB);
+}, { level: "admin" });
 
 export const saveMember = act(S.member, H.saveMember, { level: "admin" });
 export const deleteMember = act(S.byId, H.deleteMember, { level: "admin" });

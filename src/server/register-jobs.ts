@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { registerJob } from "./jobs";
 import { holidaysDue, syncHolidays } from "./holidays";
+import { WEATHER_JOB, syncWeather, weatherDue } from "./weather";
 import { dueConnections, syncConnection } from "./calendar/sync";
 import { duePhotoConnections, syncPhotos } from "./photos/sync";
 import { dueContactConnections, syncContacts } from "./contacts/sync";
@@ -10,6 +11,8 @@ import { errorMessage, log } from "./log";
 /** Every background job Kindo runs, in one place. */
 export function registerAllJobs() {
   registerJob({ name: "holidays", due: (now) => holidaysDue(prisma, now), run: (now) => syncHolidays(prisma, now), topic: "household" });
+  // Every half hour, and at once when the place changes: the forecast for Settings → Family's place (§20 D55).
+  registerJob({ name: WEATHER_JOB, due: (now) => weatherDue(prisma, now), run: (now) => syncWeather(prisma, now), topic: "household" });
   // Every few minutes (KINDO_SYNC_MINUTES): Nextcloud, ICS subscriptions, Google (§19.5, §19.8).
   registerJob({
     name: "calendars",

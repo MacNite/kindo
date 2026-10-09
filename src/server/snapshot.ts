@@ -8,6 +8,7 @@ import type { Prisma } from "@prisma/client";
 import type { Tx } from "./db";
 import { fromStoredEvent } from "./events";
 import { demoWeather } from "./demo/data";
+import { weatherForWire } from "./weather";
 import { completeWallTiles, completeWidgets } from "@/lib/dashboard";
 import { homeSetupOf } from "./home";
 import { camerasOf } from "./cameras";
@@ -83,6 +84,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       widgets: completeWidgets(household.widgets), wallTiles: completeWallTiles(household.wallTiles), demo: household.demo,
       dayStartsAt: household.dayStartsAt, morningUntil: household.morningUntil, afternoonUntil: household.afternoonUntil,
       holidayIcsUrls: household.holidayIcsUrls, holidaysSyncedAt: household.holidaysSyncedAt ?? undefined, holidaysError: household.holidaysError ?? undefined,
+      weatherError: viewer.isAdmin && household.location ? household.weatherError ?? undefined : undefined,
     },
     viewer,
     members: members.map((m): Member => ({
@@ -116,7 +118,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     events: events.map(fromStoredEvent),
     albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight, cover: a.photos[0]?.id })),
     holidays: holidays.map((h) => ({ start: h.start, end: h.end, summary: h.summary })),
-    weather: household.demo ? demoWeather(today) : null,
+    weather: household.demo ? demoWeather(today) : weatherForWire(household.weather, household.location, household.timezone, now),
     integrations: integrationsFor(household.demo, connections, sources),
     // Addresses and usernames are for the admin's eyes; secrets are for nobody's (§17).
     connections: viewer.isAdmin ? connections.map((c): ConnectionInfo => ({

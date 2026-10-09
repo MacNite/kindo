@@ -113,6 +113,7 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 - Warm, modern, calm and touch-first. Avoid a corporate SaaS look, heavy gradients, childish cartoons and dense admin layouts. This is Kindo's own style, **Warm**, and the default.
 - Four further styles are optional, per device (Settings → Appearance, D54): **Minimal** (flat, thin borders, Inter), **Glass** (frosted tiles over a pastel gradient, light only), **Neo-brutal** (thick black borders, hard shadows, bold colour, light only) and **Futuristic** (dark grid, glowing outlines, dark only). They restyle the same tokens and classes under `html[data-design]` (`src/app/designs.css`); member colours, avatars and pictograms keep their meaning in every style.
 - Tokens are CSS variables (`src/app/globals.css`). Member colours are applied through `--m`.
+- Settings → Appearance also lists everyone's colour with their name on it; an admin taps a person there to change it (the same palette as the member editor).
 - Typefaces: Bricolage Grotesque (clock, headings) and Atkinson Hyperlegible (body text).
 
 ## §17 Architecture
@@ -121,6 +122,7 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 - Layering: `src/app` for routing, `src/components` for UI, `src/lib/services` for data seams, `src/lib` for pure domain logic, `src/server` for server-only code. **Components never import from `src/server` directly.**
 - Persistence follows BrewCore and NutriCore: Server Actions, Prisma and PostgreSQL in a modular monolith, with a one-shot `migrate` image. No separate REST backend, microservices or event bus unless justified. Server code lives in `src/server` (`household.ts` holds the rules, `actions/*.ts` wraps them as Server Actions); UI reaches it only through `src/lib/services/actions.ts` and the store.
 - Integrations run server-side. Secrets never reach the browser.
+- Weather comes from Open-Meteo for the place in Settings → Family (D55).
 
 ## §18 Deployment
 
@@ -144,7 +146,6 @@ Sections: Family, Members, Dates, Birthdays (address books and contacts for the 
 
 Still open:
 
-- **Weather** has no provider yet. Only the demo household has weather (made up); otherwise the wall tile hides and the home widget says there is no weather source.
 - Uploading photos as pictograms (§8) and recipes with "ingredients to shopping list" (§11) remain planned.
 
 ## §20 Decisions
@@ -205,6 +206,7 @@ Still open:
 | D53 | Guessable ways in are limited without trusting the client. The settings PIN unlocks *manage* on a wall display, never *admin* (D27). An admin who can sign in always remains: an admin is deleted, demoted or loses their login only while another admin with a login exists. Sign-in failures count per email (ten in 15 minutes) and for everyone together (a hundred); `X-Forwarded-For` counts only with `KINDO_TRUST_PROXY=true`, and then its last entry. Pairing codes are rate-limited and at most ten wait at once. Five wrong PINs pause a display for a minute, each further round twice as long, up to an hour, until the right PIN (kept in memory, per device). Login emails reach admins and their owners only | The PIN is short and shared, and an empty login table would hand the household to whoever opens /setup. A header anyone can write must not decide whose attempts are counted; a lockout that a wall display cannot reset needs no database table. |
 | D52 | Routines, chores, the current period and the daily reset follow the household's time zone (Settings → Family) on every device, read with `Intl`; calendars, clocks and "now" markers keep the device's own time, as events are shown in it | A phone travelling with a parent, or set to the wrong zone, must still tick off the family's today, and the same day the server accepts (D19). |
 | D54 | Besides Warm, four optional design styles (minimal, glass, neo-brutal, futuristic), chosen per device next to theme and text size (`kindo.prefs`, applied before first paint). Glass and neo-brutal are always light, futuristic always dark; there the device's scheme choice is disabled. Warm stays the default | Other looks were asked for, the wall display above all; the wall tablet and a parent's phone may want different ones. §16's "no heavy gradients" stays true for Warm; the others are an explicit opt-in. A style only fixes a scheme where the other one would be a different design, not a variant. |
+| D55 | Weather comes from Open-Meteo: the server looks up the place typed in Settings → Family (geocoding API; "Herten" or "Herten, Deutschland"), fetches the current conditions and a five-day forecast every 30 minutes as a background job, and stores it on the household (`Household.weather`). A new place or time zone drops the old forecast and wakes the job; a failed fetch keeps the last one and backs off. Admins see under the field whether the place was found. The demo keeps its made-up weather | The place field saved but nothing used it, so the weather never appeared. Open-Meteo needs no account or key, so a self-hosted install gets weather without setup and no secret is involved (§17). |
 
 ## §21 Home control
 
