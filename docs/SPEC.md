@@ -23,7 +23,7 @@ Kindo is **not** a smart-home dashboard. Family organisation comes first. Home c
 
 ## §3 People and accounts
 
-People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email; `KINDO_PASSWORD_LOGIN=false` leaves only single sign-on, §20 D42). Wall displays are paired as devices and need no login (§19.4).
+People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email; `KINDO_PASSWORD_LOGIN=false` leaves only single sign-on, §20 D42), right when adding the person or later (§20 D57). Wall displays are paired as devices and need no login (§19.4).
 
 A member has a name, avatar (emoji, photo or initial), colour, role (`admin`, `adult`, `child`), an optional birthday and an optional account.
 
@@ -208,6 +208,7 @@ Still open:
 | D54 | Besides Warm, four optional design styles (minimal, glass, neo-brutal, futuristic), chosen per device next to theme and text size (`kindo.prefs`, applied before first paint). Glass and neo-brutal are always light, futuristic always dark; there the device's scheme choice is disabled. Warm stays the default | Other looks were asked for, the wall display above all; the wall tablet and a parent's phone may want different ones. §16's "no heavy gradients" stays true for Warm; the others are an explicit opt-in. A style only fixes a scheme where the other one would be a different design, not a variant. |
 | D55 | Weather comes from Open-Meteo: the server looks up the place typed in Settings → Family (geocoding API; "Herten" or "Herten, Deutschland"), fetches the current conditions and a five-day forecast every 30 minutes as a background job, and stores it on the household (`Household.weather`). A new place or time zone drops the old forecast and wakes the job; a failed fetch keeps the last one and backs off. Admins see under the field whether the place was found. The demo keeps its made-up weather | The place field saved but nothing used it, so the weather never appeared. Open-Meteo needs no account or key, so a self-hosted install gets weather without setup and no secret is involved (§17). |
 | D56 | On touch screens the kiosk surfaces (wall, kids, screensaver) go fullscreen without the system's status and navigation bars: the first touch enters it, and again after the bars were swiped back; going to the app ends it, so the bars come back there. Mouse devices stay as they are, and the installed app keeps `display: standalone` | An old wall tablet showed Android's buttons under the wall. The manifest is shared with phones, which should keep their bars in the app, and browsers allow fullscreen only after a tap, so it cannot start on its own. |
+| D57 | The person dialog takes an optional email for adults and admins without a login. Saving creates the person (or role change) and a login with that email, without a password, in one transaction; a taken email saves nothing. A password is set afterwards under the person's login, as before | Admins expected to enter the email where they add the person; with the separate "Give a login" step easy to miss, parents couldn't sign in through single sign-on. |
 
 ## §21 Home control
 

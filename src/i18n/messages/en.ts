@@ -226,7 +226,7 @@ const en = {
       weatherError: "No weather found for this place. Check the spelling, or add the country after a comma." },
     members: {
       edit: "Edit person", name: "Name", role: "Role", avatar: "Picture",
-      add: "Add person", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
+      add: "Add person", email: "Email for signing in", emailSsoHint: "Optional. Gives this person a login: they sign in with {name}, using this email. A password can be set later under Login.", emailHint: "Optional. Gives this person a login with this email. Set a password for it under Login afterwards.", login: "Login", noLogin: "No login. Uses the family screen.", birthday: "Birthday",
       color: "Colour", hint: "People and logins are separate. Children don't need an account.",
     },
     calendar: { hint: "Each calendar belongs to one or more people, so its events take their colour.", belongsTo: "Belongs to" },

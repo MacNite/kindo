@@ -63,7 +63,11 @@ export const S = {
     .refine((t) => t.morningUntil < t.afternoonUntil, { message: "morning ends before afternoon", path: ["afternoonUntil"] })
     .refine((t) => t.dayStartsAt < t.morningUntil, { message: "the day starts before morning ends", path: ["dayStartsAt"] }),
   holidayFeeds: z.object({ urls: z.array(z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "http(s) only")).max(5) }),
-  member: z.object({ id: id.optional(), name: z.string().trim().min(1).max(40), role, color, avatar, birthday: day.optional() }),
+  member: z.object({
+    id: id.optional(), name: z.string().trim().min(1).max(40), role, color, avatar, birthday: day.optional(),
+    /** Gives an adult without a login one with this email, for single sign-on (§3, §20 D57). */
+    email: z.string().trim().toLowerCase().email().max(200).optional(),
+  }),
 
   routineStep: z.object({
     /** Existing step to edit; omit to add one. */
