@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
+import { fixedScheme } from "@/lib/designs";
 import { useStore } from "@/lib/state/store";
 import { updateHousehold } from "@/lib/services/actions";
 import { LANGUAGES, REGIONS, type RegionId } from "@/i18n/config";
@@ -14,6 +15,7 @@ import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountS
 import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSections";
 import { BirthdaySettings } from "./BirthdaySettings";
 import { WallTilesCard } from "./WallTiles";
+import { DesignPicker } from "./DesignPicker";
 import { lockAgain } from "@/lib/services/accounts";
 import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
@@ -173,11 +175,14 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
         </div>
       );
 
-    case "appearance":
+    case "appearance": {
+      const fixed = fixedScheme(prefs.design);
       return (
-        <Card className="flex max-w-xl flex-col gap-6">
-          <Field label={t("settings.appearance.theme")}>
-            <Segmented value={prefs.theme} onChange={(theme) => setPrefs({ theme })} options={[
+        <Card className="flex max-w-3xl flex-col gap-6">
+          <DesignPicker />
+          <Field label={t("settings.appearance.theme")}
+            hint={fixed && t(fixed === "dark" ? "settings.appearance.fixedDark" : "settings.appearance.fixedLight", { style: t(`settings.appearance.designs.${prefs.design}`) })}>
+            <Segmented value={prefs.theme} onChange={(theme) => setPrefs({ theme })} disabled={!!fixed} options={[
               { value: "light", label: t("settings.appearance.light") }, { value: "dark", label: t("settings.appearance.dark") }, { value: "system", label: t("settings.appearance.system") },
             ]} />
           </Field>
@@ -189,6 +194,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
           <div className="flex gap-2">{getMembers().map((m) => <span key={m.id} className="h-10 flex-1 rounded-tile" style={{ background: m.color }} title={m.name} />)}</div>
         </Card>
       );
+    }
 
     case "language": {
       const sample = new Date(TODAY_SAMPLE);

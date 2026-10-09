@@ -237,7 +237,12 @@ const de: Messages = {
       wallTile_weather: "Wetter", wallTile_meal: "Abendessen", wallTile_shopping: "Einkauf", wallTile_dates: "Wichtige Tage", wallTile_home: "Zuhause", wallTile_cameras: "Kameras", wallTile_birthdays: "Geburtstagsrad",
       wallHomeHint: "Erscheint, sobald Schalter oder Solarsensoren aus Home Assistant eingerichtet sind.", wallCamerasHint: "Erscheint, sobald Kameras aus Frigate eingerichtet sind.",
     },
-    appearance: { theme: "Farbschema", light: "Hell", dark: "Dunkel", system: "Wie das Gerät", textSize: "Schriftgröße", normal: "Normal", large: "Groß" },
+    appearance: {
+      theme: "Farbschema", light: "Hell", dark: "Dunkel", system: "Wie das Gerät", textSize: "Schriftgröße", normal: "Normal", large: "Groß",
+      design: "Stil", designHint: "So sieht dieser Bildschirm aus, auch die Wandanzeige. Jedes Gerät merkt sich seinen eigenen.",
+      designs: { warm: "Warm", minimal: "Minimal", glass: "Glas", brutal: "Neo-Brutal", future: "Futuristisch" },
+      fixedLight: "{style} ist immer hell.", fixedDark: "{style} ist immer dunkel.",
+    },
     language: {
       language: "Sprache", region: "Formate", preview: "Vorschau", date: "Datum", time: "Uhrzeit",
       weekStart: "Wochenbeginn", number: "Zahl", currency: "Währung",

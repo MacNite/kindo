@@ -1,19 +1,23 @@
 "use client";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Language, RegionId } from "@/i18n/config";
+import { isDark, isDesign, type Design } from "@/lib/designs";
 
 export type Theme = "light" | "dark" | "system";
-export interface Prefs { theme: Theme; language: Language; region: RegionId; textSize: "normal" | "large" }
+export interface Prefs { theme: Theme; language: Language; region: RegionId; textSize: "normal" | "large"; design: Design }
 
 const KEY = "kindo.prefs";
 const Ctx = createContext<{ prefs: Prefs; setPrefs: (p: Partial<Prefs>) => void } | null>(null);
 
 function initial(): Prefs {
-  const fallback: Prefs = { theme: "system", language: "en", region: "de-DE", textSize: "normal" };
+  const fallback: Prefs = { theme: "system", language: "en", region: "de-DE", textSize: "normal", design: "warm" };
   if (typeof window === "undefined") return fallback;
   try {
     const saved = localStorage.getItem(KEY);
-    if (saved) return { ...fallback, ...JSON.parse(saved) };
+    if (saved) {
+      const p = { ...fallback, ...JSON.parse(saved) };
+      return isDesign(p.design) ? p : { ...p, design: "warm" };
+    }
   } catch {}
   return { ...fallback, language: navigator.language?.toLowerCase().startsWith("de") ? "de" : "en" };
 }
@@ -27,7 +31,8 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = prefs.language;
     document.documentElement.style.fontSize = prefs.textSize === "large" ? "18px" : "";
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => document.documentElement.classList.toggle("dark", prefs.theme === "dark" || (prefs.theme === "system" && mq.matches));
+    document.documentElement.dataset.design = prefs.design;
+    const apply = () => document.documentElement.classList.toggle("dark", isDark(prefs.theme, prefs.design, mq.matches));
     apply();
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);

@@ -2,16 +2,16 @@
 import { isValidElement, useId, type ReactNode } from "react";
 import { cn } from "./cn";
 
-export function Segmented<T extends string>({ value, onChange, options, size = "md", className, label }: {
-  value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; size?: "sm" | "md"; className?: string; label?: string;
+export function Segmented<T extends string>({ value, onChange, options, size = "md", className, label, disabled }: {
+  value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; size?: "sm" | "md"; className?: string; label?: string; disabled?: boolean;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("inline-flex rounded-full bg-sunken p-1", className)}>
+    <div role="radiogroup" aria-label={label} aria-disabled={disabled || undefined} className={cn("inline-flex rounded-full bg-sunken p-1", disabled && "opacity-50", className)}>
       {options.map((o) => (
-        <button type="button" key={o.value} role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}
+        <button type="button" key={o.value} role="radio" aria-checked={value === o.value} disabled={disabled} onClick={() => onChange(o.value)}
           className={cn("inline-flex items-center gap-1.5 rounded-full font-bold transition-colors",
             size === "sm" ? "hit h-8 px-3 text-sm coarse:h-9" : "h-10 px-4 coarse:h-11",
-            value === o.value ? "bg-surface text-ink shadow-[0_1px_0_rgb(var(--line))]" : "text-soft hover:text-ink")}>
+            value === o.value ? "bg-surface text-ink shadow-[0_1px_0_rgb(var(--line))]" : "text-soft enabled:hover:text-ink")}>
           {o.label}
         </button>
       ))}

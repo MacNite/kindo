@@ -2,6 +2,7 @@
 import { Moon, Sun, SunMoon } from "lucide-react";
 import { usePrefs, type Theme } from "@/lib/state/prefs";
 import { useI18n } from "@/i18n";
+import { fixedScheme } from "@/lib/designs";
 import { cn } from "../ui/cn";
 
 /** Language + theme toggles, reachable from every screen. */
@@ -19,8 +20,9 @@ export function QuickPrefs({ compact }: { compact?: boolean }) {
             className={cn("h-8 w-10 rounded-full uppercase coarse:h-11 coarse:w-11", prefs.language === l ? "bg-surface text-ink" : "text-soft")}>{l}</button>
         ))}
       </div>
-      <button onClick={() => setPrefs({ theme: next[prefs.theme] })} aria-label={themeLabel} title={themeLabel}
-        className="grid h-9 w-9 place-items-center rounded-full text-soft hover:bg-sunken hover:text-ink coarse:h-11 coarse:w-11">
+      {/* A style with its own scheme (glass, neo-brutal, futuristic) leaves nothing to toggle. */}
+      <button onClick={() => setPrefs({ theme: next[prefs.theme] })} aria-label={themeLabel} title={themeLabel} disabled={!!fixedScheme(prefs.design)}
+        className="grid h-9 w-9 place-items-center rounded-full text-soft enabled:hover:bg-sunken enabled:hover:text-ink disabled:opacity-40 coarse:h-11 coarse:w-11">
         <ThemeIcon size={18} />
       </button>
     </div>

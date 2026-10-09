@@ -1,0 +1,128 @@
+/* Design styles (§16, D54). Warm is the default in globals.css; each other
+   style restyles the same tokens and classes under html[data-design]. Glass
+   and neo-brutal are light only, futuristic is dark only (src/lib/designs.ts).
+   Member colours always come from --m, and pictures stay as they are. */
+
+/* ── Minimal / flat ─────────────────────────────────────────────── */
+html[data-design="minimal"] {
+  --bg: 255 255 255; --surface: 250 250 251; --sunken: 241 243 246;
+  --ink: 17 24 39; --soft: 107 114 128; --line: 229 231 235;
+}
+html.dark[data-design="minimal"] {
+  --bg: 10 10 12; --surface: 22 23 26; --sunken: 32 33 37;
+  --ink: 237 238 240; --soft: 150 154 162; --line: 44 46 51;
+}
+html[data-design="minimal"] body { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; }
+html[data-design="minimal"] .font-display { font-family: "Inter", ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.03em; }
+html[data-design="minimal"] .wall-tile,
+html[data-design="minimal"] .lane { border-radius: 14px; border: 1px solid rgb(var(--line)); }
+html[data-design="minimal"] .rounded-panel { border-radius: 14px; }
+html[data-design="minimal"] .rounded-card { border-radius: 10px; }
+html[data-design="minimal"] .rounded-tile { border-radius: 8px; }
+html[data-design="minimal"] .lane > .m-bg.absolute { height: 3px; }
+html[data-design="minimal"] .tint { background: color-mix(in srgb, var(--m) 7%, rgb(var(--surface))); }
+html[data-design="minimal"] .lane-routine .bg-surface { border: 1px solid rgb(var(--line)); }
+html[data-design="minimal"] .wall-main nav > * { border: 1px solid rgb(var(--line)); border-radius: 10px; }
+html[data-design="minimal"] .wall-main .rounded-full.bg-surface { border: 1px solid rgb(var(--line)); }
+
+html[data-design="minimal"] .wall-clock .num { font-weight: 300; letter-spacing: -0.05em; }
+html[data-design="minimal"] .lane-name, html[data-design="minimal"] .wall-tile .font-display { font-weight: 600; }
+html[data-design="minimal"] .wall-tile-title, html[data-design="minimal"] .lane-routine > p { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+html[data-design="minimal"] .bg-star\/15 { background: rgb(var(--sunken)); }
+
+/* ── Glassmorphism ──────────────────────────────────────────────── */
+html[data-design="glass"] {
+  --surface: 255 255 255; --sunken: 236 232 248;
+  --ink: 30 27 60; --soft: 86 82 120; --line: 214 208 235;
+}
+html[data-design="glass"] body {
+  background:
+    radial-gradient(40vw 40vw at 8% 12%, #a78bfa 0%, transparent 60%),
+    radial-gradient(45vw 45vw at 92% 8%, #f9a8d4 0%, transparent 60%),
+    radial-gradient(50vw 50vw at 70% 95%, #7dd3fc 0%, transparent 60%),
+    radial-gradient(40vw 40vw at 15% 90%, #fde68a 0%, transparent 60%),
+    #e9e4f7;
+  background-attachment: fixed;
+}
+html[data-design="glass"] .wall-tile,
+html[data-design="glass"] .lane,
+html[data-design="glass"] .bg-surface {
+  background: rgb(255 255 255 / 0.38) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.65);
+  box-shadow: 0 8px 32px rgb(60 40 120 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.7);
+}
+html[data-design="glass"] .lane-routine .bg-surface { background: rgb(255 255 255 / 0.55) !important; box-shadow: none; }
+html[data-design="glass"] .tint { background: color-mix(in srgb, var(--m) 16%, rgb(255 255 255 / 0.35)); }
+html[data-design="glass"] .tint-strong { background: color-mix(in srgb, var(--m) 30%, rgb(255 255 255 / 0.45)); }
+html[data-design="glass"] .lane > .m-bg.absolute { height: 4px; left: 1.5rem; right: 1.5rem; top: 0; border-radius: 0 0 4px 4px; }
+html[data-design="glass"] .m-bg.text-white { box-shadow: 0 4px 14px color-mix(in srgb, var(--m) 45%, transparent); }
+
+/* ── Neo-brutalism ──────────────────────────────────────────────── */
+html[data-design="brutal"] {
+  --bg: 255 236 153; --surface: 255 255 255; --sunken: 255 248 220;
+  --ink: 0 0 0; --soft: 40 40 40; --line: 0 0 0;
+}
+html[data-design="brutal"] body { font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif; }
+html[data-design="brutal"] .font-display { font-family: "Archivo Black", "Space Grotesk", sans-serif; font-weight: 400; letter-spacing: -0.02em; }
+html[data-design="brutal"] .wall-tile,
+html[data-design="brutal"] .lane,
+html[data-design="brutal"] .wall-main nav > *,
+html[data-design="brutal"] .wall-main .rounded-full.bg-surface {
+  border: 3px solid #000; box-shadow: 6px 6px 0 #000;
+}
+html[data-design="brutal"] .wall-tile, html[data-design="brutal"] .lane, html[data-design="brutal"] .rounded-panel { border-radius: 14px; }
+html[data-design="brutal"] .wall-main nav > * { border-radius: 12px; }
+html[data-design="brutal"] .rounded-card { border-radius: 10px; border: 2.5px solid #000; }
+html[data-design="brutal"] .rounded-tile { border-radius: 8px; border: 2.5px solid #000; }
+html[data-design="brutal"] .lane > .m-bg.absolute { height: 14px; border-bottom: 3px solid #000; border-radius: 10px 10px 0 0; }
+html[data-design="brutal"] .lane { padding-top: 1.9rem; }
+html[data-design="brutal"] .tint { background: color-mix(in srgb, var(--m) 30%, #fff); }
+html[data-design="brutal"] .tint-strong { background: color-mix(in srgb, var(--m) 55%, #fff); border: 2.5px solid #000; }
+html[data-design="brutal"] .m-text { color: #000; }
+html[data-design="brutal"] .m-bg.text-white { box-shadow: 3px 3px 0 #000; }
+html[data-design="brutal"] .wall-tile:nth-child(3n+2) { background: #c4b5fd; }
+html[data-design="brutal"] .wall-tile:nth-child(3n+3) { background: #a7f3d0; }
+html[data-design="brutal"] .wall-tile:nth-child(3n+4) { background: #fbcfe8; }
+html[data-design="brutal"] .text-soft { color: #222; }
+
+/* ── Futuristic / sci-fi ────────────────────────────────────────── */
+html[data-design="future"] {
+  --bg: 4 10 20; --surface: 8 20 36; --sunken: 12 30 50;
+  --ink: 214 246 255; --soft: 110 160 185; --line: 30 80 110;
+  --star: 255 176 60; --ok: 64 230 190;
+  color-scheme: dark;
+}
+html[data-design="future"] body {
+  font-family: "Rajdhani", ui-sans-serif, system-ui, sans-serif; font-weight: 500;
+  background:
+    radial-gradient(60vw 40vw at 70% 0%, rgb(0 140 255 / 0.18), transparent 70%),
+    linear-gradient(rgb(0 200 255 / 0.05) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgb(0 200 255 / 0.05) 1px, transparent 1px) 0 0 / 40px 40px,
+    rgb(var(--bg));
+}
+html[data-design="future"] .font-display { font-family: "Orbitron", "Rajdhani", sans-serif; letter-spacing: 0.02em; }
+html[data-design="future"] .lane-name { font-size: clamp(1.1rem, 9cqi, 1.6rem); }
+html[data-design="future"] .wall-tile,
+html[data-design="future"] .lane,
+html[data-design="future"] .wall-main nav > *,
+html[data-design="future"] .wall-main .rounded-full.bg-surface {
+  background: linear-gradient(180deg, rgb(10 30 52 / 0.92), rgb(6 16 30 / 0.92)) !important;
+  border: 1px solid rgb(0 210 255 / 0.35);
+  box-shadow: 0 0 0 1px rgb(0 210 255 / 0.06), 0 0 24px rgb(0 180 255 / 0.12), inset 0 0 24px rgb(0 180 255 / 0.06);
+  border-radius: 6px;
+}
+html[data-design="future"] .wall-tile { clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
+html[data-design="future"] .lane { border-color: color-mix(in srgb, var(--m) 55%, transparent); box-shadow: 0 0 22px color-mix(in srgb, var(--m) 20%, transparent), inset 0 0 30px color-mix(in srgb, var(--m) 8%, transparent); }
+html[data-design="future"] .lane > .m-bg.absolute { height: 2px; box-shadow: 0 0 12px var(--m), 0 0 4px var(--m); }
+html[data-design="future"] .rounded-card { border-radius: 4px; }
+html[data-design="future"] .rounded-tile { border-radius: 3px; }
+html[data-design="future"] .tint { background: color-mix(in srgb, var(--m) 10%, rgb(var(--surface))); border: 1px solid color-mix(in srgb, var(--m) 30%, transparent); }
+html[data-design="future"] .tint-strong { background: color-mix(in srgb, var(--m) 24%, rgb(var(--surface))); }
+html[data-design="future"] .m-text { color: color-mix(in srgb, var(--m) 70%, #fff); }
+html[data-design="future"] .lane-routine .bg-surface { background: rgb(4 12 24) !important; border: 1px solid color-mix(in srgb, var(--m) 35%, transparent); }
+html[data-design="future"] .m-bg.text-white { box-shadow: 0 0 14px var(--m); }
+html[data-design="future"] .wall-clock .num { color: #8ff3ff; text-shadow: 0 0 18px rgb(0 220 255 / 0.65); }
+html[data-design="future"] .text-soft { color: rgb(var(--soft)); }
+html[data-design="future"] .wall-tile-title, html[data-design="future"] .lane-routine > p { text-transform: uppercase; letter-spacing: 0.14em; }
