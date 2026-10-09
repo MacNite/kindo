@@ -1,13 +1,14 @@
 "use client";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Cctv, Cloud, Globe, House, ImageIcon, Lock, Pencil, Plus, RefreshCw, Rss, Trash2 } from "lucide-react";
-import type { ActionResult, CalendarSource, ConnectionInfo, Integration } from "@/lib/types";
+import type { ActionResult, CalendarSource, ConnectionInfo, Integration, Text } from "@/lib/types";
+import { editText } from "@/lib/text";
 import { useI18n, type MessageKey } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { addCalDav, addFrigate, addHomeAssistant, addIcs, addImmich, removeConnection, removeSource, syncConnectionNow, updateSource } from "@/lib/services/integrations";
 import { useSearchParams } from "next/navigation";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Field, Switch, inputCls } from "../ui/Segmented";
 import { MemberFilter } from "../ui/MemberFilter";
@@ -23,7 +24,8 @@ const INT_ICON: Record<Integration["id"], typeof Cloud> = { nextcloud: Cloud, im
 const KIND_OF: Record<Integration["id"], ConnectionInfo["kind"]> = { nextcloud: "caldav", immich: "immich", google: "google", ics: "ics", homeassistant: "homeassistant", frigate: "frigate" };
 
 /** Extra integration-specific pieces (forms, details) registered by later steps. */
-export const ADD_FORMS: Partial<Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode>> = {
+/** Every kind of connection has a form to add one; the type keeps it that way. */
+const ADD_FORMS: Record<ConnectionInfo["kind"], (p: { onClose: () => void }) => ReactNode> = {
   caldav: ({ onClose }) => <CalDavForm onClose={onClose} />,
   immich: ({ onClose }) => <ImmichForm onClose={onClose} />,
   ics: ({ onClose }) => <IcsForm onClose={onClose} />,
@@ -83,7 +85,7 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
         <ul className="flex flex-col divide-y divide-line rounded-card bg-sunken px-3">
           {mine.map((c) => (
             <li key={c.id} className="flex flex-wrap items-center gap-2 py-2.5">
-              <span className={cn("h-2.5 w-2.5 rounded-full", c.status === "ok" ? "bg-ok" : c.status === "error" ? "bg-[#B4443C]" : "bg-line")} />
+              <span className={cn("h-2.5 w-2.5 rounded-full", c.status === "ok" ? "bg-ok" : c.status === "error" ? "bg-danger" : "bg-line")} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-bold">{c.name}{c.username && <span className="font-normal text-soft">, {c.username}</span>}</span>
                 <span className="block text-sm text-soft">
@@ -104,10 +106,9 @@ function IntegrationCard({ integration: i }: { integration: Integration }) {
       )}
       <ErrorText code={error} />
       <div>
-        {Form ? <Button size="sm" variant={mine.length ? "outline" : "primary"} onClick={() => setAdding(true)}><Plus size={14} />{mine.length ? t("integrations.addAnother") : t("common.configure")}</Button>
-          : <Button size="sm" variant="outline" disabled title={t("common.planned")}>{t("common.configure")}</Button>}
+        <Button size="sm" variant={mine.length ? "outline" : "primary"} onClick={() => setAdding(true)}><Plus size={14} />{mine.length ? t("integrations.addAnother") : t("common.configure")}</Button>
       </div>
-      {adding && Form && <Form onClose={() => setAdding(false)} />}
+      {adding && <Form onClose={() => setAdding(false)} />}
     </div>
   );
 }
@@ -219,7 +220,7 @@ function GoogleConnect({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.google")}
       footer={<><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        {data.features.google && <a href="/api/integrations/google/start"><Button variant="primary">{t("integrations.googleContinue")}</Button></a>}</>}>
+        {data.features.google && <LinkButton href="/api/integrations/google/start" native variant="primary">{t("integrations.googleContinue")}</LinkButton>}</>}>
       <p className="text-soft">{data.features.google ? t("integrations.googleHint") : t("integrations.google_notConfigured")}</p>
     </Dialog>
   );
@@ -334,9 +335,9 @@ export function CalendarSourcesSection() {
 }
 
 function SourceEditor({ source, onClose }: { source: CalendarSource; onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, language } = useI18n();
   const { getMembers, run } = useStore();
-  const [name, setName] = useState(tx(source.name));
+  const [name, setName] = useState<Text>(source.name);
   const [who, setWho] = useState(new Set(source.defaultMemberIds));
   const [readOnly, setReadOnly] = useState(source.readOnly);
   const [background, setBackground] = useState(source.background ?? false);
@@ -348,11 +349,11 @@ function SourceEditor({ source, onClose }: { source: CalendarSource; onClose: ()
         {source.provider !== "local" && <Button variant="ghost" className="mr-auto" onClick={async () => done(await run(() => removeSource({ id: source.id })))}><Trash2 size={16} />{t("sources.remove")}</Button>}
         <ErrorText code={error} className="self-center" />
         <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={!name.trim()}
+        <Button variant="primary" disabled={!tx(name).trim()}
           onClick={async () => done(await run(() => updateSource({ id: source.id, name, defaultMemberIds: [...who], readOnly, background })))}>{t("common.save")}</Button>
       </>}>
       <div className="flex flex-col gap-5">
-        <Field label={t("routines.label")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label={t("routines.label")}><input className={inputCls} value={tx(name)} onChange={(e) => setName(editText(name, language, e.target.value))} /></Field>
         <Field label={t("settings.calendar.belongsTo")} hint={t("sources.whoHint")}>
           <MemberFilter size="sm" members={getMembers()} selected={who} onToggle={(id) => setWho((s) => toggled(s, id))} />
         </Field>

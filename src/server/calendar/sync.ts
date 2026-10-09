@@ -4,6 +4,7 @@ import { addDays } from "@/lib/dates";
 import { allDayForStorage } from "@/lib/events";
 import { inTx, type Tx } from "../db";
 import { decryptSecret, sha256 } from "../crypto";
+import { env } from "../env";
 import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
 import * as caldav from "./caldav";
@@ -18,8 +19,8 @@ import type { EventToWrite } from "./ical";
  * when Nextcloud is down. Writes go to the server first and are pulled back,
  * so Kindo never shows an event its calendar doesn't have.
  */
-export const SYNC_WINDOW = { before: 90, after: 400 };
-export const syncMinutes = () => Math.max(1, Number(process.env.KINDO_SYNC_MINUTES ?? 5));
+const SYNC_WINDOW = { before: 90, after: 400 };
+const syncMinutes = () => env().KINDO_SYNC_MINUTES;
 /** Re-read an unchanged calendar now and then anyway: the window moves with the days. */
 const FULL_RESYNC_MS = 6 * 3_600_000;
 
@@ -39,20 +40,17 @@ const providers: Partial<Record<Connection["kind"], CalendarProvider>> = {
     listCalendars: (c) => caldav.listCalendars(caldavAccount(c)),
     fetchEvents: (c, s, w) => caldav.fetchEvents(caldavAccount(c), s.remoteId!, w),
     create: (c, s, e) => caldav.createEvent(caldavAccount(c), s.remoteId!, e),
-    update: (c, _s, row, e) => caldav.updateEvent(caldavAccount(c), row.href!, row.etag ?? undefined, e),
+    update: (c, s, row, e) => caldav.updateEvent(caldavAccount(c), s.remoteId!, row.href!, row.etag ?? undefined, e),
     remove: (c, _s, row) => caldav.deleteEvent(caldavAccount(c), row.href!, row.etag ?? undefined),
   },
   ics: icsProvider,
   google: googleProvider,
 };
 
-export function registerCalendarProvider(kind: Connection["kind"], p: CalendarProvider) {
-  providers[kind] = p;
-}
 export const providerFor = (kind: Connection["kind"]) => providers[kind];
 
 /** Same occurrence, same id, sync after sync: screens keep their selection. */
-export const eventId = (sourceId: string, uid: string, start: Date) => `ev_${sha256(`${sourceId}|${uid}|${start.toISOString()}`).slice(0, 24)}`;
+const eventId = (sourceId: string, uid: string, start: Date) => `ev_${sha256(`${sourceId}|${uid}|${start.toISOString()}`).slice(0, 24)}`;
 
 function toRows(source: SourceRow, events: RemoteEvent[], memberIds: Set<string>): Prisma.EventCreateManyInput[] {
   const seen = new Set<string>();
@@ -73,7 +71,7 @@ function toRows(source: SourceRow, events: RemoteEvent[], memberIds: Set<string>
 }
 
 /** Pulls one calendar. `state` is the calendar's change marker from the listing, when the provider has one. */
-export async function syncSource(db: Tx, conn: Connection, source: SourceRow, opts: { state?: string; force?: boolean; now?: Date } = {}) {
+async function syncSource(db: Tx, conn: Connection, source: SourceRow, opts: { state?: string; force?: boolean; now?: Date } = {}) {
   const now = opts.now ?? new Date();
   const p = providerFor(conn.kind);
   if (!p) return false;
@@ -83,15 +81,22 @@ export async function syncSource(db: Tx, conn: Connection, source: SourceRow, op
   const events = await p.fetchEvents(conn, source, window);
   const members = new Set((await db.member.findMany({ select: { id: true } })).map((m) => m.id));
   const rows = toRows(source, events, members);
+  // Without a marker from the listing (ICS feeds, Google), what was fetched is the marker:
+  // the same events as last time leave the stored ones alone.
+  const state = opts.state ?? `content:${sha256(JSON.stringify(rows)).slice(0, 32)}`;
   // Replace the calendar's events in one go: screens never see it half synced.
-  await inTx(db, async (tx) => {
+  return inTx(db, async (tx) => {
     // One writer per calendar: a second sync (Settings and the background job at once) waits for the first.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`kindo:sync:${source.id}`}, 0))`;
-    await tx.event.deleteMany({ where: { sourceId: source.id } });
-    if (rows.length) await tx.event.createMany({ data: rows });
-    await tx.calendarSource.update({ where: { id: source.id }, data: { syncState: opts.state ?? null, lastSyncAt: now } });
+    const stored = await tx.calendarSource.findUnique({ where: { id: source.id }, select: { syncState: true } });
+    const unchanged = !opts.state && stored?.syncState === state;
+    if (!unchanged) {
+      await tx.event.deleteMany({ where: { sourceId: source.id } });
+      if (rows.length) await tx.event.createMany({ data: rows });
+    }
+    await tx.calendarSource.update({ where: { id: source.id }, data: { syncState: state, lastSyncAt: now } });
+    return !unchanged;
   });
-  return true;
 }
 
 /** Syncs every calendar of a connection and records how it went. Returns whether anything changed. */
@@ -149,10 +154,23 @@ export async function createRemoteEvent(db: Tx, sourceId: string, e: EventInput)
   const uid = `${randomUUID()}@kindo`;
   await p.create(conn, source, toWrite(uid, e));
   await syncSource(db, conn, source, { force: true });
-  return eventId(source.id, uid, allDayForStorage(e).start);
+  return syncedId(db, source.id, uid, allDayForStorage(e).start);
 }
 
-/** Single events only: a recurring series is changed in the calendar app that owns it. */
+/**
+ * The id of a single event as the sync just stored it. Ids follow the start
+ * (see `eventId`), so an event that moved has a new one; looked up by uid in
+ * case the server rounded the time.
+ */
+async function syncedId(db: Tx, sourceId: string, uid: string, start: Date) {
+  const row = await db.event.findFirst({ where: { sourceId, uid, recurring: false }, select: { id: true } });
+  return row?.id ?? eventId(sourceId, uid, start);
+}
+
+/**
+ * Single events only: a recurring series is changed in the calendar app that
+ * owns it. Returns the event's id afterwards, which changes when it moved.
+ */
 export async function updateRemoteEvent(db: Tx, row: EventRow, e: EventInput) {
   const source = await sourceWithConnection(db, row.sourceId);
   const conn = source.connection!;
@@ -160,6 +178,7 @@ export async function updateRemoteEvent(db: Tx, row: EventRow, e: EventInput) {
   if (!p?.update || row.recurring || !row.href) throw new UserError("readOnly");
   await p.update(conn, source, row, toWrite(row.uid ?? `${randomUUID()}@kindo`, e));
   await syncSource(db, conn, source, { force: true });
+  return row.uid ? syncedId(db, source.id, row.uid, allDayForStorage(e).start) : eventId(source.id, row.href, allDayForStorage(e).start);
 }
 
 export async function deleteRemoteEvent(db: Tx, row: EventRow) {

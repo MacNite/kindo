@@ -9,7 +9,7 @@ describe("pictograms", () => {
     expect(new Set(EMOJI_CHOICES).size).toBe(EMOJI_CHOICES.length);
   });
 
-  it("keeps the ids of pictures that moved to personal care (D43)", () => {
+  it("keeps the ids of pictures that moved to personal care (D51)", () => {
     for (const id of ["toothbrush", "hair", "bath", "wash"]) expect(getPictogram(id)?.category).toBe("care");
     for (const id of ["handwash", "shower", "hairwash", "towel", "toilet"]) expect(getPictogram(id)?.category).toBe("care");
   });

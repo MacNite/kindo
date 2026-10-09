@@ -1,5 +1,5 @@
 import type { Recurrence, Weekday } from "./types";
-import { DAY, addDays, dateKey, startOfDay } from "./dates";
+import { DAY, addDays, dateKey, startOfDay, wallClockIn } from "./dates";
 
 /**
  * The recurrence engine (§7, §19.3). Pure and RFC 5545 compatible, so
@@ -11,7 +11,7 @@ import { DAY, addDays, dateKey, startOfDay } from "./dates";
 const EPOCH_MONDAY = new Date(2024, 0, 1);
 
 /** Whole calendar days between two dates, immune to DST (23h/25h days). */
-export const calendarDays = (from: Date, to: Date) =>
+const calendarDays = (from: Date, to: Date) =>
   Math.round((Date.UTC(to.getFullYear(), to.getMonth(), to.getDate()) - Date.UTC(from.getFullYear(), from.getMonth(), from.getDate())) / DAY);
 
 export const parseDay = (s: string) => {
@@ -112,7 +112,7 @@ const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const ymd = (s: string) => s.replaceAll("-", "");
 
 /** The start date (DTSTART) a recurrence's rule is anchored on. */
-export function recurrenceStart(r: Recurrence): string {
+function recurrenceStart(r: Recurrence): string {
   if (r.kind === "once") return r.date;
   if (r.kind === "weekly") {
     if (r.from) return r.from;
@@ -193,20 +193,23 @@ export function householdDay(now: Date, dayStartsAt = "00:00"): Date {
  * the server's own TZ. Used to check the days devices send.
  */
 export function householdDayKeyIn(now: Date, timeZone: string, dayStartsAt = "00:00"): string {
-  const p = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-      .formatToParts(now).map((x) => [x.type, x.value]),
-  );
-  const local = new Date(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute));
-  return dateKey(householdDay(local, dayStartsAt));
+  return dateKey(householdDayIn(now, timeZone, dayStartsAt));
 }
+
+/**
+ * The household day in the household's time zone, as a local-midnight Date
+ * (D19, D52): a phone in another time zone still shows the family's today.
+ */
+export const householdDayIn = (now: Date, timeZone: string | undefined, dayStartsAt = "00:00") =>
+  householdDay(wallClockIn(now, timeZone), dayStartsAt);
 
 export interface DayTimes { dayStartsAt: string; morningUntil: string; afternoonUntil: string }
 export const DEFAULT_TIMES: DayTimes = { dayStartsAt: "03:00", morningUntil: "11:00", afternoonUntil: "17:00" };
 
 /** Which routine the wall shows "now". Before the day starts it is still last evening. */
-export function currentPeriod(now: Date, times: DayTimes = DEFAULT_TIMES): "morning" | "afternoon" | "evening" {
-  const t = now.getHours() * 60 + now.getMinutes();
+export function currentPeriod(now: Date, times: DayTimes = DEFAULT_TIMES, timeZone?: string): "morning" | "afternoon" | "evening" {
+  const clock = wallClockIn(now, timeZone);
+  const t = clock.getHours() * 60 + clock.getMinutes();
   if (t < minutesOf(times.dayStartsAt)) return "evening";
   if (t < minutesOf(times.morningUntil)) return "morning";
   if (t < minutesOf(times.afternoonUntil)) return "afternoon";

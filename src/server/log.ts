@@ -1,10 +1,19 @@
 /** Minimal structured logger: one JSON line per entry, so `docker logs` stays greppable. */
-type Level = "debug" | "info" | "warn" | "error";
+export const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+type Level = (typeof LOG_LEVELS)[number];
 const ORDER: Record<Level, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 
+/**
+ * LOG_LEVEL, read here directly because the configuration (env.ts) logs too.
+ * An unknown value never breaks logging: it logs as "info" until env.ts
+ * stops the server at start with a message naming it.
+ */
+function minLevel(): number {
+  return ORDER[(process.env.LOG_LEVEL ?? "").toLowerCase() as Level] ?? ORDER.info;
+}
+
 function write(level: Level, msg: string, data?: Record<string, unknown>) {
-  const min = (process.env.LOG_LEVEL as Level | undefined) ?? "info";
-  if (ORDER[level] < (ORDER[min] ?? 20)) return;
+  if (ORDER[level] < minLevel()) return;
   const line = JSON.stringify({ t: new Date().toISOString(), level, msg, ...data });
   (level === "error" || level === "warn" ? console.error : console.log)(line);
 }

@@ -62,19 +62,39 @@ export async function setPassword(db: Tx, input: In<"setPassword">) {
 export async function removeLogin(db: Tx, input: In<"byMember">) {
   const member = await db.member.findUnique({ where: { id: input.memberId } });
   if (!member?.userId) return;
-  if (member.role === "admin") {
-    const otherAdmins = await db.member.count({ where: { role: "admin", userId: { not: null }, id: { not: member.id } } });
-    if (!otherAdmins) throw new UserError("invalid", "the last admin login stays");
-  }
+  await assertAnotherAdminLogin(db, member.id);
   await db.user.delete({ where: { id: member.userId } });
+}
+
+/**
+ * A household always keeps an admin who can sign in. Without one nobody could
+ * change settings, and once no login is left at all, setup would hand the
+ * household to whoever opens it. Refuses to take an admin's role, person or
+ * login away unless another admin with a login remains.
+ */
+export async function assertAnotherAdminLogin(db: Tx, memberId: string) {
+  const me = await db.member.findUnique({ where: { id: memberId }, select: { role: true } });
+  if (me?.role !== "admin") return;
+  const others = await db.member.count({ where: { role: "admin", userId: { not: null }, id: { not: memberId } } });
+  if (!others) throw new UserError("invalid", "the last admin login stays");
 }
 
 // ── Kiosk pairing ───────────────────────────────────────────────────────────
 export const PAIRING_TTL_MS = 10 * 60_000;
+/**
+ * Codes waiting at once. Anyone can ask without signing in, so a few are
+ * enough: more would only make a mistyped code more likely to pair a stranger.
+ */
+export const MAX_PENDING_PAIRINGS = 10;
 
-/** A wall display asks to be paired: it gets a code to show and a secret to keep. */
-export async function startPairing(db: Tx, now = new Date()) {
+/**
+ * A wall display asks to be paired: it gets a code to show and a secret to
+ * keep. A display asking again (a reload) replaces its own earlier request.
+ */
+export async function startPairing(db: Tx, now = new Date(), previousSecret?: string) {
   await db.pairingRequest.deleteMany({ where: { expiresAt: { lt: now } } });
+  if (previousSecret) await db.pairingRequest.deleteMany({ where: { secretHash: sha256(previousSecret), approvedAt: null } });
+  if ((await db.pairingRequest.count()) >= MAX_PENDING_PAIRINGS) throw new UserError("tooManyAttempts");
   const secret = randomToken();
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = randomCode();
@@ -119,10 +139,19 @@ export async function setPin(db: Tx, input: In<"setPin">) {
   await db.household.update({ where: { id: 1 }, data: { settingsPinHash: input.pin ? await hashPassword(input.pin) : null } });
 }
 
-/** Failed PIN attempts per device: five, then a pause, so a PIN can't be guessed by trying. */
-const attempts = new Map<string, { fails: number; until: number }>();
+/**
+ * Failed PIN attempts per device: five, then a pause that doubles with every
+ * further round of wrong tries (a minute, two, four, up to an hour) until the
+ * right PIN comes, so even a four-digit PIN can't be guessed by trying. Kept
+ * in memory: only a paired display can try, and it can't restart the server.
+ */
+const attempts = new Map<string, { fails: number; lockouts: number; until: number }>();
 const MAX_FAILS = 5;
 const LOCKOUT_MS = 60_000;
+const MAX_LOCKOUT_MS = 60 * 60_000;
+
+/** How long the n-th pause in a row lasts. */
+export const pinLockoutMs = (n: number) => Math.min(LOCKOUT_MS * 2 ** Math.max(0, n - 1), MAX_LOCKOUT_MS);
 
 export async function checkPin(db: Tx, deviceId: string, input: In<"checkPin">, now = Date.now()): Promise<boolean> {
   const a = attempts.get(deviceId);
@@ -135,6 +164,7 @@ export async function checkPin(db: Tx, deviceId: string, input: In<"checkPin">, 
     return true;
   }
   const fails = (a?.fails ?? 0) + 1;
-  attempts.set(deviceId, { fails: fails >= MAX_FAILS ? 0 : fails, until: fails >= MAX_FAILS ? now + LOCKOUT_MS : 0 });
+  const lockouts = a?.lockouts ?? 0;
+  attempts.set(deviceId, fails >= MAX_FAILS ? { fails: 0, lockouts: lockouts + 1, until: now + pinLockoutMs(lockouts + 1) } : { fails, lockouts, until: 0 });
   return false;
 }

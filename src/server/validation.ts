@@ -69,12 +69,12 @@ export const S = {
     /** Existing step to edit; omit to add one. */
     stepId: id.optional(),
     memberId: id,
-    /** Period and rhythm pick the routine: one per member, period and rhythm (D43). */
+    /** Period and rhythm pick the routine: one per member, period and rhythm (D50). */
     period,
     recurrence,
     pictogram,
     label: text,
-    /** The step's own points; omitted or null follows the member's routine points (D42). */
+    /** The step's own points; omitted or null follows the member's routine points (D49). */
     points: z.number().int().min(0).max(10_000).nullable().optional(),
   }),
   routineSteps: z.object({
@@ -86,7 +86,7 @@ export const S = {
   routineRewards: z.object({ memberId: id, on: z.boolean(), points: z.number().int().min(0).max(10_000) }),
   chore: z.object({ id: id.optional(), memberId: id.nullable(), pictogram, label: text, value: taskValue, recurrence }),
 
-  meal: z.object({ day, dinner: z.string().trim().max(200), cookId: id.nullable().optional(), note: z.string().trim().max(200).optional() }),
+  meal: z.object({ day, dinner: text, cookId: id.nullable().optional(), note: text.optional() }),
   importantDate: z.object({
     id: id.optional(), kind: z.enum(["birthday", "anniversary", "school", "other"]), title: requiredText, date: day, yearly: z.boolean(), memberId: id.nullable().optional(),
   }),

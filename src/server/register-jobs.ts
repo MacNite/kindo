@@ -4,7 +4,7 @@ import { holidaysDue, syncHolidays } from "./holidays";
 import { dueConnections, syncConnection } from "./calendar/sync";
 import { duePhotoConnections, syncPhotos } from "./photos/sync";
 import { dueContactConnections, syncContacts } from "./contacts/sync";
-import { syncPresenceWatchers } from "./homeassistant";
+import { PRESENCE_JOB, stopPresenceWatchers, syncPresenceWatchers } from "./homeassistant";
 import { errorMessage, log } from "./log";
 
 /** Every background job Kindo runs, in one place. */
@@ -43,6 +43,7 @@ export function registerAllJobs() {
     },
     topic: "household",
   });
-  // Home Assistant presence: keeps one live subscription per connection (§19.8).
-  registerJob({ name: "presence", due: async () => true, run: () => syncPresenceWatchers(prisma) });
+  // Home Assistant presence, switches and doorbells: one live subscription per connection, on this instance only
+  // (§19.8, D39, D48). Settings wake it at once (refreshPresenceWatchers); it stops when leadership is lost.
+  registerJob({ name: PRESENCE_JOB, due: async () => true, run: () => syncPresenceWatchers(prisma), stop: stopPresenceWatchers });
 }

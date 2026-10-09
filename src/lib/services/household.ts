@@ -19,7 +19,7 @@ export function householdSelectors(d: HouseholdData) {
     d.routines.filter((r) => r.memberId === memberId && occursOn(r.recurrence, day, isSchoolDay));
   /**
    * Everything a member does in one period of a day, as one routine: a daily
-   * morning and a school-day morning show up as one morning (D43).
+   * morning and a school-day morning show up as one morning (D50).
    */
   const routineFor = (memberId: string, period: Period, day: Date): Routine | undefined => {
     const due = routinesFor(memberId, day).filter((r) => r.period === period);

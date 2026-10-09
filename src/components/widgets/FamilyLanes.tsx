@@ -8,6 +8,7 @@ import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
 import { addDays } from "@/lib/dates";
+import { stepName } from "@/lib/pictograms";
 import { Avatar } from "../ui/Avatar";
 import { RewardAmount } from "../ui/RewardAmount";
 import { Pictogram } from "../ui/Pictogram";
@@ -38,7 +39,8 @@ export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" })
           ))}
         </div>
       )}
-      <div className={cn("grid min-h-0 flex-1 gap-3", "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4", wall && "gap-4", wall && (members.length > 4 ? "!grid-cols-5" : members.length > 2 ? "!grid-cols-4" : "!grid-cols-2"))}>
+      <div style={wall ? ({ "--lanes": Math.min(Math.max(members.length, 2), 5) } as CSSProperties) : undefined}
+        className={cn("min-h-0 flex-1", wall ? "wall-lanes" : "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4")}>
         {members.map((m) => <MemberLane key={m.id} member={m} wall={wall} />)}
       </div>
     </div>
@@ -62,46 +64,46 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
 
   return (
     <section style={{ "--m": member.color } as CSSProperties}
-      className={cn("relative flex min-h-0 flex-col overflow-hidden rounded-panel bg-surface", wall ? "p-6" : "p-5")}>
+      className={cn("lane relative flex min-h-0 flex-col rounded-panel bg-surface", wall ? "lane-wall overflow-y-auto overflow-x-hidden" : "overflow-hidden p-5")}>
       <span aria-hidden className="m-bg absolute inset-x-0 top-0 h-1.5" />
       <header className="flex items-center gap-3">
         <Avatar member={member} size={wall ? "lg" : "md"} />
         <div className="min-w-0 flex-1">
-          <h3 className={cn("font-display font-bold leading-none tracking-tight", wall ? "text-4xl" : "text-2xl")}>{member.name}</h3>
-          <p className={cn("mt-1 text-soft", wall ? "text-lg" : "text-sm")}>
+          <h3 className={cn("font-display font-bold leading-none tracking-tight", wall ? "lane-name" : "text-2xl")}>{member.name}</h3>
+          <p className={cn("mt-1 truncate text-soft", wall ? "text-lg" : "text-sm")}>
             {routine ? (left ? t("home.routinesLeft", { n: left }) : t("home.allDoneShort")) : events.length ? (events.length === 1 ? t("home.eventOne") : t("home.events", { n: events.length })) : t("home.freeDay")}
           </p>
         </div>
         {isChild && (
           <Link href={`/kids/${member.id}`} aria-label={`${t("routines.childView")}: ${member.name}`}
-            className={cn("tint m-text grid shrink-0 place-items-center rounded-full", wall ? "h-14 w-14" : "h-10 w-10")}>
+            className={cn("tint m-text grid shrink-0 place-items-center rounded-full", wall ? "h-14 w-14" : "h-10 w-10 coarse:h-11 coarse:w-11")}>
             <Maximize2 size={wall ? 24 : 18} />
           </Link>
         )}
       </header>
 
       {showBalance && (
-        <p aria-label={t("rewards.balanceOf", { name: member.name })}
+        <p role="group" aria-label={t("rewards.balanceOf", { name: member.name })}
           className={cn("mt-3 self-start rounded-full bg-star/15", wall ? "px-4 py-1.5" : "px-3 py-1")}>
           <RewardAmount points={balances[member.id] ?? 0} iconSize={wall ? 30 : 20} className={cn("font-display", wall ? "gap-2 text-3xl" : "text-xl")} />
         </p>
       )}
 
       {routine && (
-        <div className={cn("mt-4 rounded-card tint", wall ? "p-4" : "p-3")}>
+        <div className={cn("mt-4 rounded-card tint", wall ? "lane-routine" : "p-3")}>
           <p className={cn("m-text mb-2 font-bold", wall ? "text-lg" : "text-sm")}>{t(`period.${period}`)}</p>
-          <div className={cn("grid gap-2", wall ? "grid-cols-4" : "grid-cols-5")}>
+          <div className={cn("lane-steps", wall && "lane-steps-wall")}>
             {routine.items.map((i) => {
               const done = isDone(i.id);
               return (
-                <button key={i.id} onClick={() => toggleTaskItem(member.id, i)} aria-pressed={done} aria-label={tx(i.label)} title={tx(i.label)}
+                <button key={i.id} onClick={() => toggleTaskItem(member.id, i)} aria-pressed={done} aria-label={stepName(i, tx)} title={stepName(i, tx)}
                   className={cn("relative grid aspect-square place-items-center rounded-tile transition-colors",
                     done ? "m-bg text-white" : "bg-surface m-text")}>
                   <Pictogram id={i.pictogram} className={wall ? "h-9 w-9" : "h-6 w-6"} />
                   {done && <Check className="absolute right-1 top-1 h-3.5 w-3.5" strokeWidth={3.5} />}
                   {i.value.kind === "extra" && i.value.points > 0 && (
                     <RewardAmount points={i.value.points} plus iconSize={wall ? 16 : 11}
-                      className={cn("absolute bottom-1 right-1 rounded-full bg-surface text-ink shadow-sm", wall ? "px-1.5 text-sm" : "px-1 text-[11px]")} />
+                      className={cn("absolute bottom-1 right-1 rounded-full bg-surface text-ink shadow-sm", wall ? "px-1.5 text-sm" : "px-1 text-xs")} />
                   )}
                 </button>
               );
@@ -110,13 +112,13 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
         </div>
       )}
 
-      <ol className={cn("mt-4 flex min-h-0 shrink flex-col overflow-y-auto no-scrollbar", wall ? "gap-2.5" : "gap-2")}>
+      <ol className={cn("mt-4 flex flex-col", wall ? "shrink-0 gap-2.5" : "min-h-0 shrink gap-2 overflow-y-auto no-scrollbar")}>
         {events.map((e) => <LaneEvent key={e.id} e={e} now={now} wall={wall} />)}
         {chores.map((c) => {
           const done = isDone(c.item.id);
           return (
             <li key={c.id}>
-              <button onClick={() => toggleTaskItem(member.id, c.item)} className={cn("flex w-full items-center gap-3 text-left", wall ? "text-lg" : "text-[15px]", done && "text-soft")}>
+              <button onClick={() => toggleTaskItem(member.id, c.item)} className={cn("flex w-full items-center gap-3 text-left", wall ? "min-h-11 text-lg" : "text-[15px] coarse:min-h-11", done && "text-soft")}>
                 <span className={cn("grid shrink-0 place-items-center rounded-full border-2 m-border", wall ? "h-9 w-9" : "h-7 w-7", done && "m-bg !border-transparent text-white")}>
                   {done ? <Check size={wall ? 18 : 14} strokeWidth={3} /> : <Pictogram id={c.item.pictogram} className={wall ? "h-5 w-5 m-text" : "h-4 w-4 m-text"} strokeWidth={2} />}
                 </span>

@@ -1,11 +1,20 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
+import en from "@/i18n/messages/en";
+import de from "@/i18n/messages/de";
 
-/** Installable on phones and the wall tablet (§19.7). */
-export default function manifest(): MetadataRoute.Manifest {
+/**
+ * Installable on phones and the wall tablet (§19.7). The device's language
+ * lives in the browser (§20 D7), so the words follow the language the
+ * browser asks for when it installs Kindo.
+ */
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const first = (await headers()).get("accept-language")?.split(",")[0]?.trim().toLowerCase() ?? "";
+  const m = first.startsWith("de") ? de : en;
   return {
-    name: "Kindo",
-    short_name: "Kindo",
-    description: "The family's day on one screen",
+    name: m.app.name,
+    short_name: m.app.name,
+    description: m.app.tagline,
     id: "/",
     start_url: "/",
     scope: "/",
@@ -19,8 +28,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
     shortcuts: [
-      { name: "Shopping", url: "/shopping" },
-      { name: "Wall display", url: "/wall" },
+      { name: m.nav.shopping, url: "/shopping" },
+      { name: m.nav.wall, url: "/wall" },
     ],
   };
 }

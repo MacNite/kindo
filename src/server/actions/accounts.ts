@@ -11,7 +11,7 @@ import { UserError } from "../errors";
 import * as Acc from "../accounts";
 import { DEVICE_COOKIE, PAIRING_COOKIE, PIN_COOKIE, PIN_TTL_MS, getActor, requireActor } from "../actor";
 import { act, failure } from "./act";
-import { Limiter } from "../rate-limit";
+import { Limiter, clientAddress } from "../rate-limit";
 
 /** Our own cookies follow the same Secure rule as the session cookie. */
 const cookieOptions = (maxAgeSeconds: number) => ({ httpOnly: true, sameSite: "lax" as const, secure: env().secureCookies, path: "/", maxAge: maxAgeSeconds });
@@ -20,8 +20,14 @@ const DEVICE_MAX_AGE = 400 * 24 * 3600;
 
 // ── Signing in and out ──────────────────────────────────────────────────────
 const credentials = z.object({ email: z.string().trim().toLowerCase().email().max(200), password: z.string().min(1).max(200) });
-/** Ten wrong passwords per email and address in fifteen minutes, then a pause. */
+/**
+ * Ten wrong passwords per email in fifteen minutes, then a pause; per email and
+ * address behind a trusted proxy. And at most a hundred for everyone together,
+ * so trying many emails or forged addresses gets no further.
+ */
 const signInLimiter = new Limiter(10, 15 * 60_000);
+const signInCap = new Limiter(100, 15 * 60_000);
+const ALL = "*";
 
 export async function signIn(input: z.input<typeof credentials>): Promise<ActionResult> {
   let key = "";
@@ -29,8 +35,9 @@ export async function signIn(input: z.input<typeof credentials>): Promise<Action
     const body = credentials.parse(input);
     if (!env().passwordLogin) throw new UserError("forbidden");
     const h = await headers();
-    key = `${body.email}|${h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? "direct"}`;
-    if (signInLimiter.blocked(key)) throw new UserError("tooManyAttempts");
+    const address = clientAddress(h);
+    key = address ? `${body.email}|${address}` : body.email;
+    if (signInLimiter.blocked(key) || signInCap.blocked(ALL)) throw new UserError("tooManyAttempts");
     await getAuth().api.signInEmail({ body, headers: h });
     signInLimiter.clear(key);
     return { ok: true, data: undefined };
@@ -38,7 +45,10 @@ export async function signIn(input: z.input<typeof credentials>): Promise<Action
     if (e instanceof z.ZodError) return { ok: false, error: "invalid" };
     // A wrong email or password comes back as an API error: say only that it didn't work.
     if (e && typeof e === "object" && "statusCode" in e) {
-      if (key) signInLimiter.fail(key);
+      if (key) {
+        signInLimiter.fail(key);
+        signInCap.fail(ALL);
+      }
       return { ok: false, error: "wrongLogin" };
     }
     return failure(e);
@@ -105,11 +115,17 @@ export async function getAccountAdmin() {
 }
 
 // ── Kiosk pairing ───────────────────────────────────────────────────────────
+/** Asking for a code needs no login: twenty a quarter of an hour, per address behind a trusted proxy, else for everyone. */
+const pairingLimiter = new Limiter(20, 15 * 60_000);
 /** On the wall display: ask to be paired. Returns the code to show and a QR code for the admin's phone. */
 export async function startPairing(): Promise<ActionResult<{ code: string; qr: string; expiresAt: Date }>> {
   try {
-    const p = await Acc.startPairing(prisma);
-    (await cookies()).set(PAIRING_COOKIE, p.secret, cookieOptions(Acc.PAIRING_TTL_MS / 1000));
+    const jar = await cookies();
+    const key = clientAddress(await headers()) ?? ALL;
+    if (pairingLimiter.blocked(key)) throw new UserError("tooManyAttempts");
+    pairingLimiter.fail(key);
+    const p = await Acc.startPairing(prisma, new Date(), jar.get(PAIRING_COOKIE)?.value);
+    jar.set(PAIRING_COOKIE, p.secret, cookieOptions(Acc.PAIRING_TTL_MS / 1000));
     const origin = env().APP_URL ?? (await headers()).get("origin") ?? "";
     const qr = await QRCode.toString(`${origin}/settings?section=devices&code=${p.code}`, { type: "svg", margin: 0, errorCorrectionLevel: "M" });
     return { ok: true, data: { code: p.code, qr, expiresAt: p.expiresAt } };

@@ -2,12 +2,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import { verifyPassword } from "better-auth/crypto";
 import * as Acc from "@/server/accounts";
-import { deleteMember } from "@/server/household";
+import { deleteMember, saveMember } from "@/server/household";
 import { setupHousehold, setupState } from "@/server/setup";
 import { seedDemo } from "@/server/demo/seed";
 import { can, deviceFromToken, type Actor } from "@/server/actor";
 import { sign, verify } from "@/server/crypto";
-import { TEST_DB, resetTestDatabase } from "./db";
+import { loadSnapshot } from "@/server/snapshot";
+import type { Viewer } from "@/lib/types";
+import { TEST_DB, VIEWER, resetTestDatabase } from "./db";
 
 describe("who may do what (§19.4)", () => {
   const user = (role: "admin" | "adult" | "child"): Actor => ({ kind: "user", userId: "u", memberId: "m", role, name: "x" });
@@ -16,7 +18,7 @@ describe("who may do what (§19.4)", () => {
     ["admin", user("admin"), [true, true, true, true]],
     ["adult", user("adult"), [true, true, true, false]],
     ["wall display", device(false), [true, true, false, false]],
-    ["wall display unlocked with the PIN", device(true), [true, true, true, true]],
+    ["wall display unlocked with the PIN", device(true), [true, true, true, false]],
     ["nobody", null, [false, false, false, false]],
   ] as const)("%s", (_name, actor, expected) => {
     expect((["view", "tick", "manage", "admin"] as const).map((l) => can(actor, l))).toEqual(expected);
@@ -51,11 +53,30 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     expect(await setupState(db)).toBe("done");
   });
 
+  it("an admin who can sign in always remains, even next to an admin without a login", async () => {
+    const oma = await saveMember(db, { name: "Oma", role: "admin", color: "#2E8B6E", avatar: { kind: "initial" } });
+    const anna = { id: "anna", name: "Anna", color: "#3B78C2", avatar: { kind: "initial" as const } };
+    await expect(deleteMember(db, { id: "anna" })).rejects.toMatchObject({ code: "invalid" });
+    await expect(saveMember(db, { ...anna, role: "adult" })).rejects.toMatchObject({ code: "invalid" });
+    await expect(Acc.removeLogin(db, { memberId: "anna" })).rejects.toMatchObject({ code: "invalid" });
+    expect(await setupState(db)).toBe("done");
+    // An admin without a login may go, or stop being an admin.
+    await saveMember(db, { id: oma, name: "Oma", role: "adult", color: "#2E8B6E", avatar: { kind: "initial" } });
+    await deleteMember(db, { id: oma });
+  });
+
   it("adults get logins, children never do, and an email is used once", async () => {
     await expect(Acc.createLogin(db, { memberId: "lena", email: "lena@example.test", password: "password123" })).rejects.toMatchObject({ code: "invalid" });
     await Acc.createLogin(db, { memberId: "max", email: "max@example.test" }); // single sign-on only
     expect(await db.account.count({ where: { user: { email: "max@example.test" } } })).toBe(0);
     await expect(Acc.createLogin(db, { memberId: "max", email: "other@example.test" })).rejects.toMatchObject({ code: "conflict" });
+  });
+
+  it("login emails reach admins and their owners only, never a wall display", async () => {
+    const emails = async (viewer: Viewer) => Object.fromEntries((await loadSnapshot(db, viewer))!.members.filter((m) => m.account).map((m) => [m.id, m.account!.email]));
+    expect(await emails(VIEWER)).toEqual({ anna: "anna@example.test", max: "max@example.test" });
+    expect(await emails({ kind: "device", name: "Kitchen", canManage: true, isAdmin: false, elevated: true, pinSet: true })).toEqual({ anna: undefined, max: undefined });
+    expect(await emails({ kind: "user", name: "Max", memberId: "max", role: "adult", canManage: true, isAdmin: false, pinSet: false })).toEqual({ anna: undefined, max: "max@example.test" });
   });
 
   it("resetting a password signs the person out everywhere", async () => {
@@ -96,6 +117,19 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     await expect(Acc.approvePairing(db, { code, name: "x" }, "u")).rejects.toMatchObject({ code: "notFound" });
   });
 
+  it("keeps only a few pairing codes waiting; a display asking again replaces its own", async () => {
+    await db.pairingRequest.deleteMany();
+    let last = await Acc.startPairing(db);
+    for (let i = 1; i < Acc.MAX_PENDING_PAIRINGS; i++) last = await Acc.startPairing(db);
+    await expect(Acc.startPairing(db)).rejects.toMatchObject({ code: "tooManyAttempts" });
+    const again = await Acc.startPairing(db, new Date(), last.secret);
+    expect(await Acc.pollPairing(db, last.secret)).toEqual({ status: "expired" });
+    expect(await Acc.pollPairing(db, again.secret)).toEqual({ status: "waiting" });
+    // Expired requests make room.
+    expect((await Acc.startPairing(db, new Date(Date.now() + Acc.PAIRING_TTL_MS + 1000))).code).toMatch(/^\d{6}$/);
+    await db.pairingRequest.deleteMany();
+  });
+
   it("checks the PIN and pauses after five wrong tries", async () => {
     await expect(Acc.checkPin(db, "dev-a", { pin: "1234" })).rejects.toMatchObject({ code: "noPin" });
     await Acc.setPin(db, { pin: "2468" });
@@ -103,6 +137,22 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     for (let i = 0; i < 5; i++) expect(await Acc.checkPin(db, "dev-b", { pin: "0000" }, 1_000)).toBe(false);
     await expect(Acc.checkPin(db, "dev-b", { pin: "2468" }, 2_000)).rejects.toMatchObject({ code: "tooManyAttempts" });
     expect(await Acc.checkPin(db, "dev-b", { pin: "2468" }, 70_000)).toBe(true);
+  });
+
+  it("makes each pause in a row twice as long, up to an hour, until the right PIN", async () => {
+    expect([1, 2, 3, 7, 30].map(Acc.pinLockoutMs)).toEqual([60_000, 120_000, 240_000, 3_600_000, 3_600_000]);
+    const wrong = async (at: number) => {
+      for (let i = 0; i < 5; i++) expect(await Acc.checkPin(db, "dev-c", { pin: "0000" }, at)).toBe(false);
+    };
+    await wrong(0); // paused until 60 s
+    await wrong(61_000); // paused for two minutes, until 181 s
+    await expect(Acc.checkPin(db, "dev-c", { pin: "2468" }, 150_000)).rejects.toMatchObject({ code: "tooManyAttempts" });
+    await wrong(182_000); // four minutes, until 422 s
+    await expect(Acc.checkPin(db, "dev-c", { pin: "2468" }, 400_000)).rejects.toMatchObject({ code: "tooManyAttempts" });
+    expect(await Acc.checkPin(db, "dev-c", { pin: "2468" }, 423_000)).toBe(true);
+    // The right PIN starts over at a minute.
+    await wrong(424_000);
+    expect(await Acc.checkPin(db, "dev-c", { pin: "2468" }, 485_000)).toBe(true);
   });
 });
 

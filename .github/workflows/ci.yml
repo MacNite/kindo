@@ -4,12 +4,16 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  # Publish image runs the whole suite before it pushes anything.
+  workflow_call:
 
 permissions:
   contents: read
 
+# Called from Publish image, github.workflow is the caller's name, so that run
+# never cancels (or is cancelled by) the CI run for the same push.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -47,6 +51,9 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
+          # Node 26 is what the image runs (the docker job below starts it), but
+          # Playwright 1.56's browser install never finishes unzipping on Node 26,
+          # so the test suite stays on 22 until Playwright supports it.
           node-version: 22
           cache: npm
 

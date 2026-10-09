@@ -80,6 +80,16 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(await H.balanceOf(db, "paul")).toBe(89);
   });
 
+  it("with rewards off, chores are simply done: no points and no approval (§9)", async () => {
+    await H.setRewardMode(db, { mode: "off" });
+    await H.setCompletion(db, { itemId: "x-garage", day, done: true });
+    expect(await db.completion.findUniqueOrThrow({ where: { itemId_day: { itemId: "x-garage", day } } })).toMatchObject({ status: "done" });
+    await db.chore.update({ where: { id: "x-leaves" }, data: { value: { kind: "extra", points: 25, needsApproval: false }, memberId: "paul" } });
+    await H.setCompletion(db, { itemId: "x-leaves", day, done: true });
+    expect(await H.balanceOf(db, "lena")).toBe(125);
+    expect(await H.balanceOf(db, "paul")).toBe(64);
+  });
+
   it("redeeming spends points and refuses when there are not enough", async () => {
     await H.redeem(db, { memberId: "paul", rewardId: "r2" });
     expect(await H.balanceOf(db, "paul")).toBe(14);
@@ -112,7 +122,7 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(await db.routine.count({ where: { id: routineId } })).toBe(0);
   });
 
-  it("routine steps earn nothing until the child's routine points are on, then at once (D42)", async () => {
+  it("routine steps earn nothing until the child's routine points are on, then at once (D49)", async () => {
     await H.setCompletion(db, { itemId: "paul-morning-3", day, done: true });
     expect(await H.balanceOf(db, "paul")).toBe(64);
     await H.setCompletion(db, { itemId: "paul-morning-3", day, done: false });
@@ -149,7 +159,7 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     expect(s?.members.find((m) => m.id === "paul")?.routineRewards).toEqual({ on: true, points: 4 });
   });
 
-  it("steps for the same period and rhythm share one routine; another rhythm gets its own (D43)", async () => {
+  it("steps for the same period and rhythm share one routine; another rhythm gets its own (D50)", async () => {
     const a = await H.saveRoutineStep(db, { memberId: "paul", period: "morning", recurrence: { kind: "daily" }, pictogram: "bed", label: "Bed" });
     expect(a.routineId).toBe("paul-morning");
     expect(await db.routineStep.findUniqueOrThrow({ where: { id: a.stepId } })).toMatchObject({ position: 4 });
@@ -201,6 +211,11 @@ describe.skipIf(!TEST_DB)("household persistence (§19.2)", () => {
     await H.saveMeal(db, { day: "2030-01-01", dinner: "Soup", cookId: "max" });
     await H.saveMeal(db, { day: "2030-01-01", dinner: "" });
     expect(await db.meal.count({ where: { day: "2030-01-01" } })).toBe(0);
+  });
+
+  it("a dinner keeps both languages (§14)", async () => {
+    await H.saveMeal(db, { day: "2030-01-02", dinner: { de: "Nudeln", en: "Pasta" }, note: { de: "", en: "" } });
+    expect(await db.meal.findUniqueOrThrow({ where: { day: "2030-01-02" } })).toMatchObject({ dinner: { de: "Nudeln", en: "Pasta" }, note: null });
   });
 });
 

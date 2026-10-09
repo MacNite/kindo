@@ -10,7 +10,7 @@ export function Segmented<T extends string>({ value, onChange, options, size = "
       {options.map((o) => (
         <button type="button" key={o.value} role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}
           className={cn("inline-flex items-center gap-1.5 rounded-full font-bold transition-colors",
-            size === "sm" ? "h-8 px-3 text-sm" : "h-10 px-4",
+            size === "sm" ? "hit h-8 px-3 text-sm coarse:h-9" : "h-10 px-4 coarse:h-11",
             value === o.value ? "bg-surface text-ink shadow-[0_1px_0_rgb(var(--line))]" : "text-soft hover:text-ink")}>
           {o.label}
         </button>
@@ -22,7 +22,7 @@ export function Segmented<T extends string>({ value, onChange, options, size = "
 export function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} onClick={() => onChange(!checked)}
-      className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", checked ? "bg-ok" : "bg-line")}>
+      className={cn("hit relative h-7 w-12 shrink-0 rounded-full transition-colors", checked ? "bg-ok" : "bg-line")}>
       <span className={cn("absolute top-1 h-5 w-5 rounded-full bg-surface transition-all", checked ? "left-6" : "left-1")} />
     </button>
   );

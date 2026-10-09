@@ -1,13 +1,12 @@
 "use client";
 import { useState, type CSSProperties } from "react";
-import Link from "next/link";
 import { BookUser, ChevronRight, RefreshCw } from "lucide-react";
 import type { ConnectionInfo, ContactBirthday } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { parseBirthday } from "@/lib/birthdays";
 import { listAddressBooks, setContactBooks, updateContactBirthday } from "@/lib/services/birthdays";
-import { Button } from "../ui/Button";
+import { Button, LinkButton } from "../ui/Button";
 import { Switch, inputCls } from "../ui/Segmented";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
@@ -30,7 +29,7 @@ export function BirthdaySettings() {
       {nextclouds.length ? nextclouds.map((c) => <AddressBooks key={c.id} conn={c} />) : (
         <div className="flex flex-wrap items-center gap-3 rounded-panel bg-surface p-5">
           <p className="flex-1 text-soft">{t("settings.birthdays.noConnection")}</p>
-          <Link href="/settings?section=integrations"><Button variant="outline">{t("settings.birthdays.openIntegrations")}<ChevronRight size={16} /></Button></Link>
+          <LinkButton href="/settings?section=integrations" variant="outline">{t("settings.birthdays.openIntegrations")}<ChevronRight size={16} /></LinkButton>
         </div>
       )}
       <ContactTable contacts={data.birthdays} />

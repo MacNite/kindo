@@ -134,11 +134,12 @@ function DayPicker({ selected, onChange, multi }: { selected: Weekday[]; onChang
 }
 
 export function Stepper({ value, onChange, min = 0, max = 999, step = 1 }: { value: number; onChange: (n: number) => void; min?: number; max?: number; step?: number }) {
+  const { t } = useI18n();
   return (
     <span className="inline-flex items-center rounded-full bg-sunken p-1">
-      <button aria-label="−" className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface disabled:opacity-30" disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}><Minus size={16} /></button>
+      <button type="button" aria-label={t("common.decrease")} className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface disabled:opacity-30" disabled={value <= min} onClick={() => onChange(Math.max(min, value - step))}><Minus size={16} /></button>
       <span className="num w-10 text-center font-bold">{value}</span>
-      <button aria-label="+" className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface disabled:opacity-30" disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}><Plus size={16} /></button>
+      <button type="button" aria-label={t("common.increase")} className="grid h-8 w-8 place-items-center rounded-full hover:bg-surface disabled:opacity-30" disabled={value >= max} onClick={() => onChange(Math.min(max, value + step))}><Plus size={16} /></button>
     </span>
   );
 }

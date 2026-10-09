@@ -20,6 +20,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ assetId:
   } catch (e) {
     const status = e instanceof UserError && e.code === "notFound" ? 404 : 502;
     log.warn("photo proxy failed", { asset: assetId, size, status, error: errorMessage(e) });
-    return new Response(errorMessage(e), { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+    // The detail (addresses, Immich's own words) is in the log; screens only get the code.
+    return new Response(status === 404 ? "notFound" : "remote", { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   }
 }

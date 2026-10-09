@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 // Design tokens live as CSS variables in src/app/globals.css so light/dark
 // themes swap without touching components.
@@ -16,6 +17,11 @@ const config: Config = {
         line: "rgb(var(--line) / <alpha-value>)",
         star: "rgb(var(--star) / <alpha-value>)",
         ok: "rgb(var(--ok) / <alpha-value>)",
+        danger: {
+          DEFAULT: "rgb(var(--danger) / <alpha-value>)",
+          solid: "rgb(var(--danger-solid) / <alpha-value>)",
+          "on-dark": "rgb(var(--danger-on-dark) / <alpha-value>)",
+        },
       },
       fontFamily: {
         display: ["'Bricolage Grotesque'", "ui-sans-serif", "system-ui", "sans-serif"],
@@ -34,6 +40,9 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Touch screens (phones, tablets, the wall): `coarse:` raises hit areas to 44 px (§6).
+    plugin(({ addVariant }) => addVariant("coarse", "@media (pointer: coarse)")),
+  ],
 };
 export default config;

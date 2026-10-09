@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import { Maximize2, Moon, Plus, Sun, Sunrise, ShieldCheck, Trash2, X } from "lucide-react";
 import type { ActionResult, Member, Period, Recurrence, Routine, TaskItem, TaskValue } from "@/lib/types";
@@ -7,9 +6,10 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { addRoutineSteps, deleteChore, deleteRoutineStep, saveChore, saveRoutineStep } from "@/lib/services/actions";
 import { DEFAULT_ROUTINE_POINTS, routineStepValue } from "@/lib/ledger";
-import { getPictogram } from "@/lib/pictograms";
+import { getPictogram, stepName } from "@/lib/pictograms";
 import { recurrenceKey } from "@/lib/recurrence";
-import { Button } from "../ui/Button";
+import { editText } from "@/lib/text";
+import { Button, LinkButton } from "../ui/Button";
 import { PageHeader } from "../ui/Panel";
 import { Segmented, Switch, Field, inputCls } from "../ui/Segmented";
 import { Avatar } from "../ui/Avatar";
@@ -30,7 +30,7 @@ interface Draft {
   memberId: string | null;
   item: TaskItem;
   recurrence: Recurrence;
-  /** Steps: period and rhythm pick the routine the step lands in (D43). */
+  /** Steps: period and rhythm pick the routine the step lands in (D50). */
   period?: Period;
 }
 const isNew = (d: Draft) => d.item.id === "new";
@@ -48,8 +48,11 @@ export function RoutinesScreen() {
   const [tab, setTab] = useState<"routines" | "chores" | "history">("routines");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [adding, setAdding] = useState(false);
-  const { getMembers } = useStore();
+  const { getMembers, allRoutines } = useStore();
   const kids = getMembers().filter((m) => m.role === "child");
+  // Children always have a section; anyone else as soon as they have a routine, so it can be edited.
+  const withRoutines = new Set(allRoutines().map((r) => r.memberId));
+  const listed = getMembers().filter((m) => m.role === "child" || withRoutines.has(m.id));
   const firstAdult = getMembers().find((m) => m.role !== "child")?.id ?? null;
 
   const newChore = () =>
@@ -59,7 +62,7 @@ export function RoutinesScreen() {
     <div>
       <PageHeader title={t("routines.title")} subtitle={t("routines.subtitle")}
         actions={kids.map((k) => (
-          <Link key={k.id} href={`/kids/${k.id}`}><Button variant="outline" size="md"><Maximize2 size={16} />{k.name}</Button></Link>
+          <LinkButton key={k.id} href={`/kids/${k.id}`} variant="outline" size="md"><Maximize2 size={16} />{k.name}</LinkButton>
         ))} />
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Segmented value={tab} onChange={setTab} options={[
@@ -74,8 +77,8 @@ export function RoutinesScreen() {
 
       {tab === "routines" && (
         <div className="flex flex-col gap-8">
-          {kids.length === 0 && <p className="rounded-panel bg-surface p-6 text-soft">{t("routines.noChildren")}</p>}
-          {kids.map((m) => <MemberRoutines key={m.id} member={m} onEdit={setDraft} />)}
+          {listed.length === 0 && <p className="rounded-panel bg-surface p-6 text-soft">{t("routines.noChildren")}</p>}
+          {listed.map((m) => <MemberRoutines key={m.id} member={m} onEdit={setDraft} />)}
         </div>
       )}
 
@@ -100,7 +103,7 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
       <header className="mb-3 flex flex-wrap items-center gap-3">
         <Avatar member={member} size="md" />
         <h2 className="font-display text-2xl font-bold">{member.name}</h2>
-        {rewardMode !== "off" && <RoutineRewards member={member} />}
+        {rewardMode !== "off" && member.role === "child" && <RoutineRewards member={member} />}
       </header>
       {routines.length === 0 && <p className="rounded-panel bg-surface p-5 text-soft">{t("routines.noRoutines")}</p>}
       <div className="grid gap-3 lg:grid-cols-3">
@@ -117,12 +120,12 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {r.items.map((it) => (
-                  <button key={it.id} onClick={() => onEdit({ kind: "step", memberId: member.id, item: it, recurrence: r.recurrence, period: r.period })} title={tx(it.label)}
-                    className="tint m-text relative flex aspect-square flex-col items-center justify-center gap-1 rounded-tile hover:ring-2 hover:ring-[var(--m)]">
-                    <Pictogram id={it.pictogram} className="h-7 w-7" />
-                    <span className="line-clamp-1 px-1 text-[11px] font-bold text-soft">{tx(it.label)}</span>
+                  <button key={it.id} onClick={() => onEdit({ kind: "step", memberId: member.id, item: it, recurrence: r.recurrence, period: r.period })} title={stepName(it, tx)}
+                    className="tint m-text relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-tile p-1 hover:ring-2 hover:ring-[var(--m)]">
+                    <Pictogram id={it.pictogram} className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
+                    <span className="line-clamp-2 break-words text-center text-xs font-bold leading-[1.15] text-soft">{tx(it.label)}</span>
                     {showPoints && it.value.kind === "extra" && (
-                      <RewardAmount points={it.value.points} iconSize={11} className="absolute right-1.5 top-1 text-[11px] text-ink" />
+                      <RewardAmount points={it.value.points} iconSize={11} className="absolute right-1 top-0.5 text-xs text-ink" />
                     )}
                   </button>
                 ))}
@@ -139,7 +142,7 @@ function MemberRoutines({ member, onEdit }: { member: Member; onEdit: (d: Draft)
   );
 }
 
-/** Points for a child's routine steps, while they get used to them (§9, D42). */
+/** Points for a child's routine steps, while they get used to them (§9, D49). */
 function RoutineRewards({ member }: { member: Member }) {
   const { t } = useI18n();
   const { setRoutineRewards } = useStore();
@@ -214,7 +217,7 @@ function PeoplePicker({ people, selected, onPick, disabled }: {
 
 /**
  * "New routine": who, when, how often, and several pictures at once. Steps
- * join the routine a person already has for that period and rhythm (D43).
+ * join the routine a person already has for that period and rhythm (D50).
  */
 function NewRoutine({ onClose }: { onClose: () => void }) {
   const { t, tx } = useI18n();
@@ -278,7 +281,7 @@ function NewRoutine({ onClose }: { onClose: () => void }) {
 }
 
 function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, language } = useI18n();
   const { getMember, getMembers, run, rewardMode } = useStore();
   const [d, setD] = useState(draft);
   const step = d.kind === "step";
@@ -290,7 +293,7 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
   const member = getMember(multi ? who[0] ?? null : d.memberId);
   const item = d.item;
   const set = (p: Partial<TaskItem>) => setD((x) => ({ ...x, item: { ...x.item, ...p } }));
-  // A step's own setting: "expected" follows the child's routine points (D42).
+  // A step's own setting: "expected" follows the child's routine points (D49).
   const own: TaskValue = item.own ?? { kind: "expected" };
   const routinePoints = member?.routineRewards?.points ?? DEFAULT_ROUTINE_POINTS;
   const preview: TaskItem = { ...item, label: tx(item.label) || " ", value: step ? routineStepValue(own, member?.routineRewards, rewardMode) : item.value };
@@ -339,7 +342,7 @@ function TaskEditor({ draft, onClose }: { draft: Draft; onClose: () => void }) {
         <div className="flex flex-col gap-6">
           <Field label={t("routines.pictogram")}><PictogramPicker value={item.pictogram} onChange={(pictogram) => set({ pictogram })} /></Field>
           <Field label={t("routines.label")} hint={t("routines.labelHint")}>
-            <input className={inputCls} value={tx(item.label)} onChange={(e) => set({ label: e.target.value })} />
+            <input className={inputCls} value={tx(item.label)} onChange={(e) => set({ label: editText(item.label, language, e.target.value) })} />
           </Field>
           <Field label={t("routines.assignTo")} hint={multi ? t("routines.assignToMany") : undefined}>
             <PeoplePicker people={people} selected={selected} onPick={pick} disabled={step} />

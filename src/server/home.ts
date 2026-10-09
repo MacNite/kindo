@@ -7,7 +7,7 @@ import {
 import type { Tx } from "./db";
 import { UserError, notFound } from "./errors";
 import { id } from "./validation";
-import { haConfig, listStates, readState, switchEntities, syncPresenceWatchers, type HaState, type HaStoredConfig } from "./homeassistant";
+import { haConfig, listStates, readState, refreshPresenceWatchers, switchEntities, type HaState, type HaStoredConfig } from "./homeassistant";
 import { errorMessage, log } from "./log";
 
 /**
@@ -140,5 +140,5 @@ export async function saveSetup(db: Tx, input: In<"setup">) {
   const next: HaStoredConfig = { ...cfg, controls: input.controls, energy: input.energy ?? undefined };
   await db.connection.update({ where: { id: conn.id }, data: { config: next as Prisma.InputJsonValue } });
   cache.delete(conn.id);
-  await syncPresenceWatchers(db).catch(() => {});
+  await refreshPresenceWatchers();
 }

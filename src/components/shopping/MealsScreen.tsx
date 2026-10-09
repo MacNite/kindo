@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, ShoppingCart, BookOpen } from "lucide-react";
-import type { Meal } from "@/lib/types";
+import type { Meal, Text } from "@/lib/types";
+import { editText, isBlankText } from "@/lib/text";
 import { useI18n } from "@/i18n";
 import { useToday } from "@/lib/useToday";
 import { useStore } from "@/lib/state/store";
@@ -63,14 +64,15 @@ export function MealsScreen() {
 }
 
 function MealEditor({ day, meal, onClose }: { day: Date; meal?: Meal; onClose: () => void }) {
-  const { t, tx, fmt } = useI18n();
+  const { t, tx, fmt, language } = useI18n();
   const { getMembers, run } = useStore();
-  const [dinner, setDinner] = useState(meal ? tx(meal.dinner) : "");
-  const [note, setNote] = useState(meal?.note ? tx(meal.note) : "");
+  // Labels stay bilingual: editing changes only the language on screen.
+  const [dinner, setDinner] = useState<Text>(meal?.dinner ?? "");
+  const [note, setNote] = useState<Text>(meal?.note ?? "");
   const [cookId, setCookId] = useState<string | null>(meal?.cookId ?? null);
   const [error, setError] = useState<string | null>(null);
   const save = async () => {
-    const r = await run(() => saveMeal({ day: dateKey(day), dinner, note: note || undefined, cookId }));
+    const r = await run(() => saveMeal({ day: dateKey(day), dinner: isBlankText(dinner) ? "" : dinner, note: isBlankText(note) ? undefined : note, cookId }));
     if (r.ok) onClose();
     else setError(r.error);
   };
@@ -78,8 +80,8 @@ function MealEditor({ day, meal, onClose }: { day: Date; meal?: Meal; onClose: (
     <Dialog open onClose={onClose} title={`${fmt.weekday(day, "long")}, ${fmt.dateMedium(day)}`}
       footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button><Button variant="primary" onClick={save}>{t("common.save")}</Button></>}>
       <div className="flex flex-col gap-4">
-        <Field label={t("meals.dinner")} hint={t("meals.clearHint")}><input className={inputCls} value={dinner} onChange={(e) => setDinner(e.target.value)} /></Field>
-        <Field label={t("meals.note")}><input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+        <Field label={t("meals.dinner")} hint={t("meals.clearHint")}><input className={inputCls} value={tx(dinner)} onChange={(e) => setDinner(editText(dinner, language, e.target.value))} /></Field>
+        <Field label={t("meals.note")}><input className={inputCls} value={tx(note)} onChange={(e) => setNote(editText(note, language, e.target.value))} /></Field>
         <Field label={t("meals.cook")}><MemberPicker members={getMembers()} value={cookId} onChange={setCookId} noneLabel={t("meals.nobody")} /></Field>
       </div>
     </Dialog>

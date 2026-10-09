@@ -11,12 +11,13 @@ import { demoWeather } from "./demo/data";
 import { completeWallTiles, completeWidgets } from "@/lib/dashboard";
 import { homeSetupOf } from "./home";
 import { camerasOf } from "./cameras";
+import { env } from "./env";
 
 /** How far back completions travel to the devices: enough for a two-week history view. */
-export const HISTORY_DAYS = 35;
+const HISTORY_DAYS = 35;
 /** Calendar window sent to the devices. Wider ranges are fetched on demand later. */
-export const EVENTS_BEFORE_DAYS = 90;
-export const EVENTS_AFTER_DAYS = 400;
+const EVENTS_BEFORE_DAYS = 90;
+const EVENTS_AFTER_DAYS = 400;
 
 const value = (v: unknown) => v as TaskValue;
 
@@ -50,11 +51,14 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       where: { end: { gte: addDays(today, -EVENTS_BEFORE_DAYS) }, start: { lte: addDays(today, EVENTS_AFTER_DAYS) } },
       orderBy: { start: "asc" },
     }),
-    db.photoAlbum.findMany({ orderBy: [{ server: "asc" }, { name: "asc" }] }),
+    // One synced photo per album, for its picture in Photos.
+    db.photoAlbum.findMany({ orderBy: [{ server: "asc" }, { name: "asc" }], include: { photos: { where: { remoteId: { not: null } }, select: { id: true }, take: 1 } } }),
     db.holidayRange.findMany({ where: { end: { gte: sinceDay } }, orderBy: { start: "asc" } }),
     db.connection.findMany({ orderBy: { createdAt: "asc" } }),
   ]);
 
+  // Login emails are for admins and their owners; a wall or another adult only learns that there is one.
+  const seesEmail = (memberId: string) => viewer.isAdmin || (viewer.kind === "user" && viewer.memberId === memberId);
   const rewardsOf = new Map(members.map((m) => [m.id, { on: m.routineRewards, points: m.routinePoints }]));
   const routineItems: Routine[] = routines.map((r) => ({
     id: r.id, memberId: r.memberId, period: r.period, recurrence: r.recurrence as unknown as Recurrence,
@@ -83,7 +87,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     viewer,
     members: members.map((m): Member => ({
       id: m.id, name: m.name, role: m.role, color: m.color, avatar: m.avatar as Member["avatar"], birthday: m.birthday ?? undefined,
-      account: m.user ? { email: m.user.email } : undefined, routineRewards: { on: m.routineRewards, points: m.routinePoints },
+      account: m.user ? (seesEmail(m.id) ? { email: m.user.email } : {}) : undefined, routineRewards: { on: m.routineRewards, points: m.routinePoints },
     })),
     routines: routineItems,
     chores: chores.map((c): Chore => ({
@@ -110,7 +114,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       background: s.background || undefined, connectionId: s.connectionId ?? undefined, lastSyncAt: s.lastSyncAt ?? undefined,
     })),
     events: events.map(fromStoredEvent),
-    albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight })),
+    albums: albums.map((a) => ({ id: a.id, server: a.server, name: a.name, count: a.count, selected: a.selected, weight: a.weight, cover: a.photos[0]?.id })),
     holidays: holidays.map((h) => ({ start: h.start, end: h.end, summary: h.summary })),
     weather: household.demo ? demoWeather(today) : null,
     integrations: integrationsFor(household.demo, connections, sources),
@@ -119,7 +123,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
       id: c.id, kind: c.kind, name: c.name, url: c.url ?? undefined, username: c.username ?? undefined, status: c.status,
       lastError: c.lastError ?? undefined, lastSyncAt: c.lastSyncAt ?? undefined, config: (c.config ?? {}) as Record<string, unknown>,
     })) : [],
-    features: { google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) },
+    features: { google: Boolean(env().google) },
     home: homeSetupOf(connections.find((c) => c.kind === "homeassistant")),
     cameras: camerasOf(connections.find((c) => c.kind === "frigate")),
   };

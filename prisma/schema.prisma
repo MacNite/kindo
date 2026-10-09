@@ -99,6 +99,9 @@ model Household {
   holidayIcsUrls   String[]   @default([])
   holidaysSyncedAt DateTime?
   holidaysError    String?
+  /// The last failed holiday sync and how many failed in a row: retries back off (src/server/holidays.ts).
+  holidaysFailedAt DateTime?
+  holidaysFailures Int        @default(0)
   /// Hash of the PIN that unlocks settings on a paired wall display (§19.4).
   settingsPinHash  String?
   /// Loaded from the bundled demo family (§20 D11).
@@ -116,7 +119,7 @@ model Member {
   avatar         Json
   /// YYYY-MM-DD
   birthday       String?
-  /// Routine steps earn points while this is on (§9, D42).
+  /// Routine steps earn points while this is on (§9, D49).
   routineRewards Boolean  @default(false)
   /// What a routine step earns when it sets no points of its own.
   routinePoints  Int      @default(5)
@@ -156,7 +159,7 @@ model RoutineStep {
   position  Int
   pictogram String
   label     Json
-  /// `TaskValue`: "expected" follows the member's routine points, an "extra" sets its own (§9, D42)
+  /// `TaskValue`: "expected" follows the member's routine points, an "extra" sets its own (§9, D49)
   value     Json
 
   @@index([routineId, position])

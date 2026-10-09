@@ -9,6 +9,7 @@ import { saveEvent, deleteEvent } from "@/server/household";
 import { syncConnection } from "@/server/calendar/sync";
 import { isPresent, watchHome } from "@/server/homeassistant";
 import { seedDemo } from "@/server/demo/seed";
+import { resetEnvCache } from "@/server/env";
 import { TEST_DB, resetTestDatabase } from "./db";
 
 const ics = readFileSync(new URL("./fixtures/school.ics", import.meta.url), "utf8");
@@ -35,16 +36,22 @@ function googleMock() {
     [calendars[1].id]: [{ id: "h1", summary: "Unity day", start: { date: "2026-10-03" }, end: { date: "2026-10-04" } }],
   };
   const log: { method: string; path: string; body?: Record<string, unknown> }[] = [];
+  let limited = false;
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://x");
     const json = (b: unknown, status = 200) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(b));
     if (url.pathname === "/token") return json({ access_token: "access-1", expires_in: 3600 });
     if (req.headers.authorization !== "Bearer access-1") return json({ error: "unauthorized" }, 401);
-    if (url.pathname === "/calendar/v3/users/me/calendarList") return json({ items: calendars });
+    // One calendar per page, like an account with many: Kindo must follow nextPageToken.
+    if (url.pathname === "/calendar/v3/users/me/calendarList") {
+      const i = Number(url.searchParams.get("pageToken") ?? 0);
+      return json({ items: [calendars[i]], ...(i + 1 < calendars.length ? { nextPageToken: String(i + 1) } : {}) });
+    }
+    if (limited) return json({ error: { code: 403, errors: [{ reason: "rateLimitExceeded" }], message: "Rate Limit Exceeded" } }, 403);
     const m = url.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
     if (m) {
       const cal = decodeURIComponent(m[1]);
-      const body = req.method === "POST" || req.method === "PUT" ? JSON.parse(await readBody(req)) : undefined;
+      const body = req.method === "POST" || req.method === "PATCH" ? JSON.parse(await readBody(req)) : undefined;
       log.push({ method: req.method!, path: url.pathname, body });
       if (req.method === "GET") return json({ items: events[cal] ?? [] });
       if (req.method === "POST") {
@@ -52,8 +59,18 @@ function googleMock() {
         events[cal].push(e);
         return json(e);
       }
-      if (req.method === "PUT") {
-        events[cal] = events[cal].map((e) => (e.id === m[2] ? { ...e, ...body } : e));
+      if (req.method === "PATCH") {
+        // Like Google: nested objects merge, null clears a field.
+        const merge = (a: Record<string, unknown>, b: Record<string, unknown>): Record<string, unknown> => {
+          const out = { ...a };
+          for (const [k, v] of Object.entries(b)) {
+            if (v === null) delete out[k];
+            else if (typeof v === "object" && !Array.isArray(v) && typeof a[k] === "object") out[k] = merge(a[k] as Record<string, unknown>, v as Record<string, unknown>);
+            else out[k] = v;
+          }
+          return out;
+        };
+        events[cal] = events[cal].map((e) => (e.id === m[2] ? { ...merge(e, body), etag: `"${log.length}"` } : e));
         return json({});
       }
       if (req.method === "DELETE") {
@@ -63,7 +80,7 @@ function googleMock() {
     }
     json({ error: "not found" }, 404);
   });
-  return { server, log };
+  return { server, log, limit: (on: boolean) => void (limited = on) };
 }
 
 describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () => {
@@ -75,13 +92,19 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
   beforeAll(async () => {
     db = await resetTestDatabase();
     await db.$transaction((tx) => seedDemo(tx), { timeout: 60_000 });
-    feed = createServer((req, res) => (req.url === "/school.ics" ? res.writeHead(200, { "content-type": "text/calendar" }).end(ics) : res.writeHead(200).end("<html>not a calendar</html>")));
+    let flaky = 0;
+    feed = createServer((req, res) => {
+      // Answers once, then fails: the check passes and the first sync fails.
+      if (req.url === "/flaky.ics") return flaky++ ? res.writeHead(500).end() : res.writeHead(200, { "content-type": "text/calendar" }).end(ics);
+      return req.url === "/school.ics" ? res.writeHead(200, { "content-type": "text/calendar" }).end(ics) : res.writeHead(200).end("<html>not a calendar</html>");
+    });
     feedUrl = await listen(feed);
     const base = await listen(google.server);
     process.env.GOOGLE_API_BASE = base;
     process.env.GOOGLE_OAUTH_BASE = base;
     process.env.GOOGLE_CLIENT_ID = "client";
     process.env.GOOGLE_CLIENT_SECRET = "secret";
+    resetEnvCache(); // the configuration is read once
   }, 60_000);
   afterAll(async () => {
     feed?.close();
@@ -91,6 +114,10 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
 
   it("subscribes to a feed: read-only, its people's colours, the address kept secret", async () => {
     await expect(C.addIcs(db, { name: "Nope", url: `${feedUrl}/page.html`, defaultMemberIds: [], background: false })).rejects.toMatchObject({ code: "remote" });
+    // A first sync that fails leaves nothing behind, so trying again doesn't add a second feed.
+    await expect(C.addIcs(db, { name: "Flaky", url: `${feedUrl}/flaky.ics`, defaultMemberIds: [], background: false })).rejects.toMatchObject({ code: "remote" });
+    expect(await db.connection.count({ where: { kind: "ics" } })).toBe(0);
+    expect(await db.calendarSource.count({ where: { provider: "ics", connectionId: { not: null } } })).toBe(0);
     const id = await C.addIcs(db, { name: "School", url: `${feedUrl}/school.ics`, defaultMemberIds: ["lena"], background: true });
     const conn = await db.connection.findUniqueOrThrow({ where: { id }, include: { sources: { include: { events: true } } } });
     expect(conn.secret).not.toContain("school.ics");
@@ -100,6 +127,11 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     expect(autumn).toMatchObject({ memberIds: ["lena"], background: true, allDay: true });
     // Kindo's own member assignment in the feed wins over the calendar's people.
     expect(source.events.find((e) => e.title === "Football practice")?.memberIds).toEqual(["lena", "max"]);
+    // The same feed again: nothing is rewritten. A change of the calendar's people is.
+    expect(await syncConnection(db, conn, { force: true })).toBe(false);
+    await C.updateSource(db, { id: source.id, name: "School", defaultMemberIds: ["max"], readOnly: true, background: true });
+    expect(await syncConnection(db, conn, { force: true })).toBe(true);
+    expect((await db.event.findFirstOrThrow({ where: { sourceId: source.id, title: { equals: "Herbstferien" } } })).memberIds).toEqual(["max"]);
   });
 
   it("connects a Google account: calendars, events, read-only where Google says so", async () => {
@@ -123,18 +155,46 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     const post = google.log.find((l) => l.method === "POST")!;
     expect(post.body).toMatchObject({ summary: "Football", extendedProperties: { private: { kindoMembers: "lena" } } });
     expect(await db.event.findUniqueOrThrow({ where: { id } })).toMatchObject({ title: "Football", memberIds: ["lena"] });
-    await deleteEvent(db, { id });
+
+    // An edit sends only what changed; a moved event comes back under its new id.
+    const later = new Date(start.getTime() + 86_400_000);
+    const moved = await saveEvent(db, { id, sourceId: family.id, title: "Football", start: later, end: new Date(later.getTime() + 3_600_000), allDay: false, memberIds: ["lena"] });
+    const patch = google.log.find((l) => l.method === "PATCH")!;
+    expect(Object.keys(patch.body!).sort()).toEqual(["end", "start"]);
+    expect(moved).not.toBe(id);
+    expect(await db.event.findUniqueOrThrow({ where: { id: moved } })).toMatchObject({ title: "Football", memberIds: ["lena"], start: later });
+    const renamed = await saveEvent(db, { id: moved, sourceId: family.id, title: "Football final", start: later, end: new Date(later.getTime() + 3_600_000), allDay: false, memberIds: ["lena", "max"] });
+    expect(renamed).toBe(moved);
+    expect(google.log.filter((l) => l.method === "PATCH").at(-1)!.body).toEqual({ summary: "Football final", extendedProperties: { private: { kindoMembers: "lena max" } } });
+    expect(await db.event.findUniqueOrThrow({ where: { id: moved } })).toMatchObject({ title: "Football final", memberIds: ["lena", "max"] });
+    await deleteEvent(db, { id: moved });
     expect(google.log.some((l) => l.method === "DELETE")).toBe(true);
     const choir = await db.event.findFirstOrThrow({ where: { title: { equals: "Choir" } } });
     await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "readOnly" });
+  });
+
+  it("tells Google's rate limit apart from missing write access", async () => {
+    const conn = await db.connection.findFirstOrThrow({ where: { kind: "google" } });
+    const family = await db.calendarSource.findFirstOrThrow({ where: { remoteId: "family@group.calendar.google.com" } });
+    google.limit(true);
+    try {
+      await expect(syncConnection(db, conn, { force: true })).rejects.toMatchObject({ code: "remote", message: expect.stringMatching(/too many requests/) });
+      const start = new Date(Date.now() + 3 * 86_400_000);
+      await expect(saveEvent(db, { sourceId: family.id, title: "Swim", start, end: new Date(start.getTime() + 3_600_000), allDay: false, memberIds: [] }))
+        .rejects.toMatchObject({ code: "remote" });
+    } finally {
+      google.limit(false);
+    }
   });
 
   it("a failing account is marked, and the error kept for Settings", async () => {
     const conn = await db.connection.findFirstOrThrow({ where: { kind: "google" } });
     const api = process.env.GOOGLE_API_BASE;
     process.env.GOOGLE_API_BASE = "http://127.0.0.1:9"; // nothing listens there
+    resetEnvCache();
     await expect(syncConnection(db, conn, { force: true })).rejects.toMatchObject({ code: "remote" });
     process.env.GOOGLE_API_BASE = api;
+    resetEnvCache();
     expect((await db.connection.findUniqueOrThrow({ where: { id: conn.id } })).status).toBe("error");
   });
 });
@@ -151,6 +211,9 @@ describe("Home Assistant presence (§19.8)", () => {
     const port = (wss.address() as AddressInfo).port;
     let send: ((state: string) => void) | undefined;
     wss.on("connection", (ws) => {
+      // Garbage first: the watcher skips it and carries on.
+      ws.send("not json {");
+      ws.send("null");
       ws.send(JSON.stringify({ type: "auth_required" }));
       ws.on("message", (raw) => {
         const msg = JSON.parse(String(raw));

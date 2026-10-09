@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import type { z } from "zod";
-import type { Recurrence, TaskValue, Text } from "@/lib/types";
+import type { Recurrence, RewardMode, TaskValue, Text } from "@/lib/types";
 import { guessCategory } from "@/lib/shopping";
+import { isBlankText } from "@/lib/text";
 import { completionOutcome, routineStepValue } from "@/lib/ledger";
 import { householdDayKeyIn, normalizeRecurrence, sameRecurrence } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
@@ -10,6 +11,7 @@ import { UserError, notFound } from "./errors";
 import { toStoredEvent } from "./events";
 import { createRemoteEvent, deleteRemoteEvent, updateRemoteEvent } from "./calendar/sync";
 import type { S } from "./validation";
+import { assertAnotherAdminLogin } from "./accounts";
 
 /**
  * Household mutations (§19.2). Plain functions over a database handle, so the
@@ -22,22 +24,23 @@ const json = (v: unknown) => v as Prisma.InputJsonValue;
 const isUnique = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 
 // ── Routines and chores: ticking off ────────────────────────────────────────
-interface ItemInfo { pictogram: string; label: Text; value: TaskValue; ownerId: string | null }
+interface ItemInfo { pictogram: string; label: Text; value: TaskValue; ownerId: string | null; mode: RewardMode }
 
 async function findItem(db: Tx, itemId: string): Promise<ItemInfo | null> {
   const step = await db.routineStep.findUnique({
     where: { id: itemId },
     include: { routine: { select: { memberId: true, member: { select: { routineRewards: true, routinePoints: true } } } } },
   });
+  const chore = step ? null : await db.chore.findUnique({ where: { id: itemId } });
+  if (!step && !chore) return null;
+  const h = await db.household.findUnique({ where: { id: 1 }, select: { rewardMode: true } });
+  const mode: RewardMode = h?.rewardMode ?? "off";
   if (step) {
-    const h = await db.household.findUnique({ where: { id: 1 }, select: { rewardMode: true } });
     const { routineRewards: on, routinePoints: points } = step.routine.member;
-    const value = routineStepValue(step.value as TaskValue, { on, points }, h?.rewardMode ?? "off");
-    return { pictogram: step.pictogram, label: step.label as Text, value, ownerId: step.routine.memberId };
+    const value = routineStepValue(step.value as TaskValue, { on, points }, mode);
+    return { pictogram: step.pictogram, label: step.label as Text, value, ownerId: step.routine.memberId, mode };
   }
-  const chore = await db.chore.findUnique({ where: { id: itemId } });
-  if (chore) return { pictogram: chore.pictogram, label: chore.label as Text, value: chore.value as TaskValue, ownerId: chore.memberId };
-  return null;
+  return { pictogram: chore!.pictogram, label: chore!.label as Text, value: chore!.value as TaskValue, ownerId: chore!.memberId, mode };
 }
 
 /**
@@ -59,7 +62,7 @@ export async function setCompletion(db: Tx, input: In<"completion">, now = new D
     if (!item) throw notFound("item");
     // A routine step or assigned chore always belongs to its owner; "anyone" chores to whoever says they did it.
     const memberId = item.ownerId ?? input.memberId ?? null;
-    const outcome = completionOutcome(item.value, memberId !== null);
+    const outcome = completionOutcome(item.value, memberId !== null, item.mode);
     try {
       await tx.completion.create({
         data: {
@@ -141,9 +144,10 @@ export async function deleteReward(db: Tx, input: In<"byId">) {
 // ── Shopping ────────────────────────────────────────────────────────────────
 /** The id comes from the device, so a replayed offline add is a no-op. */
 export async function addShoppingItem(db: Tx, input: In<"shoppingAdd">) {
+  const list = await db.shoppingList.findUnique({ where: { id: input.listId }, select: { name: true } });
   try {
     await db.shoppingItem.create({
-      data: { id: input.id, listId: input.listId, name: json(input.name), qty: input.qty, memberId: input.memberId, category: guessCategory(input.name, input.listId) },
+      data: { id: input.id, listId: input.listId, name: json(input.name), qty: input.qty, memberId: input.memberId, category: guessCategory(input.name, list?.name as Text | undefined) },
     });
   } catch (e) {
     if (isUnique(e)) return;
@@ -217,7 +221,7 @@ export async function setDayTimes(db: Tx, input: In<"dayTimes">) {
 /** Saves the holiday feeds. Changing them makes the next job tick fetch them again. */
 export async function setHolidayFeeds(db: Tx, input: In<"holidayFeeds">) {
   const urls = [...new Set(input.urls.map((u) => u.trim()).filter(Boolean))];
-  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null } });
+  await db.household.update({ where: { id: 1 }, data: { holidayIcsUrls: urls, holidaysSyncedAt: null, holidaysError: null, holidaysFailedAt: null, holidaysFailures: 0 } });
   if (!urls.length) await db.holidayRange.deleteMany();
 }
 
@@ -234,7 +238,7 @@ export async function updateHousehold(db: Tx, input: In<"household">) {
 export async function saveMember(db: Tx, input: In<"member">) {
   const data = { name: input.name, role: input.role, color: input.color, avatar: json(input.avatar), birthday: input.birthday ?? null };
   if (input.id) {
-    if (input.role !== "admin") await assertAnotherAdmin(db, input.id);
+    if (input.role !== "admin") await assertAnotherAdminLogin(db, input.id);
     await db.member.update({ where: { id: input.id }, data });
     return input.id;
   }
@@ -243,25 +247,17 @@ export async function saveMember(db: Tx, input: In<"member">) {
 }
 
 export async function deleteMember(db: Tx, input: In<"byId">) {
-  await assertAnotherAdmin(db, input.id);
+  await assertAnotherAdminLogin(db, input.id);
   const m = await db.member.findUnique({ where: { id: input.id }, select: { userId: true } });
   await db.member.deleteMany({ where: { id: input.id } });
   // A login always belongs to a person: it goes with them.
   if (m?.userId) await db.user.deleteMany({ where: { id: m.userId } });
 }
 
-/** A household always keeps at least one admin, or nobody could change settings any more. */
-async function assertAnotherAdmin(db: Tx, memberId: string) {
-  const me = await db.member.findUnique({ where: { id: memberId }, select: { role: true } });
-  if (me?.role !== "admin") return;
-  const others = await db.member.count({ where: { role: "admin", id: { not: memberId } } });
-  if (!others) throw new UserError("invalid", "the last admin stays");
-}
-
 // ── Routines and chores: editing ────────────────────────────────────────────
 /**
  * The member's routine for a period and rhythm, started when there is none.
- * There is one per member, period and rhythm (D43), so steps added for the
+ * There is one per member, period and rhythm (D50), so steps added for the
  * same morning end up together.
  */
 async function routineFor(tx: Tx, memberId: string, period: In<"routineStep">["period"], input: In<"routineStep">["recurrence"]) {
@@ -283,7 +279,7 @@ async function compactRoutine(tx: Tx, routineId: string) {
 /**
  * Saves one routine step. Its period and rhythm decide which of the member's
  * routines holds it: changing either moves the step, with its id and history,
- * to the matching routine. The step's own points are optional (D42).
+ * to the matching routine. The step's own points are optional (D49).
  */
 export async function saveRoutineStep(db: Tx, input: In<"routineStep">) {
   return inTx(db, async (tx) => {
@@ -333,7 +329,7 @@ export async function deleteRoutineStep(db: Tx, input: In<"byId">) {
   });
 }
 
-/** Switches a member's routine points on or off (§9, D42). The number stays when they are off. */
+/** Switches a member's routine points on or off (§9, D49). The number stays when they are off. */
 export async function setRoutineRewards(db: Tx, input: In<"routineRewards">) {
   const n = await db.member.updateMany({ where: { id: input.memberId }, data: { routineRewards: input.on, routinePoints: input.points } });
   if (!n.count) throw notFound("member");
@@ -352,11 +348,11 @@ export async function deleteChore(db: Tx, input: In<"byId">) {
 // ── Meals and dates ─────────────────────────────────────────────────────────
 /** An empty dinner clears the day. */
 export async function saveMeal(db: Tx, input: In<"meal">) {
-  if (!input.dinner) {
+  if (isBlankText(input.dinner)) {
     await db.meal.deleteMany({ where: { day: input.day } });
     return;
   }
-  const data = { dinner: json(input.dinner), cookId: input.cookId ?? null, note: input.note ? json(input.note) : Prisma.DbNull };
+  const data = { dinner: json(input.dinner), cookId: input.cookId ?? null, note: !isBlankText(input.note) ? json(input.note) : Prisma.DbNull };
   await db.meal.upsert({ where: { day: input.day }, create: { day: input.day, ...data }, update: data });
 }
 
@@ -387,8 +383,8 @@ export async function saveEvent(db: Tx, input: In<"event">) {
     if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
     if (existing.sourceId !== input.sourceId) throw new UserError("invalid", "events don't move between calendars");
     if (existing.source.connectionId) {
-      await updateRemoteEvent(db, existing, e);
-      return input.id;
+      // Its id follows its start: a moved event comes back under a new one.
+      return updateRemoteEvent(db, existing, e);
     }
     await db.event.update({ where: { id: input.id }, data: toStoredEvent(e) });
     return input.id;

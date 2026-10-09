@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 /**
  * An expected failure the user can do something about. Server actions return
  * its code instead of throwing, because production builds hide thrown messages.
@@ -17,3 +19,13 @@ export class UserError extends Error {
 }
 
 export const notFound = (what: string) => new UserError("notFound", `${what} not found`);
+
+/**
+ * Database failures the user caused rather than a bug: an update or delete
+ * of a row that is gone (Prisma P2025, e.g. a reward another screen just
+ * removed) is "not found". Anything else stays as it is.
+ */
+export function expectedError(e: unknown): unknown {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") return new UserError("notFound", e.message);
+  return e;
+}

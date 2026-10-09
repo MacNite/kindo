@@ -1,11 +1,10 @@
 "use client";
-import Link from "next/link";
 import { ArrowRight, Check, Play, Plus, Server, Radar } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { usePhotoPlaylist } from "@/lib/state/photos";
 import { PageHeader, Panel } from "../ui/Panel";
-import { Button } from "../ui/Button";
+import { LinkButton } from "../ui/Button";
 import { Switch } from "../ui/Segmented";
 import { Photo, PhotoPlaceholder } from "../ui/PhotoPlaceholder";
 import { cn } from "../ui/cn";
@@ -23,19 +22,19 @@ export function PhotosScreen() {
   return (
     <div>
       <PageHeader title={t("photos.title")} subtitle={t("photos.subtitle")}
-        actions={<Link href="/screensaver"><Button variant="primary"><Play size={18} fill="currentColor" />{t("photos.start")}</Button></Link>} />
+        actions={<LinkButton href="/screensaver" variant="primary"><Play size={18} fill="currentColor" />{t("photos.start")}</LinkButton>} />
 
       <div className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {photos.slice(0, 6).map((p) => (
           <div key={p.id} className="relative aspect-[4/3] overflow-hidden rounded-tile">
             <Photo photo={p} size="thumbnail" className="h-full w-full" />
-            {p.takenAt && <span className="absolute bottom-1 left-1.5 text-[11px] font-bold text-white drop-shadow">{fmt.dateMedium(p.takenAt)}</span>}
+            {p.takenAt && <span className="absolute bottom-1 left-1.5 text-xs font-bold text-white drop-shadow">{fmt.dateMedium(p.takenAt)}</span>}
           </div>
         ))}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[1fr_400px]">
-        <Panel title={t("photos.servers")} action={<Link href="/settings?section=integrations"><Button size="sm" variant="ghost"><Plus size={16} />{t("photos.addServer")}</Button></Link>}>
+        <Panel title={t("photos.servers")} action={<LinkButton href="/settings?section=integrations" size="sm" variant="ghost"><Plus size={16} />{t("photos.addServer")}</LinkButton>}>
           <p className="mb-4 text-sm text-soft">{t("photos.poolHint")}</p>
           <div className="flex flex-col gap-5">
             {servers.length === 0 && <p className="text-soft">{t("photos.noServers")}</p>}
@@ -44,7 +43,7 @@ export function PhotosScreen() {
                 <header className="mb-2 flex items-center gap-3">
                   <span className="grid h-10 w-10 place-items-center rounded-full bg-sunken"><Server size={18} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold">Immich, {s}</p>
+                    <p className="font-bold">{t("photos.server", { name: s })}</p>
                   </div>
                 </header>
                 <ul className="grid gap-2 sm:grid-cols-2">
@@ -53,7 +52,9 @@ export function PhotosScreen() {
                       <button onClick={() => updateAlbum(a.id, { selected: !a.selected, weight: a.selected ? 0 : 20 })} aria-pressed={a.selected}
                         className={cn("flex w-full items-center gap-3 rounded-card border-2 p-3 text-left", a.selected ? "border-ink" : "border-line")}>
                         <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-tile">
-                          <PhotoPlaceholder seed={a.count % 17} className="h-full w-full" />
+                          {a.cover
+                            ? <img src={`/api/photos/${encodeURIComponent(a.cover)}?size=thumbnail`} alt="" loading="lazy" decoding="async" className="h-full w-full bg-sunken object-cover" />
+                            : <PhotoPlaceholder seed={a.count % 17} className="h-full w-full" />}
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate font-bold">{a.name}</span>
@@ -100,7 +101,7 @@ export function PhotosScreen() {
             <div className="flex items-center justify-between gap-3">
               <span className="font-bold">{t("photos.idle")}</span>
               <select value={idleMinutes} onChange={(e) => setIdleMinutes(+e.target.value)} className="h-10 rounded-full bg-sunken px-4 font-bold">
-                {[0.25, 1, 2, 5, 10].map((n) => <option key={n} value={n}>{n < 1 ? `${n * 60} s` : t("common.minutes", { n })}</option>)}
+                {[0.25, 1, 2, 5, 10].map((n) => <option key={n} value={n}>{n < 1 ? t("common.seconds", { n: n * 60 }) : t("common.minutes", { n })}</option>)}
               </select>
             </div>
             <div className="mt-4 flex items-center justify-between gap-3">

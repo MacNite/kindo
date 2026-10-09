@@ -3,14 +3,14 @@ import type { Connection, Prisma } from "@prisma/client";
 import type { Tx } from "./db";
 import { encryptSecret } from "./crypto";
 import { UserError, notFound } from "./errors";
-import { id } from "./validation";
+import { id, requiredText } from "./validation";
 import { providerFor, syncConnection } from "./calendar/sync";
 import { listCalendars } from "./calendar/caldav";
 import { listAlbums } from "./photos/immich";
 import { syncPhotos } from "./photos/sync";
 import { ICS_REMOTE_ID, readFeed } from "./calendar/ics";
 import { parseCalendar } from "./calendar/ical";
-import { checkToken, readEntity, syncPresenceWatchers, type HaStoredConfig } from "./homeassistant";
+import { checkToken, readEntity, refreshPresenceWatchers, type HaStoredConfig } from "./homeassistant";
 import { listFrigate, frigateTarget } from "./frigate";
 
 /**
@@ -35,7 +35,7 @@ export const C = {
   addCalDav: z.object({ name: z.string().trim().max(60).optional(), url: httpUrl, username: z.string().trim().min(1).max(200), password: z.string().min(1).max(500) }),
   source: z.object({
     id,
-    name: z.string().trim().min(1).max(80),
+    name: requiredText,
     defaultMemberIds: z.array(id).max(20),
     readOnly: z.boolean(),
     background: z.boolean(),
@@ -47,8 +47,22 @@ const json = (v: unknown) => v as Prisma.InputJsonValue;
 
 interface Config { ignored?: string[] }
 
+/**
+ * The first read of a connection just added. If it fails, the connection
+ * goes again (its calendars and events with it), so trying again doesn't
+ * leave a second one behind.
+ */
+async function firstSync(db: Tx, connectionId: string, run: () => Promise<unknown>) {
+  try {
+    await run();
+  } catch (e) {
+    await db.connection.deleteMany({ where: { id: connectionId } }).catch(() => {});
+    throw e;
+  }
+}
+
 /** Adds the calendars a connection has that Kindo doesn't know yet (and that nobody removed). */
-export async function discoverCalendars(db: Tx, conn: Connection) {
+async function discoverCalendars(db: Tx, conn: Connection) {
   const p = providerFor(conn.kind);
   if (!p) return 0;
   const ignored = new Set((conn.config as Config).ignored ?? []);
@@ -77,7 +91,7 @@ export async function addCalDav(db: Tx, input: In<"addCalDav">) {
       secret: encryptSecret(input.password), status: "pending",
     },
   });
-  await discoverCalendars(db, conn);
+  await firstSync(db, conn.id, () => discoverCalendars(db, conn));
   return conn.id;
 }
 
@@ -104,7 +118,7 @@ export async function addIcs(db: Tx, input: In<"addIcs">) {
       background: input.background, connectionId: conn.id, remoteId: ICS_REMOTE_ID, sortOrder: await db.calendarSource.count(),
     },
   });
-  await syncConnection(db, conn, { force: true });
+  await firstSync(db, conn.id, () => syncConnection(db, conn, { force: true }));
   return conn.id;
 }
 
@@ -132,7 +146,7 @@ export async function addHomeAssistant(db: Tx, input: In<"addHomeAssistant">) {
   const conn = await db.connection.create({
     data: { kind: "homeassistant", name: input.entityId || new URL(input.url).host, url: input.url, secret: encryptSecret(input.token), config: json(config), status: "pending" },
   });
-  await syncPresenceWatchers(db).catch(() => {});
+  await refreshPresenceWatchers();
   return conn.id;
 }
 
@@ -142,7 +156,7 @@ export async function addImmich(db: Tx, input: In<"addImmich">) {
   const conn = await db.connection.create({
     data: { kind: "immich", name: input.name, url: input.url, secret: encryptSecret(input.apiKey), status: "pending" },
   });
-  await syncPhotos(db, conn);
+  await firstSync(db, conn.id, () => syncPhotos(db, conn));
   return conn.id;
 }
 
@@ -176,7 +190,10 @@ export async function removeSource(db: Tx, input: In<"byId">) {
 }
 
 export async function removeConnection(db: Tx, input: In<"byId">) {
+  const gone = await db.connection.findUnique({ where: { id: input.id }, select: { kind: true } });
   await db.connection.deleteMany({ where: { id: input.id } });
+  // Home Assistant or Frigate gone: the watcher stops (or loses its doorbells) now, not at the next tick.
+  if (gone?.kind === "homeassistant" || gone?.kind === "frigate") await refreshPresenceWatchers();
 }
 
 /** "Sync now": new calendars first, then every calendar regardless of its change marker. */
@@ -184,7 +201,7 @@ export async function syncNow(db: Tx, input: In<"byId">) {
   const conn = await db.connection.findUnique({ where: { id: input.id } });
   if (!conn) throw notFound("connection");
   if (conn.kind === "immich") return syncPhotos(db, conn);
-  if (conn.kind === "homeassistant") return syncPresenceWatchers(db);
+  if (conn.kind === "homeassistant") return refreshPresenceWatchers();
   if (conn.kind === "frigate") {
     // Nothing to sync: check that Frigate still answers and the login still works.
     try {

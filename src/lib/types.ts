@@ -20,9 +20,10 @@ export interface Member {
   avatar: { kind: "emoji"; value: string } | { kind: "initial" } | { kind: "photo"; url: string };
   birthday?: string; // ISO date
   /** People and accounts are separate: children usually have none. */
-  account?: { email: string; lastSeen?: string };
+  /** The email only for admins and the person themselves; everyone else just sees that there is a login. */
+  account?: { email?: string; lastSeen?: string };
   /**
-   * Points for routine steps while a child gets used to them (§9, D42). Off
+   * Points for routine steps while a child gets used to them (§9, D49). Off
    * keeps the number, so switching back on restores it.
    */
   routineRewards?: { on: boolean; points: number };
@@ -211,7 +212,11 @@ export interface UpcomingDate extends ImportantDate {
 }
 
 // ── Photos ──────────────────────────────────────────────────────────────────
-export interface PhotoAlbum { id: string; server: string; name: string; count: number; selected: boolean; weight: number }
+export interface PhotoAlbum {
+  id: string; server: string; name: string; count: number; selected: boolean; weight: number;
+  /** A synced photo of the album to show as its picture (`/api/photos/<cover>`); unset for the demo's drawn albums and albums not synced yet. */
+  cover?: string;
+}
 /** A photo in the rotation. `src` is a proxied image; demo photos are drawn from `seed` instead. */
 export interface Photo { id: string; albumId: string; seed?: number; src?: string; takenAt?: Date; place?: string }
 

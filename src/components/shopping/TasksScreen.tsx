@@ -7,6 +7,7 @@ import { useToday } from "@/lib/useToday";
 import { PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
 import { MemberFilter } from "../ui/MemberFilter";
+import { MemberPicker } from "../ui/MemberPicker";
 import { cn } from "../ui/cn";
 import { toggled } from "@/lib/sets";
 import type { OneOffTask } from "@/lib/types";
@@ -16,11 +17,22 @@ export function TasksScreen() {
   const { t, tx, fmt } = useI18n();
   const { tasks, toggleTask, addTask, deleteTask, getMember, getMembers } = useStore();
   const [text, setText] = useState("");
-  const [filter, setFilter] = useState(() => new Set(getMembers().filter((m) => m.role !== "child").map((m) => m.id)));
+  const [who, setWho] = useState<string | null>(null);
+  const [due, setDue] = useState("");
+  // Who is switched off (children, to start with), so someone added later shows.
+  const [hidden, setHidden] = useState(() => new Set(getMembers().filter((m) => m.role === "child").map((m) => m.id)));
+  const filter = new Set(getMembers().filter((m) => !hidden.has(m.id)).map((m) => m.id));
   const visible = tasks.filter((x) => !x.memberId || filter.has(x.memberId));
   const open = visible.filter((x) => !x.done).sort((a, b) => (a.due?.getTime() ?? Infinity) - (b.due?.getTime() ?? Infinity));
   const done = visible.filter((x) => x.done);
-  const submit = (e: FormEvent) => { e.preventDefault(); if (text.trim()) { addTask(text.trim(), null); setText(""); } };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!text.trim()) return;
+    const [y, m, d] = due.split("-").map(Number);
+    addTask(text.trim(), who, due ? new Date(y, m - 1, d) : undefined);
+    setText("");
+    setDue("");
+  };
   const remove = (x: OneOffTask) => {
     if (confirm(t("tasks.removeConfirm", { title: tx(x.title) }))) deleteTask(x.id);
   };
@@ -33,10 +45,21 @@ export function TasksScreen() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader title={t("tasks.title")} subtitle={t("tasks.subtitle")} />
-      <div className="mb-4"><MemberFilter size="sm" members={getMembers()} selected={filter} onToggle={(id) => setFilter((s) => toggled(s, id))} /></div>
-      <form onSubmit={submit} className="mb-5 flex gap-2 rounded-panel bg-surface p-3">
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("tasks.placeholder")} className="h-12 min-w-0 flex-1 rounded-full bg-sunken px-5 text-lg placeholder:text-soft focus:outline-none" />
-        <button aria-label={t("tasks.add")} className="grid h-12 w-12 place-items-center rounded-full bg-ink text-surface"><Plus /></button>
+      <div className="mb-4"><MemberFilter size="sm" members={getMembers()} selected={filter} onToggle={(id) => setHidden((s) => toggled(s, id))} /></div>
+      <form onSubmit={submit} className="mb-5 flex flex-col gap-3 rounded-panel bg-surface p-3">
+        <div className="flex gap-2">
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("tasks.placeholder")} className="h-12 min-w-0 flex-1 rounded-full bg-sunken px-5 text-lg placeholder:text-soft focus:outline-none" />
+          <button aria-label={t("tasks.add")} className="grid h-12 w-12 place-items-center rounded-full bg-ink text-surface"><Plus /></button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 px-1">
+          <div role="group" aria-label={t("tasks.for")} className="min-w-0">
+            <MemberPicker members={getMembers()} value={who} onChange={setWho} noneLabel={t("tasks.unassigned")} />
+          </div>
+          <label className="ml-auto flex items-center gap-2 text-sm font-bold text-soft">
+            {t("tasks.dueDate")}
+            <input type="date" value={due} onChange={(e) => setDue(e.target.value)} className="h-11 rounded-full bg-sunken px-4 text-base font-normal text-ink" />
+          </label>
+        </div>
       </form>
       <h2 className="mb-2 px-2 text-sm font-bold text-soft">{t("tasks.open")}</h2>
       <ul className="mb-6 overflow-hidden rounded-panel bg-surface">
@@ -49,7 +72,7 @@ export function TasksScreen() {
                 <span className="h-7 w-7 shrink-0 rounded-full border-2 border-line" />
                 <span className="flex-1">
                   <span className="block text-lg leading-snug">{tx(x.title)}</span>
-                  <span className={cn("text-sm", overdue ? "font-bold text-[#B4443C] dark:text-[#E98A80]" : "text-soft")}>
+                  <span className={cn("text-sm", overdue ? "font-bold text-danger" : "text-soft")}>
                     {x.due ? (overdue ? t("tasks.overdue") : t("tasks.due", { date: fmt.relDay(x.due, today) })) : t("tasks.noDue")}
                   </span>
                 </span>

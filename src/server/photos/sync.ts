@@ -2,18 +2,19 @@ import { join } from "node:path";
 import type { Connection, PhotoAlbum } from "@prisma/client";
 import type { Tx } from "../db";
 import { decryptSecret } from "../crypto";
+import { env } from "../env";
 import { notFound } from "../errors";
 import { errorMessage, log } from "../log";
 import { diskCache, type DiskCache } from "./cache";
 import { fetchThumbnail, listAlbums, listAssets, type ImmichServer, type ThumbSize } from "./immich";
 
 /** Albums and their photo lists are refreshed this often; the images themselves are fetched on demand. */
-export const PHOTO_SYNC_MINUTES = 30;
+const PHOTO_SYNC_MINUTES = 30;
 
-export const immichServer = (c: Connection): ImmichServer => ({ url: c.url ?? "", apiKey: c.secret ? decryptSecret(c.secret) : "" });
+const immichServer = (c: Connection): ImmichServer => ({ url: c.url ?? "", apiKey: c.secret ? decryptSecret(c.secret) : "" });
 
 /** Refreshes one album's photo list. */
-export async function syncAssets(db: Tx, conn: Connection, album: PhotoAlbum) {
+async function syncAssets(db: Tx, conn: Connection, album: PhotoAlbum) {
   const assets = await listAssets(immichServer(conn), album.remoteId!);
   const keep = new Set(assets.map((a) => a.id));
   await db.photoAsset.deleteMany({ where: { albumId: album.id, OR: [{ remoteId: null }, { remoteId: { notIn: [...keep] } }] } });
@@ -63,10 +64,9 @@ export async function albumSelected(db: Tx, albumId: string) {
 
 // ── The proxy (§13): images reach devices only through Kindo ────────────────
 let cache: DiskCache | undefined;
-export function photoCache() {
-  const dir = process.env.KINDO_CACHE_DIR ?? join(process.cwd(), "data", "cache");
-  const mb = Math.max(10, Number(process.env.KINDO_PHOTO_CACHE_MB ?? 500));
-  return (cache ??= diskCache(join(dir, "photos"), mb * 1024 * 1024));
+function photoCache() {
+  const e = env();
+  return (cache ??= diskCache(join(e.cacheDir, "photos"), e.KINDO_PHOTO_CACHE_MB * 1024 * 1024));
 }
 
 export async function getPhoto(db: Tx, assetId: string, size: ThumbSize, c: DiskCache = photoCache()) {
@@ -77,6 +77,6 @@ export async function getPhoto(db: Tx, assetId: string, size: ThumbSize, c: Disk
   if (!asset?.remoteId || !asset.album.connection) throw notFound("photo");
   const img = await fetchThumbnail(immichServer(asset.album.connection), asset.remoteId, size);
   // A cache that can't be written (a volume the app user doesn't own) costs a refetch next time, not the photo.
-  await c.put(key, img.body).catch((e) => log.warn("photo cache write failed", { dir: process.env.KINDO_CACHE_DIR, error: errorMessage(e) }));
+  await c.put(key, img.body).catch((e) => log.warn("photo cache write failed", { dir: env().cacheDir, error: errorMessage(e) }));
   return img;
 }

@@ -10,10 +10,10 @@ import { encryptSecret } from "./crypto";
 import { UserError, notFound } from "./errors";
 import { id } from "./validation";
 import {
-  exchangeSdp, forgetToken, frigateCameras, frigateTarget, listFrigate, probeCertificate, snapshot as frigateSnapshot,
+  exchangeSdp, forgetToken, frigateCameras, frigateConnection, frigateTarget, listFrigate, probeCertificate, snapshot as frigateSnapshot,
   type FrigateStoredConfig, type FrigateTarget,
 } from "./frigate";
-import { haConfig, listStates, syncPresenceWatchers } from "./homeassistant";
+import { haConfig, listStates, refreshPresenceWatchers } from "./homeassistant";
 
 /**
  * Cameras and talking back (§22, §20 D48). The admin connects Frigate and
@@ -47,7 +47,6 @@ export const K = {
 type In<Key extends keyof typeof K> = z.output<(typeof K)[Key]>;
 const json = (v: unknown) => v as Prisma.InputJsonValue;
 
-export const frigateConnection = (db: Tx) => db.connection.findFirst({ where: { kind: "frigate" }, orderBy: { createdAt: "desc" } });
 
 /** What every screen may know: the cameras' names and what they can do. */
 export const camerasOf = (conn: Pick<Connection, "config"> | null | undefined): CameraInfo[] => frigateCameras(conn).map(cameraInfo);
@@ -78,7 +77,7 @@ export async function addFrigate(db: Tx, input: In<"addFrigate">) {
       config: json(config), status: "ok", lastSyncAt: new Date(),
     },
   });
-  await syncPresenceWatchers(db).catch(() => {});
+  await refreshPresenceWatchers();
   return conn.id;
 }
 
@@ -127,7 +126,7 @@ export async function saveSetup(db: Tx, input: In<"setup">) {
   }));
   await db.connection.update({ where: { id: conn.id }, data: { config: json({ ...cfg, cameras } satisfies FrigateStoredConfig) } });
   // Rings come over Home Assistant's connection: follow the new visitor sensors.
-  await syncPresenceWatchers(db).catch(() => {});
+  await refreshPresenceWatchers();
 }
 
 async function cameraOf(db: Tx, cameraId: string) {

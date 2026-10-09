@@ -1,7 +1,8 @@
 import { createDAVClient, type DAVCalendar } from "tsdav";
 import { UserError } from "../errors";
 import { errorMessage } from "../log";
-import { parseCalendar, buildEventIcs, type EventToWrite, type ParsedEvent } from "./ical";
+import { timedFetch } from "../http";
+import { parseCalendar, buildEventIcs, updateEventIcs, type EventToWrite, type ParsedEvent } from "./ical";
 
 /**
  * Nextcloud and any other CalDAV server (§5, §19.5). Credentials are an app
@@ -18,6 +19,7 @@ async function client(a: CalDavAccount) {
       credentials: { username: a.username, password: a.password },
       authMethod: "Basic",
       defaultAccountType: "caldav",
+      fetch: timedFetch(),
     });
   } catch (e) {
     const msg = errorMessage(e);
@@ -71,10 +73,23 @@ export async function createEvent(a: CalDavAccount, remoteId: string, e: EventTo
   await check(await c.createCalendarObject({ calendar: asCalendar(remoteId), filename: `${e.uid}.ics`, iCalString: buildEventIcs(e) }), "create");
 }
 
-/** Updates in place; the etag makes it fail rather than overwrite someone else's newer change. */
-export async function updateEvent(a: CalDavAccount, href: string, etag: string | undefined, e: EventToWrite) {
+/**
+ * Updates in place: reads the event as the server has it and changes only
+ * what Kindo edits, so a description, alarms or attendees set elsewhere
+ * survive. The etag Kindo last saw makes it fail rather than overwrite
+ * someone else's newer change.
+ */
+export async function updateEvent(a: CalDavAccount, remoteId: string, href: string, etag: string | undefined, e: EventToWrite) {
   const c = await client(a);
-  await check(await c.updateCalendarObject({ calendarObject: { url: href, etag, data: buildEventIcs(e) } }), "update");
+  const [current] = await c.fetchCalendarObjects({ calendar: asCalendar(remoteId), objectUrls: [href], urlFilter: () => true });
+  if (typeof current?.data !== "string" || !current.data.includes("BEGIN:VEVENT")) throw new UserError("conflict", "update: the event is gone from the server");
+  let data: string;
+  try {
+    data = updateEventIcs(current.data, e);
+  } catch (err) {
+    throw new UserError("remote", `update: ${errorMessage(err)}`);
+  }
+  await check(await c.updateCalendarObject({ calendarObject: { url: href, etag: etag ?? current.etag, data } }), "update");
 }
 
 export async function deleteEvent(a: CalDavAccount, href: string, etag: string | undefined) {

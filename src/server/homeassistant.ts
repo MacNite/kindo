@@ -8,6 +8,7 @@ import { UserError } from "./errors";
 import { fetchChecked } from "./http";
 import { errorMessage, log } from "./log";
 import { notify } from "./realtime";
+import { wakeJob } from "./jobs";
 
 /**
  * Home Assistant (§13, §19.8, §21, §22, §20 D39, D44, D48): presence wakes
@@ -28,7 +29,7 @@ export interface HaConfig {
   visitors?: string[];
 }
 /** States that mean "someone is here", for motion/occupancy sensors, person and device trackers. */
-export const DEFAULT_PRESENT = ["on", "home", "detected", "occupied"];
+const DEFAULT_PRESENT = ["on", "home", "detected", "occupied"];
 
 export const isPresent = (state: string, present = DEFAULT_PRESENT) => present.includes(state.toLowerCase());
 
@@ -119,8 +120,17 @@ export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, on
     }
     let id = 1;
     const ids = { states: 0, presence: 0, controls: 0, visitors: 0 };
+    // A broken message, a send on a closing socket or a failing handler costs that message, never the process.
     ws.onmessage = (ev) => {
-      const msg = JSON.parse(String(ev.data)) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { entity_id?: string; to_state?: { state: string } } } }; id?: number };
+      try {
+        handle(String(ev.data));
+      } catch (e) {
+        log.warn("home assistant message skipped", { error: errorMessage(e) });
+      }
+    };
+    const handle = (raw: string) => {
+      const msg = JSON.parse(raw) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { entity_id?: string; to_state?: { state: string } } } }; id?: number } | null;
+      if (!msg || typeof msg !== "object") return;
       if (msg.type === "auth_required") ws!.send(JSON.stringify({ type: "auth", access_token: cfg.token }));
       else if (msg.type === "auth_invalid") {
         onStatus(false, "Home Assistant refused the token");
@@ -206,7 +216,27 @@ function debounced(fn: () => void, ms: number) {
   };
 }
 
-/** Starts, restarts or stops watchers so they match the household's Home Assistant connections. */
+/** The background job that keeps the watchers (src/server/register-jobs.ts). */
+export const PRESENCE_JOB = "presence";
+
+/**
+ * After Settings changed a Home Assistant or Frigate connection: asks the
+ * instance that runs the jobs to follow the new setup now (§20 D39, D48).
+ * Request handlers call this, never `syncPresenceWatchers`, so only one
+ * instance holds a subscription and stores rings.
+ */
+export const refreshPresenceWatchers = () => wakeJob(PRESENCE_JOB);
+
+/** Stops every watcher: this instance no longer runs the jobs. */
+export function stopPresenceWatchers() {
+  for (const w of watchers.values()) w.stop();
+  watchers.clear();
+}
+
+/**
+ * Starts, restarts or stops watchers so they match the household's Home
+ * Assistant connections. Only the job leader calls this (the presence job).
+ */
 export async function syncPresenceWatchers(db: Tx) {
   const conns = await db.connection.findMany({ where: { kind: "homeassistant" } });
   const frigate = await db.connection.findFirst({ where: { kind: "frigate" }, orderBy: { createdAt: "desc" } });

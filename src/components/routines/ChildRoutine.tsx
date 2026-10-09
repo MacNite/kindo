@@ -6,6 +6,9 @@ import { Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
 import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
+import { stepName } from "@/lib/pictograms";
+import { dateKey } from "@/lib/dates";
+import { useNow } from "@/lib/useNow";
 
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
@@ -26,7 +29,13 @@ const GRID: Record<number, string> = {
 export function ChildRoutine({ memberId }: { memberId: string }) {
   const { isDone, toggleTaskItem, rewardMode, getMember, routineFor, choresOn, routineDay: today, periodAt } = useStore();
   const member = getMember(memberId);
-  const [period, setPeriod] = useState<Period>(() => periodAt());
+  // The routine follows the time of day. A period the child picks holds until the
+  // time of day moves on by itself or the household day resets (§19.3).
+  const now = useNow(30_000);
+  const auto = periodAt(now);
+  const [picked, setPicked] = useState<{ period: Period; auto: Period; day: string } | null>(null);
+  const period = picked && picked.auto === auto && picked.day === dateKey(today) ? picked.period : auto;
+  const setPeriod = (p: Period) => setPicked({ period: p, auto, day: dateKey(today) });
   const { t } = useI18n();
   if (!member) return null;
 
@@ -39,11 +48,11 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
   return (
     <div style={{ "--m": member.color } as CSSProperties} className="tint min-h-dvh">
       <div className="mx-auto flex min-h-dvh max-w-[1400px] flex-col gap-6 p-5 sm:p-8">
-        <header className="flex items-center gap-4">
+        <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <HoldToLeave />
           <Avatar member={member} size="xl" className="max-sm:!h-16 max-sm:!w-16 max-sm:!text-3xl" />
-          <h1 className="m-text font-display text-6xl font-extrabold tracking-tight sm:text-8xl">{member.name}</h1>
-          <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5" role="radiogroup" aria-label="Time of day">
+          <h1 className="m-text min-w-0 break-words font-display text-[clamp(2.5rem,13vw,3.75rem)] font-extrabold leading-tight tracking-tight sm:text-8xl">{member.name}</h1>
+          <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5 max-sm:ml-0 max-sm:w-full max-sm:justify-between" role="radiogroup" aria-label={t("routines.period")}>
             {(["morning", "afternoon", "evening"] as const).map((p) => {
               const I = PERIOD_ICON[p];
               return (
@@ -57,7 +66,7 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
         </header>
 
         {/* Progress as dots, not numbers */}
-        <div className="flex items-center gap-3" aria-label={t("common.ofTotal", { done: doneCount, total: items.length })}>
+        <div className="flex items-center gap-3" role="img" aria-label={t("common.ofTotal", { done: doneCount, total: items.length })}>
           {items.map((i) => (
             <span key={i.id} className={cn("h-5 flex-1 rounded-full transition-colors duration-500", isDone(i.id) ? "m-bg" : "bg-surface")} />
           ))}
@@ -84,7 +93,7 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
 
         {helping.length > 0 && (
           <section className="mt-2">
-            <div className="m-text mb-3 flex items-center gap-2" aria-label={t("home.chores")}>
+            <div className="m-text mb-3 flex items-center gap-2" role="heading" aria-level={2} aria-label={t("home.chores")}>
               <Home className="h-7 w-7" strokeWidth={2.25} />
             </div>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
@@ -110,7 +119,7 @@ export function TaskCard({ item, done, onToggle, small, next, showReward = true 
       onClick={() => { onToggle(); setAnim(true); }}
       onAnimationEnd={() => setAnim(false)}
       aria-pressed={done}
-      aria-label={tx(item.label)}
+      aria-label={stepName(item, tx)}
       className={cn(
         "relative flex aspect-square flex-col items-center justify-center rounded-[clamp(20px,3vw,36px)] transition-colors duration-300",
         anim && "animate-settle",
@@ -150,7 +159,7 @@ function HoldToLeave() {
   const start = () => { setHolding(true); timer.current = setTimeout(() => router.push("/wall"), 700); };
   const stop = () => { setHolding(false); clearTimeout(timer.current); };
   return (
-    <button onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onKeyDown={(e) => e.key === "Enter" && router.push("/wall")}
+    <button onPointerDown={start} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop} onKeyDown={(e) => e.key === "Enter" && router.push("/wall")}
       aria-label={`${t("kids.back")} (${t("kids.parentHint")})`} title={t("kids.parentHint")}
       className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-surface/70 text-soft">
       <span className={cn("absolute inset-0 origin-bottom bg-[var(--m)] opacity-30 transition-transform ease-linear", holding ? "scale-y-100 duration-700" : "scale-y-0 duration-150")} />
@@ -162,7 +171,7 @@ function HoldToLeave() {
 export function ChildPicker() {
   const { t } = useI18n();
   const { isDone, children, routineFor, routineDay: today, periodAt } = useStore();
-  const period = periodAt();
+  const period = periodAt(useNow(30_000));
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-10 p-8">
       <Link href="/wall" className="absolute left-6 top-6 grid h-14 w-14 place-items-center rounded-full bg-surface text-soft" aria-label={t("kids.back")}><Home size={22} /></Link>

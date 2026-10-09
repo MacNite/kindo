@@ -5,9 +5,11 @@ import type { HouseholdData, Member, RewardMode, TaskValue } from "./types";
  * update. Items without a reward only count as done. Items with one earn
  * their points, either straight away or once a parent approves. Points need
  * someone to go to, so an "anyone" chore ticked without a name earns nothing.
+ * While the household has rewards switched off, nothing earns and nothing
+ * waits for a parent: every item is simply done.
  */
-export function completionOutcome(value: TaskValue, hasMember: boolean): { status: "done" | "pending"; points: number } {
-  if (value.kind !== "extra") return { status: "done", points: 0 };
+export function completionOutcome(value: TaskValue, hasMember: boolean, mode: RewardMode): { status: "done" | "pending"; points: number } {
+  if (mode === "off" || value.kind !== "extra") return { status: "done", points: 0 };
   if (value.needsApproval && hasMember) return { status: "pending", points: 0 };
   return { status: "done", points: hasMember ? value.points : 0 };
 }
@@ -16,7 +18,7 @@ export function completionOutcome(value: TaskValue, hasMember: boolean): { statu
 export const DEFAULT_ROUTINE_POINTS = 5;
 
 /**
- * What a routine step earns now (§9, D42). Routines earn nothing unless the
+ * What a routine step earns now (§9, D49). Routines earn nothing unless the
  * household uses rewards and the child's routine rewards are on. Then a step
  * earns its own points, or the child's routine points when it has none of its
  * own, at once: nobody approves brushing teeth every day.

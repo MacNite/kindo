@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { Photo as PhotoT } from "@/lib/types";
 
 /**
@@ -19,6 +20,8 @@ function rand(seed: number) {
 }
 
 export function PhotoPlaceholder({ seed, className }: { seed: number; className?: string }) {
+  // Unique per placeholder: the same seed appears many times on a page. Without the colons React puts in, for url(#…).
+  const id = `g${useId().replace(/[^\w-]/g, "")}`;
   const r = rand(seed * 97 + 13);
   const p = PALETTES[seed % PALETTES.length];
   const sunX = 300 + r() * 1000, sunY = 220 + r() * 220;
@@ -28,7 +31,6 @@ export function PhotoPlaceholder({ seed, className }: { seed: number; className?
     for (let x = 0; x <= 1600; x += 40) pts.push(`${x},${(base + Math.sin(x * freq + phase) * amp + Math.sin(x * freq * 2.7 + phase) * amp * 0.35).toFixed(1)}`);
     return `M0,1000 L${pts.join(" L")} L1600,1000 Z`;
   };
-  const id = `g${seed}`;
   return (
     <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" className={className} aria-hidden>
       <defs>
