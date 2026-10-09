@@ -1,11 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { KeyRound, LogOut, Monitor, Trash2 } from "lucide-react";
+import { Check, KeyRound, LogOut, Monitor, Pencil, Trash2, X } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import {
-  approvePairing, changePassword, createLogin, getAccountAdmin, getLoginOptions, removeLogin, revokeDevice, setLoginPassword, setPin, signOut,
+  approvePairing, changePassword, createLogin, getAccountAdmin, getLoginOptions, removeLogin, renameDevice, revokeDevice, setLoginPassword, setPin, signOut,
 } from "@/lib/services/accounts";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
@@ -77,7 +77,7 @@ function useAdminData() {
   return { data, reload: load };
 }
 
-/** Wall displays: confirm a pairing code, see which screens are paired, revoke one (§19.4). */
+/** Wall displays: confirm a pairing code, see which screens are paired, rename or revoke one (§19.4). */
 export function DevicesSection({ initialCode }: { initialCode?: string }) {
   const { t, fmt } = useI18n();
   const { run } = useStore();
@@ -87,6 +87,18 @@ export function DevicesSection({ initialCode }: { initialCode?: string }) {
   const [state, setState] = useState<{ error?: string; approved?: boolean }>({});
   const later = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(later.current), []);
+  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [renameError, setRenameError] = useState<string>();
+  const rename = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    const r = await run(() => renameDevice({ id: editing.id, name: editing.name }));
+    setRenameError(r.ok ? undefined : r.error);
+    if (r.ok) {
+      setEditing(null);
+      void reload();
+    }
+  };
   const approve = async (e: FormEvent) => {
     e.preventDefault();
     const r = await run(() => approvePairing({ code: code.replace(/\D/g, ""), name }));
@@ -118,10 +130,22 @@ export function DevicesSection({ initialCode }: { initialCode?: string }) {
         <p className="font-bold">{t("devices.paired")}</p>
         {!data?.devices.length && <p className="text-soft">{t("devices.none")}</p>}
         <ul className="flex flex-col divide-y divide-line">
-          {data?.devices.map((d) => (
+          {data?.devices.map((d) => editing?.id === d.id ? (
+            <li key={d.id} className="py-2">
+              <form onSubmit={rename} className="flex items-center gap-2">
+                <Monitor size={18} className="shrink-0 text-soft" />
+                <input autoFocus aria-label={t("devices.renameLabel", { name: d.name })} className={`${inputCls} min-w-0 flex-1`} maxLength={60}
+                  value={editing.name} onChange={(e) => setEditing({ id: d.id, name: e.target.value })} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }} />
+                <Button type="submit" size="sm" variant="primary" disabled={!editing.name.trim()} aria-label={t("common.save")}><Check size={14} /></Button>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(null)} aria-label={t("common.cancel")}><X size={14} /></Button>
+              </form>
+              <ErrorText code={renameError} />
+            </li>
+          ) : (
             <li key={d.id} className="flex items-center gap-3 py-2">
               <Monitor size={18} className="text-soft" />
               <span className="flex-1"><span className="block font-bold">{d.name}</span><span className="text-sm text-soft">{d.lastSeenAt ? t("devices.lastSeen", { when: `${fmt.dateMedium(d.lastSeenAt)} ${fmt.time(d.lastSeenAt)}` }) : ""}</span></span>
+              <Button size="sm" variant="ghost" onClick={() => { setRenameError(undefined); setEditing({ id: d.id, name: d.name }); }}><Pencil size={14} />{t("devices.rename")}</Button>
               <Button size="sm" variant="ghost" onClick={async () => { await run(() => revokeDevice({ id: d.id })); void reload(); }}><Trash2 size={14} />{t("devices.revoke")}</Button>
             </li>
           ))}

@@ -19,6 +19,7 @@ export const A = {
   byMember: z.object({ memberId: id }),
   approvePairing: z.object({ code: z.string().regex(/^\d{6}$/), name: z.string().trim().min(1).max(60) }),
   byId: z.object({ id }),
+  renameDevice: z.object({ id, name: z.string().trim().min(1).max(60) }),
   setPin: z.object({ pin: pin.nullable() }),
   checkPin: z.object({ pin: z.string().max(20) }),
 };
@@ -132,6 +133,12 @@ export async function pollPairing(db: Tx, secret: string | undefined, now = new 
 
 export async function revokeDevice(db: Tx, input: In<"byId">) {
   await db.device.updateMany({ where: { id: input.id, revokedAt: null }, data: { revokedAt: new Date() } });
+}
+
+/** Renames a paired display, e.g. after a typo at pairing. Its token stays valid. */
+export async function renameDevice(db: Tx, input: In<"renameDevice">) {
+  const r = await db.device.updateMany({ where: { id: input.id, revokedAt: null }, data: { name: input.name } });
+  if (!r.count) throw notFound("device");
 }
 
 // ── The settings PIN ────────────────────────────────────────────────────────

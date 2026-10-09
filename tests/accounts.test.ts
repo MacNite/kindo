@@ -108,8 +108,11 @@ describe.skipIf(!TEST_DB)("logins, devices and the PIN (§19.4)", () => {
     expect(device?.name).toBe("Kitchen");
     // The database only knows the token's hash.
     expect(await db.device.count({ where: { tokenHash: token } })).toBe(0);
+    await Acc.renameDevice(db, { id: device!.id, name: "Hallway" });
+    expect((await deviceFromToken(db, token))?.name).toBe("Hallway");
     await Acc.revokeDevice(db, { id: device!.id });
     expect(await deviceFromToken(db, token)).toBeNull();
+    await expect(Acc.renameDevice(db, { id: device!.id, name: "x" })).rejects.toMatchObject({ code: "notFound" });
   });
 
   it("an expired pairing code can't be approved", async () => {

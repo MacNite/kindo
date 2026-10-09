@@ -153,6 +153,7 @@ export const approvePairing = act(Acc.A.approvePairing, async (db, input, actor)
   await Acc.approvePairing(db, input, actor.kind === "user" ? actor.userId : "device");
 }, { level: "admin", topic: null });
 export const revokeDevice = act(Acc.A.byId, Acc.revokeDevice, { level: "admin", topic: null });
+export const renameDevice = act(Acc.A.renameDevice, Acc.renameDevice, { level: "admin", topic: null });
 
 // ── The settings PIN ────────────────────────────────────────────────────────
 /** Only a signed-in admin sets the PIN, never a wall that the PIN itself unlocked. */
