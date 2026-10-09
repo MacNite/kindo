@@ -148,6 +148,8 @@ const en = {
     behaviour: "When it starts", idle: "After no touch for", showMeta: "Show date, place and album",
     start: "Start screensaver", flowActive: "Dashboard", flowIdle: "No touch", flowSaver: "Photos", flowTouch: "Touch",
     presence: "With Home Assistant (Settings → Integrations), presence wakes the wall display.", wake: "Tap to return",
+    night: "Night rest", nightFrom: "From", nightUntil: "Until",
+    nightHint: "Instead of photos the screen stays black and may turn off after the device's own screen timeout. A touch wakes it; in the morning it stays dark until someone touches it.",
   },
   homeControl: {
     title: "Home control", subtitle: "A few switches and the sun on the roof, from Home Assistant.",
