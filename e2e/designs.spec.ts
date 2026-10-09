@@ -35,3 +35,26 @@ test("the wall shows the device's style from the first paint", async ({ page }) 
   await expect(page.locator(".lane").first()).toBeVisible();
   assertNoErrors();
 });
+
+test("Appearance names everyone's colour, and an admin changes it there", async ({ page }) => {
+  const { assertNoErrors } = await prepare(page);
+  await page.goto("/settings?section=appearance");
+  const paul = page.getByRole("button", { name: "Colour: Paul" });
+  await expect(paul).toContainText("Paul");
+  const before = await paul.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+  await paul.click();
+  const colours = page.getByRole("radiogroup", { name: "Colour: Paul" });
+  const original = (await colours.getByRole("radio", { checked: true }).getAttribute("aria-label"))!;
+  const other = (await colours.getByRole("radio", { checked: false }).first().getAttribute("aria-label"))!;
+  await colours.getByRole("radio", { name: other }).click();
+  await expect(colours.getByRole("radio", { name: other })).toBeChecked();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Colour: Paul" })).not.toHaveCSS("background-color", before);
+
+  // Back as it was, for the other tests.
+  await page.getByRole("button", { name: "Colour: Paul" }).click();
+  await page.getByRole("radiogroup", { name: "Colour: Paul" }).getByRole("radio", { name: original }).click();
+  await expect(page.getByRole("button", { name: "Colour: Paul" })).toHaveCSS("background-color", before);
+  assertNoErrors();
+});

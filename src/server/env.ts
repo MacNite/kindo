@@ -50,6 +50,9 @@ const schema = z.object({
   GOOGLE_API_BASE: url("https://www.googleapis.com"),
   GOOGLE_OAUTH_BASE: url("https://oauth2.googleapis.com"),
   GOOGLE_AUTHORIZE_URL: url("https://accounts.google.com/o/oauth2/v2/auth"),
+  /** Open-Meteo's addresses for the weather (§20 D55); changed only by tests. */
+  WEATHER_API_BASE: url("https://api.open-meteo.com"),
+  WEATHER_GEOCODING_BASE: url("https://geocoding-api.open-meteo.com"),
   /** Minutes between syncs of connected calendars (§20 D29). */
   KINDO_SYNC_MINUTES: int(5, 1, 24 * 60),
   /** Where proxied photos are cached on disk (§20 D34); `/data/cache` in the image. */

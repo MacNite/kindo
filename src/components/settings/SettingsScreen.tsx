@@ -16,6 +16,7 @@ import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSectio
 import { BirthdaySettings } from "./BirthdaySettings";
 import { WallTilesCard } from "./WallTiles";
 import { DesignPicker } from "./DesignPicker";
+import { MemberColors } from "./MemberColors";
 import { lockAgain } from "@/lib/services/accounts";
 import { ErrorText } from "../ui/ErrorText";
 import { RewardModePicker } from "../rewards/RewardsScreen";
@@ -191,7 +192,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
               { value: "normal", label: t("settings.appearance.normal") }, { value: "large", label: t("settings.appearance.large") },
             ]} />
           </Field>
-          <div className="flex gap-2">{getMembers().map((m) => <span key={m.id} className="h-10 flex-1 rounded-tile" style={{ background: m.color }} title={m.name} />)}</div>
+          <MemberColors />
         </Card>
       );
     }
@@ -247,6 +248,11 @@ function FamilyForm() {
   const [location, setLocation] = useState(h.location ?? "");
   const [timezone, setTimezone] = useState(h.timezone);
   const [state, setState] = useState<{ error?: string; saved?: boolean }>({});
+  // What became of the saved place: its weather, still loading, or not found (§20 D55).
+  const saved = h.location ?? "";
+  const locationHint = !saved || location.trim() !== saved ? t("settings.family.locationHint")
+    : data.weather ? t("settings.family.weatherFor", { place: data.weather.place })
+    : h.weatherError ? t("settings.family.weatherError") : t("settings.family.weatherLoading");
   const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [h.timezone];
   const save = async () => {
     const r = await run(() => updateHousehold({ name, location, timezone }));
@@ -255,7 +261,7 @@ function FamilyForm() {
   return (
     <Card className="flex max-w-xl flex-col gap-4">
       <Field label={t("settings.family.name")} hint={t("settings.family.hint")}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-      <Field label={t("settings.family.location")}><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
+      <Field label={t("settings.family.location")} hint={locationHint}><input className={inputCls} value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
       <Field label={t("settings.family.timezone")}>
         <select className={inputCls} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
           {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => <option key={z} value={z}>{z}</option>)}

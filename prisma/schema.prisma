@@ -102,6 +102,13 @@ model Household {
   /// The last failed holiday sync and how many failed in a row: retries back off (src/server/holidays.ts).
   holidaysFailedAt DateTime?
   holidaysFailures Int        @default(0)
+  /// `StoredWeather` (src/server/weather.ts): the last forecast for `location`, from Open-Meteo (§20 D55).
+  weather          Json?
+  weatherAt        DateTime?
+  weatherError     String?
+  /// The last failed weather fetch and how many failed in a row: retries back off.
+  weatherFailedAt  DateTime?
+  weatherFailures  Int        @default(0)
   /// Hash of the PIN that unlocks settings on a paired wall display (§19.4).
   settingsPinHash  String?
   /// Loaded from the bundled demo family (§20 D11).

@@ -24,7 +24,7 @@ const de: Messages = {
   period: { morning: "Morgens", afternoon: "Nachmittags", evening: "Abends" },
   colors: { blue: "Blau", green: "Grün", purple: "Lila", orange: "Orange", pink: "Pink", teal: "Petrol", red: "Rot", grey: "Grau" },
   sky: { sun: "Sonnig", partly: "Teils bewölkt", cloud: "Bewölkt", rain: "Regen", snow: "Schnee" },
-  weather: { none: "Noch keine Wetterquelle.", range: "{high}° / {low}°" },
+  weather: { none: "Den Ort für das Wetter unter Einstellungen → Familie eintragen.", range: "{high}° / {low}°" },
   home: {
     familyToday: "Heute bei uns",
     customize: "Anpassen", doneCustomizing: "Fertig",
@@ -217,7 +217,9 @@ const de: Messages = {
       date: "Geburtstag", whose: "Gehört zu", nobody: "Niemand",
       wallHint: "Das Rad kann auch auf die Wandanzeige (Einstellungen → Übersicht) und auf den Startbildschirm (Anpassen).",
     },
-    family: { name: "Familienname", location: "Ort für das Wetter", timezone: "Zeitzone", hint: "Erscheint in der Begrüßung auf der Wandanzeige." },
+    family: { name: "Familienname", location: "Ort für das Wetter", timezone: "Zeitzone", hint: "Erscheint in der Begrüßung auf der Wandanzeige.",
+      locationHint: "Ein Ort, z. B. „Herten“ oder „Herten, Deutschland“.", weatherFor: "Wetter für {place}.", weatherLoading: "Wetter wird gesucht …",
+      weatherError: "Für diesen Ort wurde kein Wetter gefunden. Schreibweise prüfen oder das Land nach einem Komma ergänzen." },
     members: {
       edit: "Person bearbeiten", name: "Name", role: "Rolle", avatar: "Bild",
       add: "Person hinzufügen", login: "Anmeldung", noLogin: "Keine Anmeldung. Nutzt die Familienansicht.", birthday: "Geburtstag",
@@ -242,6 +244,7 @@ const de: Messages = {
       design: "Stil", designHint: "So sieht dieser Bildschirm aus, auch die Wandanzeige. Jedes Gerät merkt sich seinen eigenen.",
       designs: { warm: "Warm", minimal: "Minimal", glass: "Glas", brutal: "Neo-Brutal", future: "Futuristisch" },
       fixedLight: "{style} ist immer hell.", fixedDark: "{style} ist immer dunkel.",
+      memberColors: "Farben der Familie", memberColorsHint: "Tippe auf eine Person, um ihre Farbe zu ändern. Sie gilt auf allen Bildschirmen.",
     },
     language: {
       language: "Sprache", region: "Formate", preview: "Vorschau", date: "Datum", time: "Uhrzeit",

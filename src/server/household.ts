@@ -231,7 +231,15 @@ export async function updateHousehold(db: Tx, input: In<"household">) {
   } catch {
     throw new UserError("invalid", "unknown time zone");
   }
-  await db.household.update({ where: { id: 1 }, data: { name: input.name, timezone: input.timezone, location: input.location || null } });
+  const location = input.location || null;
+  const before = await db.household.findUnique({ where: { id: 1 }, select: { location: true, timezone: true } });
+  // A new place or time zone drops the old forecast; the weather job fetches the new one (§20 D55).
+  const moved = before?.location !== location || before?.timezone !== input.timezone;
+  await db.household.update({
+    where: { id: 1 },
+    data: { name: input.name, timezone: input.timezone, location, ...(moved && { weather: Prisma.DbNull, weatherAt: null, weatherError: null, weatherFailedAt: null, weatherFailures: 0 }) },
+  });
+  return { moved };
 }
 
 // ── Members ─────────────────────────────────────────────────────────────────
