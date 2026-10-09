@@ -4,14 +4,16 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { usePhotoPlaylist } from "@/lib/state/photos";
+import { useNight } from "@/lib/state/useNight";
 import { Photo } from "../ui/PhotoPlaceholder";
 
-/** Full-screen photo frame. Any touch calls onWake. */
+/** Full-screen photo frame; plain black during the night rest (D57). Any touch calls onWake. */
 export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; interval?: number }) {
   const { albums, showPhotoMeta } = useStore();
   const { t, fmt } = useI18n();
   const now = useNow(10_000);
   const pool = usePhotoPlaylist();
+  const night = useNight();
   const [i, setI] = useState(0);
   useEffect(() => {
     if (pool.length < 2) return;
@@ -21,6 +23,9 @@ export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; i
   // No albums selected → clock on black, no photos.
   const photo = pool.length ? pool[i % pool.length] : undefined;
   const album = photo && albums.find((a) => a.id === photo.albumId);
+
+  // Night rest: nothing lit, so the screen can go dark (§13, D57).
+  if (night) return <div role="button" tabIndex={0} aria-label={t("photos.wake")} onClick={onWake} onKeyDown={onWake} data-night className="fixed inset-0 z-[100] cursor-pointer bg-black" />;
 
   return (
     <div role="button" tabIndex={0} aria-label={t("photos.wake")} onClick={onWake} onKeyDown={onWake}

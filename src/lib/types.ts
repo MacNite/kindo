@@ -5,6 +5,7 @@
  */
 import type { HomeSetup } from "./home";
 import type { CameraInfo } from "./cameras";
+import type { NightRest } from "./night";
 
 /** User-entered text is a plain string. Mock data ships both languages so the
  *  demo reads naturally in either UI language. */
@@ -295,6 +296,8 @@ export interface HouseholdSettings {
   pointValue: number;
   idleMinutes: number;
   showPhotoMeta: boolean;
+  /** When the wall lets its screen go dark (§13, D57). */
+  night: NightRest;
   widgets: WidgetConfig[];
   wallTiles: WallTile[];
   demo: boolean;

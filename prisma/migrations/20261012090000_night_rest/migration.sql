@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Household" ADD COLUMN     "nightFrom" TEXT NOT NULL DEFAULT '22:00',
+ADD COLUMN     "nightOn" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "nightUntil" TEXT NOT NULL DEFAULT '06:00';

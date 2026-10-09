@@ -86,6 +86,10 @@ model Household {
   /// Minutes without touch before the wall becomes a photo frame.
   idleMinutes      Float      @default(2)
   showPhotoMeta    Boolean    @default(true)
+  /// Night rest (§13, D57): between these HH:MM times the wall lets the screen go dark.
+  nightOn          Boolean    @default(false)
+  nightFrom        String     @default("22:00")
+  nightUntil       String     @default("06:00")
   /// `WidgetConfig[]`: which home cards show, their order and size.
   widgets          Json
   /// `WallTile[]`: which household tiles the wall display shows beside the lanes, in order (§4, §21).
