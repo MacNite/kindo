@@ -88,7 +88,7 @@ To release, tag and push: `git tag v0.2.1 && git push origin v0.2.1` (bump `vers
 
 ## Development
 
-Requirements: Node.js 26 (what the image and CI run; 22 or newer works) and a PostgreSQL you can create databases in.
+Requirements: Node.js 22 or newer (the image runs 26, CI's tests run on 22) and a PostgreSQL you can create databases in.
 
 ```sh
 npm install

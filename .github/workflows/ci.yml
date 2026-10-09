@@ -51,8 +51,10 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          # The major the Dockerfile runs in production.
-          node-version: 26
+          # Node 26 is what the image runs (the docker job below starts it), but
+          # Playwright 1.56's browser install never finishes unzipping on Node 26,
+          # so the test suite stays on 22 until Playwright supports it.
+          node-version: 22
           cache: npm
 
       - run: npm ci
