@@ -1,3 +1,6 @@
+import { mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tx } from "../db";
 import { fetchChecked, readJson } from "../http";
@@ -22,12 +25,58 @@ describe("getPhoto", () => {
     expect(img.type).toBe("image/jpeg");
     expect(img.body.equals(jpeg)).toBe(true);
   });
+
+  it("doesn't serve a cached photo Kindo no longer knows", async () => {
+    const gone = { photoAsset: { findUnique: async () => null } } as unknown as Tx;
+    const cache: DiskCache = { get: async () => ({ body: jpeg, type: "image/jpeg" }), put: async () => {} };
+    await expect(getPhoto(gone, "a1", "preview", cache)).rejects.toMatchObject({ code: "notFound" });
+  });
 });
 
 describe("diskCache", () => {
+  let dir = "";
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true });
+    dir = "";
+  });
+
   it("refuses a size that would empty the cache on every write", () => {
     expect(() => diskCache("/nonexistent", Number.NaN)).toThrow(/positive/);
     expect(() => diskCache("/nonexistent", 0)).toThrow(/positive/);
+  });
+
+  it("never lets a reader see a picture half written", async () => {
+    dir = await mkdtemp(join(tmpdir(), "kindo-cache-"));
+    const c = diskCache(dir, 64 * 1024 * 1024);
+    const big = Buffer.concat([jpeg, Buffer.alloc(8 * 1024 * 1024, 7)]);
+    let reading = true;
+    const seen: number[] = [];
+    const reader = (async () => {
+      while (reading) {
+        const hit = await c.get("a1-preview");
+        if (hit) seen.push(hit.body.length);
+      }
+    })();
+    await Promise.all([c.put("a1-preview", big), c.put("a1-preview", big)]);
+    reading = false;
+    await reader;
+    expect(seen.every((n) => n === big.length)).toBe(true);
+    expect((await c.get("a1-preview"))?.body.equals(big)).toBe(true);
+    expect(await readdir(dir)).toEqual(["a1-preview"]);
+  });
+
+  it("clears what a crash left half written, but not a write in progress", async () => {
+    dir = await mkdtemp(join(tmpdir(), "kindo-cache-"));
+    const c = diskCache(dir, 64 * 1024 * 1024);
+    const stale = join(dir, "a1-preview.tmp-crashed");
+    const fresh = join(dir, "a2-preview.tmp-writing");
+    await writeFile(stale, jpeg.subarray(0, 3));
+    await writeFile(fresh, jpeg.subarray(0, 3));
+    const hourAgo = new Date(Date.now() - 3_600_000);
+    await utimes(stale, hourAgo, hourAgo);
+    await c.put("a3-preview", jpeg);
+    expect((await readdir(dir)).sort()).toEqual(["a2-preview.tmp-writing", "a3-preview"]);
+    expect(await c.get("a1-preview")).toBeNull();
   });
 });
 

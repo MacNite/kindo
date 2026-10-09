@@ -25,9 +25,9 @@ export async function GET(req: Request) {
   if (!expected || !state || state !== expected || !code) return back("failed");
   try {
     const { refreshToken, email } = await exchangeCode(code, `${origin}/api/integrations/google/callback`);
-    await addGoogle(prisma, { email, refreshToken });
+    const { synced } = await addGoogle(prisma, { email, refreshToken });
     await notify("events");
-    return back("connected");
+    return back(synced ? "connected" : "syncFailed");
   } catch (e) {
     log.warn("google connect failed", { error: errorMessage(e) });
     return back("failed");

@@ -128,8 +128,10 @@ export async function addGoogle(db: Tx, input: { email: string; refreshToken: st
   const data = { kind: "google" as const, name: input.email, username: input.email, secret: encryptSecret(input.refreshToken), status: "pending" as const };
   const conn = existing ? await db.connection.update({ where: { id: existing.id }, data }) : await db.connection.create({ data });
   await discoverCalendars(db, conn);
-  await syncConnection(db, conn, { force: true }).catch(() => {});
-  return conn.id;
+  // The account stays even if its first sync fails (a new sign-in would be needed to get the token back);
+  // the connection records the error, and Settings says the events didn't come yet.
+  const synced = await syncConnection(db, conn, { force: true }).then(() => true, () => false);
+  return { id: conn.id, synced };
 }
 
 /**

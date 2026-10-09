@@ -42,7 +42,7 @@ export function IntegrationsSection() {
   return (
     <>
       <p className="mb-4 max-w-prose text-soft">{t("settings.integrations.hint")}</p>
-      {google && <p role="status" className="mb-4 rounded-card bg-surface p-4 font-bold">{t(`integrations.google_${google === "connected" ? "connected" : google === "notConfigured" ? "notConfigured" : "failed"}`)}</p>}
+      {google && <p role="status" className="mb-4 rounded-card bg-surface p-4 font-bold">{t(`integrations.google_${google === "connected" || google === "syncFailed" || google === "notConfigured" ? google : "failed"}`)}</p>}
       <div className="grid gap-3 lg:grid-cols-2">
         {data.integrations.map((i) => <IntegrationCard key={i.id} integration={i} />)}
       </div>

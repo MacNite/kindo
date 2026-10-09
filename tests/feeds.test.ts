@@ -37,6 +37,8 @@ function googleMock() {
   };
   const log: { method: string; path: string; body?: Record<string, unknown> }[] = [];
   let limited = false;
+  /** Calendars whose events fail, like one removed on Google while Kindo still follows it. */
+  const broken = new Set<string>();
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://x");
     const json = (b: unknown, status = 200) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(b));
@@ -53,6 +55,7 @@ function googleMock() {
       const cal = decodeURIComponent(m[1]);
       const body = req.method === "POST" || req.method === "PATCH" ? JSON.parse(await readBody(req)) : undefined;
       log.push({ method: req.method!, path: url.pathname, body });
+      if (broken.has(cal)) return json({ error: { code: 500, message: "Backend Error" } }, 500);
       if (req.method === "GET") return json({ items: events[cal] ?? [] });
       if (req.method === "POST") {
         const e = { id: `new${log.length}`, etag: '"n"', ...body };
@@ -80,7 +83,7 @@ function googleMock() {
     }
     json({ error: "not found" }, 404);
   });
-  return { server, log, limit: (on: boolean) => void (limited = on) };
+  return { server, log, events, broken, limit: (on: boolean) => void (limited = on) };
 }
 
 describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () => {
@@ -135,7 +138,8 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
   });
 
   it("connects a Google account: calendars, events, read-only where Google says so", async () => {
-    const id = await C.addGoogle(db, { email: "max@example.test", refreshToken: "refresh-1" });
+    const { id, synced } = await C.addGoogle(db, { email: "max@example.test", refreshToken: "refresh-1" });
+    expect(synced).toBe(true);
     const conn = await db.connection.findUniqueOrThrow({ where: { id }, include: { sources: true } });
     expect(conn.secret).not.toContain("refresh-1");
     expect(conn.sources.map((s) => [s.remoteId, s.readOnly])).toEqual([
@@ -196,6 +200,36 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     process.env.GOOGLE_API_BASE = api;
     resetEnvCache();
     expect((await db.connection.findUniqueOrThrow({ where: { id: conn.id } })).status).toBe("error");
+  });
+
+  it("one failing calendar doesn't hold back the account's others, and Settings learns which one", async () => {
+    const conn = await db.connection.findFirstOrThrow({ where: { kind: "google" } });
+    const holidays = await db.calendarSource.findFirstOrThrow({ where: { remoteId: "holidays@group.v.calendar.google.com" } });
+    google.events[holidays.remoteId!].push({ id: "h2", summary: "Reformation day", start: { date: "2026-10-31" }, end: { date: "2026-11-01" } });
+    google.broken.add("family@group.calendar.google.com");
+    try {
+      await expect(syncConnection(db, conn, { force: true })).rejects.toMatchObject({ code: "remote" });
+    } finally {
+      google.broken.clear();
+    }
+    expect(await db.event.count({ where: { sourceId: holidays.id, title: { equals: "Reformation day" } } })).toBe(1);
+    const stored = await db.connection.findUniqueOrThrow({ where: { id: conn.id } });
+    expect(stored.status).toBe("error");
+    expect(stored.lastError).toMatch(/^Family: /);
+    await syncConnection(db, conn, { force: true });
+    expect((await db.connection.findUniqueOrThrow({ where: { id: conn.id } })).status).toBe("ok");
+  });
+
+  it("a Google account whose first sync fails is kept, and says the events didn't come", async () => {
+    google.limit(true);
+    try {
+      const { id, synced } = await C.addGoogle(db, { email: "lena@example.test", refreshToken: "refresh-2" });
+      expect(synced).toBe(false);
+      expect(await db.connection.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: "error", lastError: expect.stringMatching(/too many requests/) });
+      await db.connection.delete({ where: { id } });
+    } finally {
+      google.limit(false);
+    }
   });
 });
 
