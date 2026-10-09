@@ -1,4 +1,6 @@
-import { mkdir, readdir, readFile, stat, unlink, utimes, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readdir, readFile, rename, stat, unlink, utimes, writeFile } from "node:fs/promises";
+import type { Stats } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -12,6 +14,9 @@ export interface DiskCache {
 }
 
 const safe = (key: string) => key.replace(/[^a-zA-Z0-9_.-]/g, "_");
+/** Files still being written: never read or counted; removed once clearly left behind by a crash. */
+const TMP = ".tmp-";
+const STALE_TMP_MS = 10 * 60_000;
 
 /** What an image is, from its first bytes, so cache files need no metadata. */
 export function sniffImageType(b: Buffer): string {
@@ -30,7 +35,12 @@ export function diskCache(dir: string, maxBytes: number): DiskCache {
     if (pruning) return;
     pruning = true;
     try {
-      const files = await Promise.all((await readdir(dir)).map(async (f) => ({ f, s: await stat(join(dir, f)) })));
+      // A file another prune or a rename took meanwhile just isn't counted.
+      const all = (await Promise.all((await readdir(dir)).map(async (f) => ({ f, s: await stat(join(dir, f)).catch(() => null) }))))
+        .filter((x): x is { f: string; s: Stats } => x.s !== null);
+      const old = Date.now() - STALE_TMP_MS;
+      for (const { f, s } of all) if (f.includes(TMP) && s.mtimeMs < old) await unlink(join(dir, f)).catch(() => {});
+      const files = all.filter((x) => !x.f.includes(TMP));
       let total = files.reduce((n, x) => n + x.s.size, 0);
       // Oldest access first; reads touch the file's time.
       for (const { f, s } of files.sort((a, b) => a.s.mtimeMs - b.s.mtimeMs)) {
@@ -53,7 +63,16 @@ export function diskCache(dir: string, maxBytes: number): DiskCache {
     },
     async put(key, body) {
       await mkdir(dir, { recursive: true });
-      await writeFile(join(dir, safe(key)), body);
+      // Written aside, then renamed into place: a reader or a crash never leaves a cut-off picture behind.
+      const path = join(dir, safe(key));
+      const tmp = `${path}${TMP}${randomUUID()}`;
+      try {
+        await writeFile(tmp, body);
+        await rename(tmp, path);
+      } catch (e) {
+        await unlink(tmp).catch(() => {});
+        throw e;
+      }
       await prune();
     },
   };

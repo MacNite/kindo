@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CalendarSource as SourceRow, Connection, Event as EventRow, Prisma } from "@prisma/client";
 import { addDays } from "@/lib/dates";
 import { allDayForStorage } from "@/lib/events";
+import type { Text } from "@/lib/types";
 import { inTx, type Tx } from "../db";
 import { decryptSecret, sha256 } from "../crypto";
 import { env } from "../env";
@@ -99,6 +100,11 @@ async function syncSource(db: Tx, conn: Connection, source: SourceRow, opts: { s
   });
 }
 
+const sourceName = (s: SourceRow) => {
+  const n = s.name as Text;
+  return (typeof n === "string" ? n : n?.en || n?.de) || s.remoteId || s.id;
+};
+
 /** Syncs every calendar of a connection and records how it went. Returns whether anything changed. */
 export async function syncConnection(db: Tx, conn: Connection, opts: { force?: boolean; now?: Date } = {}) {
   const p = providerFor(conn.kind);
@@ -107,7 +113,20 @@ export async function syncConnection(db: Tx, conn: Connection, opts: { force?: b
   try {
     const sources = await db.calendarSource.findMany({ where: { connectionId: conn.id } });
     const states = new Map((await p.listCalendars(conn)).map((c) => [c.remoteId, c.ctag]));
-    for (const s of sources) changed = (await syncSource(db, conn, s, { ...opts, state: states.get(s.remoteId ?? "") })) || changed;
+    // One calendar that fails (gone on the server, a broken feed) doesn't hold back the others; the connection says which.
+    const failed: { name: string; error: unknown }[] = [];
+    for (const s of sources) {
+      try {
+        changed = (await syncSource(db, conn, s, { ...opts, state: states.get(s.remoteId ?? "") })) || changed;
+      } catch (e) {
+        failed.push({ name: sourceName(s), error: e });
+      }
+    }
+    if (failed.length) {
+      const message = failed.map((f) => `${f.name}: ${errorMessage(f.error)}`).join("; ");
+      const first = failed[0].error;
+      throw first instanceof UserError ? new UserError(first.code, message) : new Error(message, { cause: first });
+    }
     await db.connection.update({ where: { id: conn.id }, data: { status: "ok", lastError: null, lastSyncAt: opts.now ?? new Date() } });
   } catch (e) {
     await db.connection.update({ where: { id: conn.id }, data: { status: "error", lastError: errorMessage(e).slice(0, 500), lastSyncAt: opts.now ?? new Date() } });

@@ -70,11 +70,12 @@ function photoCache() {
 }
 
 export async function getPhoto(db: Tx, assetId: string, size: ThumbSize, c: DiskCache = photoCache()) {
+  // Kindo still has to know the photo: one removed from its album (or its server) isn't served from the cache either.
+  const asset = await db.photoAsset.findUnique({ where: { id: assetId }, include: { album: { include: { connection: true } } } });
+  if (!asset?.remoteId || !asset.album.connection) throw notFound("photo");
   const key = `${assetId}-${size}`;
   const hit = await c.get(key);
   if (hit) return hit;
-  const asset = await db.photoAsset.findUnique({ where: { id: assetId }, include: { album: { include: { connection: true } } } });
-  if (!asset?.remoteId || !asset.album.connection) throw notFound("photo");
   const img = await fetchThumbnail(immichServer(asset.album.connection), asset.remoteId, size);
   // A cache that can't be written (a volume the app user doesn't own) costs a refetch next time, not the photo.
   await c.put(key, img.body).catch((e) => log.warn("photo cache write failed", { dir: env().cacheDir, error: errorMessage(e) }));
