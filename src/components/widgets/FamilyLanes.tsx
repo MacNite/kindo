@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Check, Maximize2 } from "lucide-react";
 import type { CalendarEvent, Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -17,8 +17,10 @@ import { cn } from "../ui/cn";
 /**
  * The heart of the product: one lane per person, answering
  * "what is happening today and what does each person need to do?"
+ * The wall passes its buttons as `actions`: they share the row of whole-family
+ * events, so the lanes get that height.
  */
-export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" }) {
+export function FamilyLanes({ variant = "home", actions }: { variant?: "home" | "wall"; actions?: ReactNode }) {
   const today = useToday();
   const { getMembers, familyEvents } = useStore();
   const members = getMembers();
@@ -27,9 +29,9 @@ export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" })
   const wall = variant === "wall";
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {fam.length > 0 && (
+      {(fam.length > 0 || actions) && (
         <div className={cn("flex flex-wrap items-center gap-2", wall && "gap-3")}>
-          <span className={cn("font-bold text-soft", wall ? "text-lg" : "text-sm")}>{t("common.whole")}</span>
+          {fam.length > 0 && <span className={cn("font-bold text-soft", wall ? "text-lg" : "text-sm")}>{t("common.whole")}</span>}
           {fam.map((e) => (
             <span key={e.id} className={cn("inline-flex items-center gap-2 rounded-full bg-surface font-bold", wall ? "h-12 px-5 text-lg" : "h-9 px-3.5 text-sm")}>
               {e.icon && <Pictogram id={e.icon} className={wall ? "h-6 w-6" : "h-4 w-4"} strokeWidth={2} />}
@@ -37,6 +39,7 @@ export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" })
               {!e.allDay && <span className="num font-normal text-soft">{fmt.time(e.start)}</span>}
             </span>
           ))}
+          {actions}
         </div>
       )}
       <div style={wall ? ({ "--lanes": Math.min(Math.max(members.length, 2), 5) } as CSSProperties) : undefined}
@@ -67,7 +70,7 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
       className={cn("lane relative flex min-h-0 flex-col rounded-panel bg-surface", wall ? "lane-wall overflow-y-auto overflow-x-hidden" : "overflow-hidden p-5")}>
       <span aria-hidden className="m-bg absolute inset-x-0 top-0 h-1.5" />
       <header className="flex items-center gap-3">
-        <Avatar member={member} size={wall ? "lg" : "md"} />
+        <Avatar member={member} size={wall ? "lg" : "md"} className={cn(wall && "lane-avatar")} />
         <div className="min-w-0 flex-1">
           <h3 className={cn("font-display font-bold leading-none tracking-tight", wall ? "lane-name" : "text-2xl")}>{member.name}</h3>
           <p className={cn("mt-1 truncate text-soft", wall ? "text-lg" : "text-sm")}>
@@ -76,7 +79,7 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
         </div>
         {isChild && (
           <Link href={`/kids/${member.id}`} aria-label={`${t("routines.childView")}: ${member.name}`}
-            className={cn("tint m-text grid shrink-0 place-items-center rounded-full", wall ? "h-14 w-14" : "h-10 w-10 coarse:h-11 coarse:w-11")}>
+            className={cn("tint m-text grid shrink-0 place-items-center rounded-full", wall ? "lane-expand h-14 w-14" : "h-10 w-10 coarse:h-11 coarse:w-11")}>
             <Maximize2 size={wall ? 24 : 18} />
           </Link>
         )}
@@ -84,7 +87,7 @@ function MemberLane({ member, wall }: { member: Member; wall: boolean }) {
 
       {showBalance && (
         <p role="group" aria-label={t("rewards.balanceOf", { name: member.name })}
-          className={cn("mt-3 self-start rounded-full bg-star/15", wall ? "px-4 py-1.5" : "px-3 py-1")}>
+          className={cn("mt-3 self-start rounded-full bg-star/15", wall ? "lane-balance px-4 py-1.5" : "px-3 py-1")}>
           <RewardAmount points={balances[member.id] ?? 0} iconSize={wall ? 30 : 20} className={cn("font-display", wall ? "gap-2 text-3xl" : "text-xl")} />
         </p>
       )}

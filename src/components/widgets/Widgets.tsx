@@ -27,10 +27,10 @@ export function BigClock({ size = "md" }: { size?: "md" | "xl" }) {
   const { fmt } = useI18n();
   return (
     <div>
-      <p className={cn("num font-display font-semibold leading-[0.85] tracking-[-0.04em]", size === "xl" ? "text-[clamp(4.5rem,6vw,7.25rem)]" : "text-6xl")}>
+      <p className={cn("num font-display font-semibold leading-[0.85] tracking-[-0.04em]", size === "xl" ? "wall-time" : "text-6xl")}>
         {fmt.clock(now)}<span className="ml-2 text-[0.35em] tracking-normal text-soft">{fmt.meridiem(now)}</span>
       </p>
-      <p className={cn("mt-3 font-bold", size === "xl" ? "text-2xl" : "text-lg")}>{fmt.dateLong(now)}</p>
+      <p className={cn("font-bold", size === "xl" ? "wall-date" : "mt-3 text-lg")}>{fmt.dateLong(now)}</p>
     </div>
   );
 }
@@ -46,10 +46,10 @@ export function WeatherNow({ large }: { large?: boolean }) {
   if (!w) return null;
   return (
     <div className="flex items-center gap-4">
-      <WeatherIcon sky={w.sky} className={large ? "h-16 w-16" : "h-12 w-12"} strokeWidth={1.5} />
+      <WeatherIcon sky={w.sky} className={large ? "wall-weather-icon h-16 w-16 shrink-0" : "h-12 w-12"} strokeWidth={1.5} />
       <div>
         <p className={cn("num font-display font-semibold leading-none", large ? "text-5xl" : "text-4xl")}>{w.now}°</p>
-        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}>{t(`sky.${w.sky}`)}, <span className="whitespace-nowrap">{t("weather.range", { high: w.high, low: w.low })}</span></p>
+        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}><span className={cn(large && "wall-weather-sky")}>{t(`sky.${w.sky}`)}, </span><span className="whitespace-nowrap">{t("weather.range", { high: w.high, low: w.low })}</span></p>
       </div>
       <span className="sr-only">{fmt.dateLong(today)}</span>
     </div>
@@ -256,17 +256,17 @@ export function DatesList({ limit = 4, large }: { limit?: number; large?: boolea
   const dates = upcomingDates(data.dates, today);
   if (!dates.length) return <p className="text-soft">{t("dates.none")}</p>;
   return (
-    <ul className={cn("flex flex-col", large ? "gap-3" : "gap-2.5")}>
+    <ul className={cn("flex flex-col", large ? "wall-dates gap-3" : "gap-2.5")}>
       {dates.slice(0, limit).map((d) => {
         const I = DATE_ICON[d.kind];
         const m = getMember(d.memberId);
         const n = daysUntil(today, d.next);
         return (
           <li key={d.id} className="flex items-center gap-3" style={{ "--m": m?.color ?? "rgb(var(--soft))" } as CSSProperties}>
-            <span className={cn("grid shrink-0 place-items-center rounded-full tint m-text", large ? "h-12 w-12" : "h-9 w-9")}><I size={large ? 22 : 17} strokeWidth={2} /></span>
+            <span className={cn("date-icon grid shrink-0 place-items-center rounded-full tint m-text", large ? "h-12 w-12" : "h-9 w-9")}><I size={large ? 22 : 17} strokeWidth={2} /></span>
             <span className="min-w-0 flex-1">
-              <span className={cn("block font-bold leading-tight", large && "text-lg")}>{tx(d.title)}</span>
-              <span className="text-sm text-soft">
+              <span className={cn("date-title block font-bold leading-tight", large && "text-lg")}>{tx(d.title)}</span>
+              <span className="date-title block text-sm text-soft">
                 {d.turns ? (d.kind === "anniversary" ? t("dates.years", { n: d.turns }) : t("dates.turns", { n: d.turns })) : t(`dates.${d.kind}`)}, {fmt.dateMedium(d.next)}
               </span>
             </span>

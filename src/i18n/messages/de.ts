@@ -154,7 +154,7 @@ const de: Messages = {
     energy: "Strom gerade", switches: "Schalter", solar: "Solar", house: "Verbrauch",
     gridIn: "Aus dem Netz", gridOut: "Ins Netz", gridIdle: "Netz", solarShare: "Anteil des Hauses, der mit Solarstrom läuft", solarCovers: "Die Sonne deckt {p} % des Verbrauchs.",
     on: "An", off: "Aus", unavailable: "Nicht erreichbar",
-    allOff: "Alles aus", allOffConfirm: "Alles ausschalten", allOffHint: "Schaltet alle Schalter aus, die hier zu sehen sind ({n}). Alles andere in Home Assistant bleibt, wie es ist.",
+    allOff: "Alles aus", moreSwitches: "{n} weitere Schalter", allOffConfirm: "Alles ausschalten", allOffHint: "Schaltet alle Schalter aus, die hier zu sehen sind ({n}). Alles andere in Home Assistant bleibt, wie es ist.",
   },
   cameras: {
     title: "Kameras", subtitle: "Tippe auf eine Kamera, um sie live zu sehen.", notSetUp: "Noch keine Kameras. Ein Admin verbindet Frigate und wählt Kameras unter Einstellungen → Integrationen → Frigate.", setUp: "In den Einstellungen einrichten",

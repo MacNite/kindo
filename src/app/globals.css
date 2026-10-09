@@ -58,10 +58,10 @@ body {
 
 /* ── Wall display layout (§13) ───────────────────────────────────────────────
    Wide landscape screens (≥ 1600 px): a column of household context beside the
-   lanes. Anything narrower (1280×800 wall tablets, portrait screens, 1440 px
-   desktops): the clock and tiles become a compact strip on top, so the lanes
-   keep their width. From tablet size up the wall fits one screen; on a phone
-   it simply scrolls. */
+   lanes. Anything narrower (1280×800 and 1024×600 wall tablets, portrait
+   screens, 1440 px desktops): the clock and tiles become a strip on top, so the
+   lanes keep their width. From tablet size up the wall fits one screen and
+   nothing on it scrolls; on a phone it simply scrolls. */
 .wall {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -71,7 +71,8 @@ body {
   min-height: 100dvh;
 }
 @media (min-width: 768px) {
-  .wall { grid-template-rows: auto minmax(0, 1fr); height: 100dvh; overflow: hidden; padding: 1.25rem; }
+  /* 100vh first: old wall tablets' browsers may not know dvh. */
+  .wall { grid-template-rows: auto minmax(0, 1fr); height: 100vh; height: 100dvh; overflow: hidden; padding: 1.25rem; }
 }
 .wall-side { display: flex; flex-wrap: wrap; gap: 1rem; min-width: 0; }
 .wall-side > * { flex: 1 1 15rem; min-width: 0; }
@@ -79,44 +80,140 @@ body {
 .wall-side > .wall-tile-narrow { flex: 0 1 11rem; }
 .wall-side > .wall-grow { flex-grow: 2; }
 .wall-tile { border-radius: 28px; background: rgb(var(--surface)); padding: 1.25rem; }
-/* In the strip a tile never grows taller than the row: its own content scrolls. */
+.wall-greeting { margin-bottom: 0.5rem; font-size: 1.25rem; line-height: 1.75rem; }
+.wall-time { font-size: clamp(4.5rem, 6vw, 7.25rem); }
+.wall-date { margin-top: 0.75rem; font-size: 1.5rem; line-height: 2rem; }
+
+/* The strip: every tile is as tall as the strip, which follows the screen's
+   height, and shows what fits instead of scrolling. Tiles are size containers
+   (`tile`), so their contents drop detail by the room they get (below). */
 @media (min-width: 768px) {
-  .wall-side > * { max-height: 13rem; overflow-y: auto; scrollbar-width: thin; }
-  .wall-side > .wall-clock { overflow: visible; }
+  .wall { --strip: clamp(7.5rem, 22vh, 11.25rem); }
+  .wall-side > * { height: var(--strip); overflow: hidden; }
+  .wall-side > :not(.wall-clock) { container: tile / size; padding: clamp(0.625rem, 1.5vh, 1rem) 1.125rem; }
+  .wall-side > .wall-clock { height: auto; overflow: visible; }
+  /* A container can't query itself: the tiles' own spacing is set here. */
+  .wall-side > .home-tile, .wall-side > .cameras-tile { gap: 0.375rem; }
+  .wall-time { font-size: clamp(3.5rem, min(5.5vw, 10vh), 7.25rem); }
+  .wall-date { margin-top: 0.5rem; font-size: 1.25rem; line-height: 1.75rem; }
 }
-/* Landscape tablets and desktops: one row; tiles share it. */
+@media (min-width: 768px) and (max-height: 700px) {
+  .wall { gap: 0.75rem; padding: 1rem; }
+  .wall-side { gap: 0.75rem; }
+  .wall-greeting { margin-bottom: 0.25rem; font-size: 1rem; line-height: 1.5rem; }
+  .wall-date { margin-top: 0.375rem; font-size: 1.125rem; }
+}
 @media (min-width: 1024px) and (orientation: landscape) {
   .wall-side { flex-wrap: nowrap; }
-  .wall-side > * { flex: 1 1 0; max-height: 11.25rem; }
+  .wall-side > * { flex: 1 1 0; }
   .wall-side > .wall-clock { flex: 0 0 auto; }
   .wall-side > .wall-tile-narrow { flex: 0 1 11rem; }
   .wall-side > .wall-grow { flex-grow: 1.6; }
 }
 .wall-main { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: 1rem; }
+@media (min-width: 768px) and (max-height: 700px) { .wall-main { gap: 0.75rem; } }
 @media (min-width: 1600px) and (orientation: landscape) {
   .wall { grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 1.25rem; padding: 1.5rem; }
   .wall-side { flex-direction: column; flex-wrap: nowrap; gap: 1.25rem; overflow-y: auto; }
-  .wall-side > *, .wall-side > .wall-tile-narrow { flex: 0 0 auto; max-height: none; overflow: visible; }
+  .wall-side > *, .wall-side > .wall-tile-narrow { flex: 0 0 auto; height: auto; overflow: visible; }
+  .wall-side > :not(.wall-clock) { container-type: normal; padding: 1.5rem; }
+  .wall-side > .home-tile { gap: 1rem; }
+  .wall-side > .cameras-tile { gap: 0.75rem; }
   .wall-side > .wall-grow { flex-grow: 1; }
-  .wall-tile { padding: 1.5rem; }
   .wall-side .wall-tile-title { margin-bottom: 1rem; }
+  .wall-time { font-size: clamp(4.5rem, 6vw, 7.25rem); }
+  .wall-date { margin-top: 0.75rem; font-size: 1.5rem; line-height: 2rem; }
+}
+
+/* What each tile keeps in the strip. Sizes are the tile's content box. */
+@container tile (max-height: 10rem) { .wall-tile-title { margin-bottom: 0.25rem !important; } }
+/* Titles stay on one line. */
+@container tile (min-width: 0px) { .wall-tile-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1rem; line-height: 1.5rem; } }
+/* Weather: the sky in words goes first when the tile is narrow, then the picture shrinks, then goes. */
+@container tile (max-width: 14rem) { .wall-weather-sky { display: none; } }
+@container tile (max-width: 10.5rem) { .wall-weather-icon { height: 2.5rem; width: 2.5rem; margin-right: -0.5rem; } }
+@container tile (max-width: 8rem) { .wall-weather-icon { display: none; } }
+/* Tonight's dinner: two lines at most, the cook only where there is room. */
+@container tile (min-width: 0px) { .wall-meal-dish { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; } }
+@container tile (max-height: 9.25rem) { .wall-meal-cook { display: none; } }
+@container tile (max-height: 7.5rem) { .wall-meal-dish { -webkit-line-clamp: 1; } }
+@container tile (max-width: 12rem) { .wall-meal-dish { font-size: 1.5rem; line-height: 1.2; hyphens: auto; overflow-wrap: anywhere; } }
+/* Dates: as many as fit, one line each. */
+@container tile (min-width: 0px) { .wall-dates .date-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+@container tile (max-height: 12.5rem) { .wall-dates > li:nth-child(n+3) { display: none; } }
+@container tile (max-height: 8.75rem) { .wall-dates > li:nth-child(n+2) { display: none; } }
+@container tile (max-width: 16rem) {
+  .wall-dates .date-icon { display: none; }
+  .wall-dates > li { flex-wrap: wrap; row-gap: 0.25rem; }
+  .wall-dates > li > span:nth-child(2) { flex-basis: 100%; }
+}
+@container tile (max-width: 16rem) and (max-height: 12rem) { .wall-dates > li:nth-child(n+2) { display: none; } }
+/* Birthdays: the next one; the wheel as big as the height allows, gone when narrow. */
+@container tile (min-width: 0px) {
+  .bday-compact-rest { display: none; }
+  .bday-compact-grid { grid-template-columns: min(9.375rem, 100cqh - 2.5rem) minmax(0, 1fr); gap: 0.75rem; }
+}
+@container tile (max-width: 15rem) {
+  .bday-compact-grid { grid-template-columns: minmax(0, 1fr); }
+  .bday-compact-wheel { display: none; }
+}
+@container tile (min-width: 0px) {
+  .bday-compact-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(1.125rem, 11cqi, 1.5rem); }
+  .bday-compact-label, .bday-compact-turns, .bday-compact-when { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@container tile (max-height: 8.5rem) { .bday-compact-label, .bday-compact-sleeps { display: none; } }
+.home-tile-more { display: none; }
+/* Home control: power, then one row of switches (the rest behind "+n"), dropped when short. */
+@container tile (min-width: 0px) {
+  .home-tile-chips button, .home-tile-chips a { height: 2.75rem; font-size: 1rem; }
+  .home-tile > header button { white-space: nowrap; padding-inline: 0.75rem; }
+  .home-tile-chips-more > li:nth-child(n+2):not(.home-tile-more) { display: none; }
+  .home-tile-more { display: block; }
+}
+@container tile (max-height: 8.99rem) { .home-tile-chips { display: none; } }
+@container tile (max-width: 17rem) { .home-tile .energy-icon { display: none; } }
+@container tile (max-width: 12.5rem) { .home-tile > header { justify-content: flex-end; } .home-tile > header > a { display: none; } }
+@container tile (max-width: 14rem) {
+  .home-tile [data-testid^="energy-"] { min-width: 0; gap: 0.5rem; }
+  .home-tile [data-testid^="energy-"] > span { overflow: hidden; }
+  .home-tile [data-testid^="energy-"] .font-display { font-size: 1.25rem; }
+}
+/* Cameras: the pictures side by side, as tall as the tile. */
+@container tile (min-width: 0px) {
+  .cameras-tile > ul { display: flex; min-height: 0; flex: 1 1 0; }
+  .cameras-tile > ul > li { min-width: 0; flex: 1 1 0; }
+  .cameras-tile > ul > li > button, .cameras-tile > ul > li img, .cameras-tile > ul > li button > span:first-child { height: 100%; aspect-ratio: auto; }
 }
 
 /* Lanes on the wall: as many columns as people, but never narrower than a
    readable lane; four people on a portrait screen become 2 × 2. */
 .wall-lanes {
   --lane-min: 260px;
+  --lane-gap: 1rem;
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(max(var(--lane-min), (100% - (var(--lanes) - 1) * 1rem) / var(--lanes)), 1fr));
+  gap: var(--lane-gap);
+  grid-template-columns: repeat(auto-fit, minmax(max(var(--lane-min), (100% - (var(--lanes) - 1) * var(--lane-gap)) / var(--lanes)), 1fr));
   grid-auto-rows: minmax(0, 1fr);
 }
 @media (max-width: 767px) { .wall-lanes { grid-auto-rows: auto; } }
+/* A 1024 px landscape tablet still shows four people side by side. */
+@media (min-width: 1024px) and (orientation: landscape) { .wall-lanes { --lane-min: 13rem; } }
+@media (min-width: 768px) and (max-height: 700px) { .wall-lanes { --lane-gap: 0.75rem; } }
 
 /* A lane is a container, so its header and steps adapt to its own width. */
 .lane { container: lane / inline-size; }
 .lane-wall { padding: clamp(1rem, 1.6vw, 1.5rem); scrollbar-width: thin; }
 .lane-routine { padding: clamp(0.75rem, 1.1vw, 1rem); }
+/* Short screens (1024×600): the lane's header and balance give the routine their height. */
+@media (min-width: 768px) and (max-height: 700px) {
+  .lane-wall { padding: 0.875rem; }
+  .lane-wall .lane-avatar { height: 3rem; width: 3rem; font-size: 1.5rem; }
+  .lane-wall .lane-expand { height: 3rem; width: 3rem; }
+  .lane-wall .lane-balance { margin-top: 0.5rem; padding: 0.125rem 0.875rem; }
+  .lane-wall .lane-balance > * { font-size: 1.5rem; line-height: 2rem; }
+  .lane-wall .lane-routine { margin-top: 0.625rem; }
+  .lane-wall .lane-routine > p { margin-bottom: 0.375rem; }
+}
 .lane-name { font-size: clamp(1.5rem, 12cqi, 2.25rem); overflow-wrap: anywhere; }
 
 /* Routine steps in a lane: a grid of pictures that wraps instead of squeezing.

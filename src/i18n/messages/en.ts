@@ -158,7 +158,7 @@ const en = {
     energy: "Power right now", switches: "Switches", solar: "Solar", house: "Home uses",
     gridIn: "From the grid", gridOut: "Into the grid", gridIdle: "Grid", solarShare: "Share of the house running on solar", solarCovers: "The sun covers {p}% of what the house uses.",
     on: "On", off: "Off", unavailable: "Not reachable",
-    allOff: "Everything off", allOffConfirm: "Turn everything off", allOffHint: "Turns off every switch shown here ({n}). Everything else in Home Assistant stays as it is.",
+    allOff: "Everything off", moreSwitches: "{n} more switches", allOffConfirm: "Turn everything off", allOffHint: "Turns off every switch shown here ({n}). Everything else in Home Assistant stays as it is.",
   },
   cameras: {
     title: "Cameras", subtitle: "Tap a camera to watch it live.", notSetUp: "No cameras yet. An admin connects Frigate and picks cameras under Settings → Integrations → Frigate.", setUp: "Set up in Settings",

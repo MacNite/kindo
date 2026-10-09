@@ -67,9 +67,9 @@ export function WallDashboard() {
     weather: data.weather && <div className="wall-tile"><WeatherNow large /></div>,
     meal: tonight && (
       <Link href="/meals" className="wall-tile">
-        <p className="text-lg font-bold text-soft">{t("meals.tonight")}</p>
-        <p className="font-display text-3xl font-semibold leading-tight">{tx(tonight.dinner)}</p>
-        {cook && <p className="mt-2 flex items-center gap-2 text-lg text-soft"><Avatar member={cook} size="sm" />{t("meals.cooks", { name: cook.name })}</p>}
+        <p className="wall-tile-label text-lg font-bold text-soft">{t("meals.tonight")}</p>
+        <p className="wall-meal-dish font-display text-3xl font-semibold leading-tight">{tx(tonight.dinner)}</p>
+        {cook && <p className="wall-meal-cook mt-2 flex items-center gap-2 text-lg text-soft"><Avatar member={cook} size="sm" />{t("meals.cooks", { name: cook.name })}</p>}
       </Link>
     ),
     shopping: (
@@ -79,16 +79,16 @@ export function WallDashboard() {
       </Link>
     ),
     dates: (
-      // Fills what the other tiles leave, but never shrinks below its dates: the column scrolls instead.
+      // Fills what the other tiles leave: beside the lanes the column scrolls, in the top strip it shows as many dates as fit.
       <div className="wall-tile wall-grow">
-        <p className="wall-tile-title mb-2 text-lg font-bold text-soft">{t("widgets.dates")}</p>
+        <p className="wall-tile-title wall-tile-label mb-2 text-lg font-bold text-soft">{t("widgets.dates")}</p>
         <DatesList limit={3} large />
       </div>
     ),
     // The birthday wheel, when the household turned it on (D46).
     birthdays: (
       <div className="wall-tile wall-grow">
-        <p className="wall-tile-title mb-2 text-lg font-bold text-soft">{t("widgets.birthdays")}</p>
+        <p className="wall-tile-title wall-tile-label mb-2 text-lg font-bold text-soft">{t("widgets.birthdays")}</p>
         <BirthdaysCompact large />
       </div>
     ),
@@ -102,22 +102,23 @@ export function WallDashboard() {
     <div data-sync={sync} className="wall">
       <aside className="wall-side">
         <div className="wall-clock">
-          <p className="mb-2 text-xl text-soft">{greeting}, {data.household.name}</p>
+          <p className="wall-greeting text-soft">{greeting}, {data.household.name}</p>
           <BigClock size="xl" />
         </div>
         {wallTiles.filter((x) => x.enabled).map((x) => <Fragment key={x.id}>{tiles[x.id]}</Fragment>)}
       </aside>
 
       <main className="wall-main">
-        <FamilyLanes variant="wall" />
-        <nav className="flex shrink-0 flex-wrap items-center justify-end gap-3">
-          <button onClick={() => setWheel(true)} className="flex h-14 items-center gap-3 rounded-full bg-surface px-5 text-lg font-bold min-[1600px]:h-16 min-[1600px]:px-6"><Cake size={26} />{t("widgets.birthdays")}</button>
-          <WallBtn href="/kids" label={t("nav.kids")}><Smile size={26} /></WallBtn>
-          {home && <WallBtn href="/home-control" label={t("nav.homeControl")}><Lightbulb size={26} /></WallBtn>}
-          {cameras.length > 0 && <WallBtn href="/cameras" label={t("nav.cameras")}><Cctv size={26} /></WallBtn>}
-          <button onClick={() => setSaver(true)} className="flex h-14 items-center gap-3 rounded-full bg-surface px-5 text-lg font-bold min-[1600px]:h-16 min-[1600px]:px-6"><ImageIcon size={26} />{t("nav.photos")}</button>
-          <WallBtn href="/" label={t("nav.home")}><LayoutGrid size={26} /></WallBtn>
-        </nav>
+        <FamilyLanes variant="wall" actions={
+          <nav className="ml-auto flex flex-wrap items-center justify-end gap-3">
+            <button onClick={() => setWheel(true)} className={WALL_BTN}><Cake size={24} />{t("widgets.birthdays")}</button>
+            <WallBtn href="/kids" label={t("nav.kids")}><Smile size={24} /></WallBtn>
+            {home && <WallBtn href="/home-control" label={t("nav.homeControl")}><Lightbulb size={24} /></WallBtn>}
+            {cameras.length > 0 && <WallBtn href="/cameras" label={t("nav.cameras")}><Cctv size={24} /></WallBtn>}
+            <button onClick={() => setSaver(true)} className={WALL_BTN}><ImageIcon size={24} />{t("nav.photos")}</button>
+            <WallBtn href="/" label={t("nav.home")}><LayoutGrid size={24} /></WallBtn>
+          </nav>
+        } />
       </main>
 
       {wheel && <BirthdaysFullscreen onClose={() => setWheel(false)} />}
@@ -126,6 +127,8 @@ export function WallDashboard() {
   );
 }
 
+const WALL_BTN = "flex h-12 items-center gap-2 rounded-full bg-surface px-3.5 text-base font-bold min-[1280px]:gap-2.5 min-[1280px]:px-4 min-[1280px]:text-lg min-[1600px]:h-14 min-[1600px]:px-5";
+
 function WallBtn({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
-  return <Link href={href} className="flex h-14 items-center gap-3 rounded-full bg-surface px-5 text-lg font-bold min-[1600px]:h-16 min-[1600px]:px-6">{children}{label}</Link>;
+  return <Link href={href} className={WALL_BTN}>{children}{label}</Link>;
 }
