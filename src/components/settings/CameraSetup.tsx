@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Cctv, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Settings, Trash2 } from "lucide-react";
 import type { ConnectionInfo } from "@/lib/types";
 import { cameraId, guessStreams, type CameraChoices, type CameraSetup } from "@/lib/cameras";
 import { useI18n } from "@/i18n";
@@ -18,7 +18,7 @@ export function CameraSetupButton({ conn }: { conn: ConnectionInfo }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="sm" variant="ghost" onClick={() => setOpen(true)}><Cctv size={14} />{t("cameraSetup.open")}</Button>
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Settings size={14} />{t("cameraSetup.open")}</Button>
       {open && <CameraSetupDialog conn={conn} onClose={() => setOpen(false)} />}
     </>
   );
