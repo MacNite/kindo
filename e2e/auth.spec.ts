@@ -92,9 +92,19 @@ test("a wall display is paired with a code, ticks routines, and needs the PIN fo
   await expect(wall.getByRole("button", { name: "Devices", exact: true })).toHaveCount(0);
   await expect(wall.getByRole("button", { name: "Integrations", exact: true })).toHaveCount(0);
 
-  // Unpairing ends it.
+  // A typo at pairing is fixed by renaming; the display stays paired.
   await admin.reload();
-  const row = admin.getByRole("listitem").filter({ hasText: name });
+  await admin.getByRole("listitem").filter({ hasText: name }).getByRole("button", { name: "Rename" }).click();
+  const renamed = `Kitchen ${Date.now()}`;
+  const field = admin.getByLabel(`New name for ${name}`);
+  await field.fill(renamed);
+  await admin.getByRole("listitem").filter({ has: field }).getByRole("button", { name: "Save" }).click();
+  const row = admin.getByRole("listitem").filter({ hasText: renamed });
+  await expect(row).toBeVisible();
+  await wall.goto("/wall");
+  await expect(wall).toHaveURL(/\/wall$/);
+
+  // Unpairing ends it.
   await row.getByRole("button", { name: "Unpair" }).click();
   await expect(row).toHaveCount(0);
   await wall.goto("/wall");
