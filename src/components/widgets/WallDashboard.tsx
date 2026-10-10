@@ -15,6 +15,7 @@ import { Screensaver } from "../photos/Screensaver";
 import { Avatar } from "../ui/Avatar";
 import { HomeTile } from "../home/HomeControl";
 import { CamerasTile } from "../cameras/Cameras";
+import { MediaTile } from "../media/Media";
 import { BirthdaysCompact, BirthdaysFullscreen } from "../birthdays/Birthdays";
 import { useGreeting } from "./HomeScreen";
 
@@ -97,6 +98,8 @@ export function WallDashboard() {
     home: <HomeTile large />,
     // Frigate's cameras as still pictures, live on a tap (§22); beside them a tap opens their page. A ring opens over everything on its own.
     cameras: <CamerasTile large />,
+    // The kids' shelf (§23): what plays, or a few covers to start one; beside them a tap opens the shelf.
+    media: <MediaTile large />,
   };
 
   return (

@@ -18,7 +18,7 @@ describe("completeWidgets (§4)", () => {
   });
 });
 
-describe("completeWallTiles (§4, §21)", () => {
+describe("completeWallTiles (§4, §21, §23)", () => {
   it("starts from the wall as it always looked, Home control off", () => {
     expect(completeWallTiles([])).toEqual(DEFAULT_WALL_TILES);
     expect(completeWallTiles(null)).toEqual(DEFAULT_WALL_TILES);
@@ -28,7 +28,7 @@ describe("completeWallTiles (§4, §21)", () => {
 
   it("keeps the household's order and adds what is missing", () => {
     const t = completeWallTiles([{ id: "home", enabled: true }, { id: "dates", enabled: false }]);
-    expect(t.map((x) => x.id)).toEqual(["home", "dates", "weather", "meal", "shopping", "birthdays", "cameras"]);
+    expect(t.map((x) => x.id)).toEqual(["home", "dates", "weather", "meal", "shopping", "birthdays", "cameras", "media"]);
     expect(t[0].enabled).toBe(true);
   });
 });

@@ -8,7 +8,7 @@ People → Today → Routines & Tasks → Calendar → Rewards
 
 Kindo puts one screen on the wall that the whole family can read at a glance: what's happening today, and what each person still has to do. Young children who can't read yet follow their morning and evening routines through large picture cards. Parents get the same data on their phones.
 
-> **Status: v0.2.** Roadmap steps 1–10 are in (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*): PostgreSQL with live sync between screens, the recurrence engine, logins with single sign-on and paired wall displays, Nextcloud/CalDAV, Immich, ICS, Google Calendar, Home Assistant presence and Home control (a few switches and the solar flow), Frigate cameras with the doorbell and talking back, and an installable PWA with an offline shopping list. A new install starts empty; the Müller demo family can be loaded on the first-run screen.
+> **Status: v0.2.** Roadmap steps 1–12 are in (see [`docs/SPEC.md`](docs/SPEC.md), *Roadmap*): PostgreSQL with live sync between screens, the recurrence engine, logins with single sign-on and paired wall displays, Nextcloud/CalDAV, Immich, ICS, Google Calendar, Home Assistant presence and Home control (a few switches and the solar flow), Frigate cameras with the doorbell and talking back, a kids' shelf of music and audiobooks from Jellyfin and Audiobookshelf (on the screen or a Home Assistant speaker), talking to Home Assistant with a held button, and an installable PWA with an offline shopping list. A new install starts empty; the Müller demo family can be loaded on the first-run screen.
 
 | Wall display | Child view |
 |---|---|
@@ -147,6 +147,8 @@ src/
     api/auth/         Better Auth (password and single sign-on)
     api/photos/       Immich photo proxy with the disk cache
     api/cameras/      Camera still pictures and the WebRTC handshake (Frigate)
+    api/media/        Kids' shelf: sound and covers through Kindo, signed addresses for speakers
+    api/assist/       Push-to-talk: a short recording to Home Assistant's Assist
     api/integrations/ Google Calendar OAuth start and callback
     layout.tsx, providers.tsx, manifest.ts, sw.ts
   components/
@@ -155,7 +157,8 @@ src/
     widgets/          FamilyLanes, dashboard widgets, HomeScreen, WallDashboard
     routines/         ChildRoutine, RoutinesScreen, RecurrenceEditor, PictogramPicker
     auth/ setup/      Login and pairing screens, first-run setup
-    home/ cameras/    Home control, cameras and the doorbell
+    home/ cameras/    Home control and talking, cameras and the doorbell
+    media/            The kids' shelf, the player and the wall tile
     birthdays/        The birthday wheel
     calendar/ shopping/ rewards/ photos/ settings/
   lib/
@@ -177,13 +180,15 @@ src/
     homeassistant.ts  Home Assistant: presence, switches, doorbell sensors
     home.ts           Home control (§21)
     cameras.ts        Cameras and talking back (§22); frigate.ts talks to Frigate
+    media/            The kids' shelf (§23): Jellyfin, Audiobookshelf, speakers
+    assist.ts         Talking to Home Assistant (§24)
     demo/             The Müller demo family and the seed
   i18n/               messages/en.ts + de.ts (parity enforced by types and tests), formats
   instrumentation.ts  Starts the background jobs when the server starts
 prisma/               schema.prisma, migrations, seed-demo.ts
 scripts/              start-standalone.mjs, check-migration-drift.mjs, make-icons.mjs
 tests/                Integration tests against PostgreSQL
-e2e/                  Playwright specs, mock servers (OIDC, Immich, Home Assistant, Frigate), and prepare-db.ts for the suite's own database
+e2e/                  Playwright specs, mock servers (OIDC, Immich, Home Assistant, Frigate, Jellyfin and Audiobookshelf), and prepare-db.ts for the suite's own database
 docker/               entrypoint.sh, migrate.sh, healthcheck.sh
 docs/                 SPEC.md (product + decisions), screenshots
 ```
@@ -203,7 +208,12 @@ Everything below runs on the server. Passwords, API keys and tokens are entered 
 - **Home Assistant (presence for the photo frame):** the Home Assistant address, a long-lived access token and, optionally, one presence entity (motion, occupancy or a person). Kindo follows it over Home Assistant's WebSocket API: someone there wakes the wall from the photo frame, nobody there lets it go back to photos.
 - **Home Assistant (doorbell):** a doorbell's *Visitor* sensor rings on every screen; it is picked in the Frigate camera setup.
 - **Home Assistant (Home control):** once connected, *Home control* on the connection picks the lights, switches, fans or helpers the family may switch (with their own names) and the power sensors for the solar view: solar production, and optionally house consumption and grid power (W or kW). They show on `/home-control`, as a home-screen widget, and on the wall once the *Home control* tile is turned on in Settings → Dashboard. Anyone at the wall can switch them without the PIN, so leave out doors, heating and alarms; "Everything off" turns off exactly the switches on that list.
+- **Home Assistant (speakers and talking):** *Speakers & talking* on the connection's cog picks the media players the kids' shelf may play on, and how loud a tap may make each (they fetch the sound from `APP_URL`, so set it to an address the speakers reach), and turns on *Talk to Home Assistant*: adults, or a wall unlocked with the PIN, hold a button on Home control and speak; Home Assistant's Assist does the rest. What a command may switch is Home Assistant's *Expose* list. Talking needs Kindo over https (or opened on the device itself) for the microphone.
+- **Jellyfin (music for the kids' shelf):** the address and a Jellyfin user's name and password; Kindo keeps only the user's access token. Best a user just for the children, limited to their music, so Jellyfin's parental controls apply too. *Kids' shelf* on the connection's cog picks albums and audio playlists.
+- **Audiobookshelf (audiobooks for the kids' shelf):** the address and an account's API key (the account's library access and *explicit content* switch apply). *Kids' shelf* picks the books; a child can get their own account's key there, so each keeps their own place.
 - **Frigate (cameras and the doorbell):** see below.
+
+Every connection has a cog: change its address, account or secret in place (an empty secret keeps the stored one), and open its own setup.
 
 ### Cameras and the doorbell (Frigate)
 

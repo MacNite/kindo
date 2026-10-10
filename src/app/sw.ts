@@ -24,8 +24,9 @@ const serwist = new Serwist({
   runtimeCaching: [
     // Never cached: the live-sync stream, sign-in, health, integration sign-ins, and the cameras (D48): a
     // still picture from a cache would show the door as it was, and the cache ignores `no-store`.
+    // Listening and talking (§23, §24) neither: a player asks for ranges of long files, and a spoken command is said once.
     // Photos (/api/photos, D34) stay in the default API cache: an id is always the same picture.
-    { matcher: ({ url }) => /^\/api\/(stream|auth|health|integrations|cameras)(\/|$)/.test(url.pathname), handler: new NetworkOnly() },
+    { matcher: ({ url }) => /^\/api\/(stream|auth|health|integrations|cameras|media|assist)(\/|$)/.test(url.pathname), handler: new NetworkOnly() },
     ...defaultCache,
   ],
   fallbacks: { entries: [{ url: "/offline", matcher: ({ request }) => request.destination === "document" }] },

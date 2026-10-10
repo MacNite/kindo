@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Settings, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import type { ConnectionInfo } from "@/lib/types";
 import { cameraId, guessStreams, type CameraChoices, type CameraSetup } from "@/lib/cameras";
 import { useI18n } from "@/i18n";
@@ -12,24 +12,12 @@ import { Dialog } from "../ui/Dialog";
 import { Field, inputCls } from "../ui/Segmented";
 import { ErrorText } from "../ui/ErrorText";
 
-/** Opens the camera setup for a Frigate connection (§22). */
-export function CameraSetupButton({ conn }: { conn: ConnectionInfo }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Settings size={14} />{t("cameraSetup.open")}</Button>
-      {open && <CameraSetupDialog conn={conn} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
 /**
  * Which of Frigate's cameras the family sees, under which names; which
  * go2rtc streams to watch and to talk through; and which Home Assistant
  * sensor is the doorbell button. Picked from lists, so nobody types names.
  */
-function CameraSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () => void }) {
+export function CameraSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () => void }) {
   const { t } = useI18n();
   const { run } = useStore();
   const stored = conn.config as { cameras?: CameraSetup[]; fingerprint?: string };

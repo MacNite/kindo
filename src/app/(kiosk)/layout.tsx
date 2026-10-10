@@ -3,6 +3,7 @@ import { PinDialog } from "@/components/layout/PinDialog";
 import { WallFullscreen } from "@/components/layout/WallFullscreen";
 import { ErrorToast } from "@/components/ui/ErrorText";
 import { DoorbellWatcher } from "@/components/cameras/Cameras";
+import { MiniPlayer } from "@/components/media/Media";
 import { guardedSnapshot } from "@/server/guard";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
     <StoreProvider initial={snapshot}>
       <div className="min-h-dvh select-none">{children}</div>
       <WallFullscreen />
+      <MiniPlayer kiosk />
       <DoorbellWatcher />
       <PinDialog />
       <ErrorToast />

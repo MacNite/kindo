@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, Settings, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import type { ConnectionInfo } from "@/lib/types";
 import type { EnergySensors, HaEntityChoices, HomeControl } from "@/lib/home";
 import { useI18n } from "@/i18n";
@@ -12,24 +12,12 @@ import { Dialog } from "../ui/Dialog";
 import { Field, Switch, inputCls } from "../ui/Segmented";
 import { ErrorText } from "../ui/ErrorText";
 
-/** Opens the Home control setup for a Home Assistant connection (§21). */
-export function HomeSetupButton({ conn }: { conn: ConnectionInfo }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Settings size={14} />{t("homeSetup.open")}</Button>
-      {open && <HomeSetupDialog conn={conn} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
 /**
  * Which switches the family sees, under which names, and which power sensors
  * feed the solar view. Picked from what Home Assistant has, so nobody has to
  * type entity ids.
  */
-function HomeSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () => void }) {
+export function HomeSetupDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () => void }) {
   const { t } = useI18n();
   const { run } = useStore();
   const stored = conn.config as { controls?: HomeControl[]; energy?: EnergySensors };

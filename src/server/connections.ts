@@ -12,6 +12,9 @@ import { ICS_REMOTE_ID, readFeed } from "./calendar/ics";
 import { parseCalendar } from "./calendar/ical";
 import { checkToken, readEntity, refreshPresenceWatchers, type HaStoredConfig } from "./homeassistant";
 import { listFrigate, frigateTarget } from "./frigate";
+import { updateFrigate } from "./cameras";
+import { checkMedia, updateMediaConnection } from "./media/media";
+import { decryptSecret } from "./crypto";
 
 /**
  * Connections to outside services and the calendars they bring (§5, §15,
@@ -41,6 +44,19 @@ export const C = {
     background: z.boolean(),
   }),
   byId: z.object({ id }),
+  /**
+   * The cog in Settings: a connection's name, address, account or secret.
+   * An empty or missing secret keeps the stored one.
+   */
+  update: z.object({
+    id,
+    name: z.string().trim().max(60).optional(),
+    url: z.string().trim().max(2000).optional(),
+    username: z.string().trim().max(200).optional(),
+    secret: z.string().max(2000).optional(),
+    entityId: z.union([z.literal(""), z.string().trim().regex(/^[a-z_]+\.[a-z0-9_]+$/, "an entity id like binary_sensor.hallway_motion")]).optional(),
+    trustCertificate: z.boolean().optional(),
+  }),
 };
 type In<K extends keyof typeof C> = z.output<(typeof C)[K]>;
 const json = (v: unknown) => v as Prisma.InputJsonValue;
@@ -137,14 +153,14 @@ export async function addGoogle(db: Tx, input: { email: string; refreshToken: st
 /**
  * Connects Home Assistant for presence (§19.8) and Home control (§21): checks
  * the token and the presence entity first. One connection per household; a
- * new one keeps the switches and sensors the old one had.
+ * new one keeps the switches, sensors, speakers and voice setup the old one had.
  */
 export async function addHomeAssistant(db: Tx, input: In<"addHomeAssistant">) {
   if (input.entityId) await readEntity(input.url, input.token, input.entityId);
   else await checkToken(input.url, input.token);
   const old = (await db.connection.findFirst({ where: { kind: "homeassistant" } }))?.config as HaStoredConfig | undefined;
   await db.connection.deleteMany({ where: { kind: "homeassistant" } });
-  const config: HaStoredConfig = { entityId: input.entityId || undefined, controls: old?.controls, energy: old?.energy };
+  const config: HaStoredConfig = { entityId: input.entityId || undefined, controls: old?.controls, energy: old?.energy, speakers: old?.speakers, voice: old?.voice };
   const conn = await db.connection.create({
     data: { kind: "homeassistant", name: input.entityId || new URL(input.url).host, url: input.url, secret: encryptSecret(input.token), config: json(config), status: "pending" },
   });
@@ -198,12 +214,76 @@ export async function removeConnection(db: Tx, input: In<"byId">) {
   if (gone?.kind === "homeassistant" || gone?.kind === "frigate") await refreshPresenceWatchers();
 }
 
+/**
+ * Changes a connection in place (§15, the cog in Settings): checked against
+ * the service first, like adding it, so a typo doesn't break what worked.
+ * Its calendars, albums, switches, cameras and shelf stay.
+ */
+export async function updateConnection(db: Tx, input: In<"update">) {
+  const conn = await db.connection.findUnique({ where: { id: input.id } });
+  if (!conn) throw notFound("connection");
+  const url = input.url ? httpUrl.parse(input.url) : conn.url ?? "";
+  const secret = input.secret?.trim() ? input.secret : undefined;
+  const stored = () => (conn.secret ? decryptSecret(conn.secret) : "");
+  const name = input.name || conn.name;
+  const done = { status: "ok" as const, lastError: null, lastSyncAt: new Date() };
+  switch (conn.kind) {
+    case "caldav": {
+      const username = input.username || conn.username || "";
+      const password = secret ?? stored();
+      const calendars = await listCalendars({ url, username, password });
+      if (!calendars.length) throw new UserError("remote", "no calendars found at this address");
+      await db.connection.update({ where: { id: conn.id }, data: { name, url, username, secret: encryptSecret(password), ...done } });
+      await syncNow(db, { id: conn.id }).catch(() => {});
+      return;
+    }
+    case "ics": {
+      if (secret) {
+        const text = await readFeed(secret).catch((e) => {
+          throw e instanceof UserError ? e : new UserError("remote", e instanceof Error ? e.message : String(e));
+        });
+        parseCalendar(text, { from: new Date(0), to: new Date(0) });
+      }
+      await db.connection.update({ where: { id: conn.id }, data: { name, ...(secret ? { secret: encryptSecret(secret.trim()) } : {}) } });
+      if (secret) await syncNow(db, { id: conn.id }).catch(() => {});
+      return;
+    }
+    case "google":
+      await db.connection.update({ where: { id: conn.id }, data: { name } });
+      return;
+    case "immich": {
+      const apiKey = secret?.trim() ?? stored();
+      await listAlbums({ url, apiKey });
+      await db.connection.update({ where: { id: conn.id }, data: { name, url, secret: encryptSecret(apiKey), ...done } });
+      return;
+    }
+    case "homeassistant": {
+      const token = secret?.trim() ?? stored();
+      const entityId = input.entityId ?? ((conn.config as HaStoredConfig).entityId ?? "");
+      if (entityId) await readEntity(url, token, entityId);
+      else await checkToken(url, token);
+      const config: HaStoredConfig = { ...(conn.config as HaStoredConfig), entityId: entityId || undefined };
+      await db.connection.update({ where: { id: conn.id }, data: { name: entityId || new URL(url).host, url, secret: encryptSecret(token), config: json(config), ...done } });
+      await refreshPresenceWatchers();
+      return;
+    }
+    case "frigate":
+      await updateFrigate(db, conn, { url, username: input.username ?? conn.username ?? "", password: secret, trustCertificate: input.trustCertificate ?? false });
+      return;
+    case "jellyfin":
+    case "audiobookshelf":
+      await updateMediaConnection(db, conn, { name: input.name, url, username: input.username, secret: secret?.trim() });
+      return;
+  }
+}
+
 /** "Sync now": new calendars first, then every calendar regardless of its change marker. */
 export async function syncNow(db: Tx, input: In<"byId">) {
   const conn = await db.connection.findUnique({ where: { id: input.id } });
   if (!conn) throw notFound("connection");
   if (conn.kind === "immich") return syncPhotos(db, conn);
   if (conn.kind === "homeassistant") return refreshPresenceWatchers();
+  if (conn.kind === "jellyfin" || conn.kind === "audiobookshelf") return checkMedia(db, conn);
   if (conn.kind === "frigate") {
     // Nothing to sync: check that Frigate still answers and the login still works.
     try {

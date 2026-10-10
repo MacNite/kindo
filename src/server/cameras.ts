@@ -57,16 +57,7 @@ export const camerasOf = (conn: Pick<Connection, "config"> | null | undefined): 
  * the cameras the old one had.
  */
 export async function addFrigate(db: Tx, input: In<"addFrigate">) {
-  let fingerprint: string | undefined;
-  if (input.url.toLowerCase().startsWith("https:")) {
-    const cert = await probeCertificate(input.url);
-    if (!cert.trusted) {
-      if (!input.trustCertificate) throw new UserError("remote", "Frigate's certificate isn't trusted (self-signed?); turn on \"Trust Frigate's own certificate\"");
-      fingerprint = cert.fingerprint;
-    }
-  }
-  const target: FrigateTarget = { url: input.url, username: input.username, password: input.password, fingerprint };
-  await listFrigate(target);
+  const fingerprint = await frigateLogin(input);
   const old = await db.connection.findMany({ where: { kind: "frigate" } });
   old.forEach((c) => forgetToken(frigateTarget(c)));
   await db.connection.deleteMany({ where: { kind: "frigate" } });
@@ -79,6 +70,40 @@ export async function addFrigate(db: Tx, input: In<"addFrigate">) {
   });
   await refreshPresenceWatchers();
   return conn.id;
+}
+
+/** Checks the address, the certificate and the login; the fingerprint to pin, if the admin trusted Frigate's own certificate. */
+async function frigateLogin(input: { url: string; username: string; password: string; trustCertificate: boolean }, pinned?: string) {
+  let fingerprint: string | undefined;
+  if (input.url.toLowerCase().startsWith("https:")) {
+    const cert = await probeCertificate(input.url);
+    if (!cert.trusted) {
+      // The certificate the admin trusted before still counts, as long as it is the same one.
+      if (pinned && cert.fingerprint === pinned) fingerprint = pinned;
+      else if (!input.trustCertificate) throw new UserError("remote", "Frigate's certificate isn't trusted (self-signed?); turn on \"Trust Frigate's own certificate\"");
+      else fingerprint = cert.fingerprint;
+    }
+  }
+  const target: FrigateTarget = { url: input.url, username: input.username, password: input.password, fingerprint };
+  await listFrigate(target);
+  return fingerprint;
+}
+
+/** Changes Frigate's address or login (the cog in Settings). The cameras stay; an empty password keeps the stored one. */
+export async function updateFrigate(db: Tx, conn: Connection, input: { url: string; username: string; password?: string; trustCertificate: boolean }) {
+  const old = frigateTarget(conn);
+  const password = input.password ?? (input.username === old.username ? old.password : "");
+  if (Boolean(input.username) !== Boolean(password)) throw new UserError("invalid", "a user and its password, or neither");
+  const fingerprint = await frigateLogin({ url: input.url, username: input.username, password, trustCertificate: input.trustCertificate }, old.fingerprint);
+  forgetToken(old);
+  const cfg = (conn.config ?? {}) as FrigateStoredConfig;
+  await db.connection.update({
+    where: { id: conn.id },
+    data: {
+      name: new URL(input.url).host, url: input.url, username: input.username || null, secret: password ? encryptSecret(password) : null,
+      config: json({ ...cfg, fingerprint } satisfies FrigateStoredConfig), status: "ok", lastError: null, lastSyncAt: new Date(),
+    },
+  });
 }
 
 async function frigateById(db: Tx, connId: string) {

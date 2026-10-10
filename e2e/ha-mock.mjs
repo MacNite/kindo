@@ -4,7 +4,9 @@
  * `POST /__state` ("on" / "off"), two lights, a plug, a lock Kindo must
  * never switch, solar, house, feed-in and grid draw power sensors
  * (`POST /__power`), and a doorbell's visitor sensor (`POST /__ring`
- * presses it: on, then off again).
+ * presses it: on, then off again). A speaker (`media_player.kitchen_speaker`)
+ * that plays, pauses, stops, queues and turns up, and Assist (§24): any
+ * spoken command turns the kitchen light on and answers "Licht ist an".
  */
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
@@ -25,7 +27,12 @@ const initial = () => ({
   "sensor.grid_feed_in": { state: "2000", attributes: { friendly_name: "Meter feed-in", unit_of_measurement: "W", device_class: "power" } },
   "sensor.grid_draw": { state: "0", attributes: { friendly_name: "Meter draw", unit_of_measurement: "W", device_class: "power" } },
   "sensor.outside_temperature": { state: "14", attributes: { friendly_name: "Outside", unit_of_measurement: "°C", device_class: "temperature" } },
+  // Seek (2), volume (4), play media (512), enqueue (2097152), and more.
+  "media_player.kitchen_speaker": { state: "idle", attributes: { friendly_name: "Kitchen speaker", volume_level: 0.8, supported_features: 2 | 4 | 512 | 2_097_152 } },
 });
+export const SPEAKER = "media_player.kitchen_speaker";
+/** A spoken answer, as Home Assistant's TTS proxy serves it. */
+const TTS = Buffer.from("ID3-fake-mp3-answer");
 
 export function startHaMock(port = 0) {
   const states = initial();
@@ -69,6 +76,7 @@ export function startHaMock(port = 0) {
       calls.length = 0;
       return res.writeHead(200).end();
     }
+    if (url.pathname === "/api/tts_proxy/answer.mp3") return res.writeHead(200, { "content-type": "audio/mpeg" }).end(TTS);
     if (req.headers.authorization !== `Bearer ${HA_TOKEN}`) return res.writeHead(401).end();
     if (url.pathname === "/api/") return json(res, { message: "API running." });
     if (url.pathname === "/api/states") return json(res, Object.entries(states).map(([entity_id, s]) => ({ entity_id, ...s })));
@@ -86,6 +94,17 @@ export function startHaMock(port = 0) {
       for (const id of ids) {
         if (service[2] === "turn_on") set(id, "on");
         if (service[2] === "turn_off") set(id, "off");
+        if (service[1] === "media_player") {
+          const a = states[id].attributes;
+          if (service[2] === "play_media") {
+            if (data.enqueue !== "add") a.media_title = data.media_content_id;
+            set(id, "playing");
+          }
+          if (service[2] === "media_play") set(id, "playing");
+          if (service[2] === "media_pause") set(id, "paused");
+          if (service[2] === "media_stop") set(id, "idle");
+          if (service[2] === "volume_set") a.volume_level = data.volume_level;
+        }
       }
       return json(res, []);
     }
@@ -96,9 +115,38 @@ export function startHaMock(port = 0) {
   wss.on("connection", (ws) => {
     ws.send(JSON.stringify({ type: "auth_required" }));
     const mine = [];
-    ws.on("message", (raw) => {
+    /** The Assist run waiting for audio, and how much came. */
+    let run = null;
+    ws.on("message", (raw, isBinary) => {
+      if (isBinary) {
+        if (!run) return;
+        const frame = Buffer.from(raw);
+        if (frame[0] !== 1) return;
+        if (frame.length > 1) return void (run.bytes += frame.length - 1);
+        // The end of speech: understood, done, answered.
+        const ev = (type, data = {}) => ws.send(JSON.stringify({ id: run.id, type: "event", event: { type, data } }));
+        if (run.bytes < 3200) ev("error", { code: "stt-no-text-recognized", message: "No text recognized" });
+        else {
+          calls.push({ domain: "assist", service: "run", bytes: run.bytes, pipeline: run.pipeline });
+          ev("stt-end", { stt_output: { text: "Licht in der Küche an" } });
+          set("light.kitchen", "on");
+          ev("intent-end", { intent_output: { response: { speech: { plain: { speech: "Licht ist an" } } } } });
+          ev("tts-end", { tts_output: { url: "/api/tts_proxy/answer.mp3", mime_type: "audio/mpeg" } });
+        }
+        ev("run-end");
+        run = null;
+        return;
+      }
       const msg = JSON.parse(String(raw));
       if (msg.type === "auth") ws.send(JSON.stringify({ type: msg.access_token === HA_TOKEN ? "auth_ok" : "auth_invalid" }));
+      if (msg.type === "assist_pipeline/pipeline/list") {
+        ws.send(JSON.stringify({ id: msg.id, type: "result", success: true, result: { pipelines: [{ id: "pipe-de", name: "Zuhause", language: "de" }, { id: "pipe-en", name: "Home", language: "en" }], preferred_pipeline: "pipe-de" } }));
+      }
+      if (msg.type === "assist_pipeline/run") {
+        run = { id: msg.id, bytes: 0, pipeline: msg.pipeline };
+        ws.send(JSON.stringify({ id: msg.id, type: "result", success: true, result: null }));
+        ws.send(JSON.stringify({ id: msg.id, type: "event", event: { type: "run-start", data: { pipeline: msg.pipeline ?? "pipe-de", runner_data: { stt_binary_handler_id: 1 } } } }));
+      }
       if (msg.type === "get_states") ws.send(JSON.stringify({ id: msg.id, type: "result", success: true, result: Object.entries(states).map(([entity_id, s]) => ({ entity_id, ...s })) }));
       if (msg.type === "subscribe_trigger") {
         const watched = [msg.trigger.entity_id].flat();

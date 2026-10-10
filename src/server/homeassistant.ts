@@ -1,5 +1,6 @@
 import type { Connection } from "@prisma/client";
 import type { EnergySensors, HomeControl } from "@/lib/home";
+import type { Speaker } from "@/lib/media";
 import type { Tx } from "./db";
 import { decryptSecret } from "./crypto";
 import { ringFor } from "./doorbell";
@@ -77,7 +78,12 @@ export async function switchEntities(url: string, token: string, entityIds: stri
   await haFetch(url, token, `/api/services/homeassistant/${on ? "turn_on" : "turn_off"}`, { method: "POST", body: JSON.stringify({ entity_id: entityIds }) }, "service");
 }
 
-const wsUrl = (url: string) => `${base(url).replace(/^http/i, "ws")}/api/websocket`;
+/** Calls any Home Assistant service. Callers decide which ones a device may reach. */
+export async function callService(url: string, token: string, domain: string, service: string, data: Record<string, unknown>) {
+  await haFetch(url, token, `/api/services/${domain}/${service}`, { method: "POST", body: JSON.stringify(data) }, "service");
+}
+
+export const wsUrl = (url: string) => `${base(url).replace(/^http/i, "ws")}/api/websocket`;
 
 interface WatchHandlers {
   onPresence: (present: boolean) => void;
@@ -196,7 +202,14 @@ const g = globalThis as unknown as { kindoPresence?: Map<string, Watcher> };
 const watchers = (g.kindoPresence ??= new Map());
 
 /** Non-secret settings stored on the connection (`Connection.config`). */
-export interface HaStoredConfig { entityId?: string; presentStates?: string[]; controls?: HomeControl[]; energy?: EnergySensors }
+export interface HaStoredConfig {
+  entityId?: string; presentStates?: string[]; controls?: HomeControl[]; energy?: EnergySensors;
+  /** Speakers the kids' shelf may play on (§23). */
+  speakers?: Speaker[];
+  /** Talking to Home Assistant (§24): on, and which Assist pipeline (Home Assistant's preferred one when unset). */
+  voice?: VoiceSetup;
+}
+export interface VoiceSetup { on: boolean; pipeline?: string }
 
 export function haConfig(c: Connection): HaConfig {
   const cfg = (c.config ?? {}) as HaStoredConfig;

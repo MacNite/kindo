@@ -31,7 +31,9 @@ test("Frigate cameras: set up, ring on the wall over the photos, and talk back (
   await dialog.getByRole("button", { name: "Connect" }).click();
   await expect(dialog).toBeHidden({ timeout: 20_000 });
 
-  await card.getByRole("button", { name: "Cameras" }).click();
+  // Everything about a connection is behind its cog.
+  await card.getByRole("button", { name: /^Settings for / }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Cameras" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "front_door" }).click();
   const row = dialog.getByTestId("camera-setup-front-door");

@@ -12,6 +12,8 @@ import { weatherForWire } from "./weather";
 import { completeWallTiles, completeWidgets } from "@/lib/dashboard";
 import { homeSetupOf } from "./home";
 import { camerasOf } from "./cameras";
+import { mediaSetupOf, shelfOf } from "./media/media";
+import { voiceOf } from "./assist";
 import { env } from "./env";
 
 /** How far back completions travel to the devices: enough for a two-week history view. */
@@ -129,6 +131,8 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     features: { google: Boolean(env().google) },
     home: homeSetupOf(connections.find((c) => c.kind === "homeassistant")),
     cameras: camerasOf(connections.find((c) => c.kind === "frigate")),
+    media: mediaSetupOf(connections),
+    voice: Boolean(voiceOf(connections.find((c) => c.kind === "homeassistant"))),
   };
 }
 
@@ -142,7 +146,9 @@ function integrationsFor(demo: boolean, connections: ConnRow[], sources: { conne
     const calendars = sources.filter((s) => mine.some((c) => c.id === s.connectionId)).length;
     const status = mine.every((c) => c.status === "ok") ? "connected" : "partial";
     const cameras = kinds.includes("frigate") ? camerasOf(mine[mine.length - 1]).length : 0;
+    const shelf = mine.reduce((n, c) => n + shelfOf(c).length, 0);
     const detail = kinds.includes("frigate") ? { en: `${cameras} cameras`, de: `${cameras} Kameras` }
+      : kinds.includes("jellyfin") || kinds.includes("audiobookshelf") ? { en: `${shelf} on the kids' shelf`, de: `${shelf} im Kinderregal` }
       : kinds.includes("immich") || kinds.includes("homeassistant")
       ? { en: `${mine.length} connected`, de: `${mine.length} verbunden` }
       : { en: `${calendars} calendars`, de: `${calendars} Kalender` };
@@ -150,6 +156,7 @@ function integrationsFor(demo: boolean, connections: ConnRow[], sources: { conne
   };
   const real: Integration[] = [
     card("nextcloud", ["caldav"]), card("immich", ["immich"]), card("google", ["google"]), card("ics", ["ics"]), card("homeassistant", ["homeassistant"]), card("frigate", ["frigate"]),
+    card("jellyfin", ["jellyfin"]), card("audiobookshelf", ["audiobookshelf"]),
   ];
   if (!demo || connections.length) return real;
   return [
@@ -159,5 +166,7 @@ function integrationsFor(demo: boolean, connections: ConnRow[], sources: { conne
     { id: "ics", status: "connected", detail: { en: "Demo: school, waste collection", de: "Demo: Schule, Abfallkalender" } },
     { id: "homeassistant", status: "off" },
     { id: "frigate", status: "off" },
+    { id: "jellyfin", status: "off" },
+    { id: "audiobookshelf", status: "off" },
   ];
 }
