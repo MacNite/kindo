@@ -12,12 +12,13 @@ import { useSearchParams } from "next/navigation";
 import { PROVIDER_ICON } from "../calendar/CalendarScreen";
 import { Button, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
-import { Field, Switch, inputCls } from "../ui/Segmented";
+import { Field, Segmented, Switch, inputCls } from "../ui/Segmented";
 import { MemberFilter } from "../ui/MemberFilter";
 import { AvatarStack } from "../ui/Avatar";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 import { ConnectionSettingsButton } from "./ConnectionSettings";
+import { JellyfinQuickConnect } from "./JellyfinQuickConnect";
 import { toggled } from "@/lib/sets";
 
 type Done = { ok: boolean; error?: string };
@@ -306,11 +307,13 @@ function FrigateForm({ onClose }: { onClose: () => void }) {
 /**
  * Jellyfin, music only (§23): signs in as a Jellyfin user. Best one made for
  * the children, so Jellyfin's own library access and parental controls apply
- * to everything Kindo shows. Only the access token is kept.
+ * to everything Kindo shows. Only the access token is kept. Quick Connect
+ * comes first: it also works for users who sign in with single sign-on (D65).
  */
 function JellyfinForm({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
   const { run } = useStore();
+  const [way, setWay] = useState<"quick" | "password">("quick");
   const [url, setUrl] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -318,6 +321,7 @@ function JellyfinForm({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<{ code: string; detail?: string } | null>(null);
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
+    if (way !== "password") return;
     setBusy(true);
     const r = await run(() => addJellyfin({ url, username, password }));
     setBusy(false);
@@ -326,13 +330,24 @@ function JellyfinForm({ onClose }: { onClose: () => void }) {
   };
   return (
     <Dialog open onClose={onClose} title={t("settings.integrations.jellyfin")}
-      footer={<><ErrorText code={error?.code} detail={error?.detail} className="mr-auto max-w-sm self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-        <Button variant="primary" disabled={busy || !url || !username} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button></>}>
+      footer={<>{way === "password" && <ErrorText code={error?.code} detail={error?.detail} className="mr-auto max-w-sm self-center" />}<Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        {way === "password" && <Button variant="primary" disabled={busy || !url || !username} onClick={() => submit()}>{busy ? t("integrations.connecting") : t("integrations.connect")}</Button>}</>}>
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-soft">{t("integrations.jellyfinHint")}</p>
+        <Segmented label={t("integrations.signInWith")} value={way} onChange={setWay} className="self-start"
+          options={[{ value: "quick", label: t("integrations.quickConnect") }, { value: "password", label: t("integrations.withPassword") }]} />
         <Field label={t("integrations.serverUrl")}><input className={inputCls} type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://jellyfin.local:8096" /></Field>
-        <Field label={t("integrations.username")} hint={t("integrations.jellyfinUserHint")}><input className={inputCls} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></Field>
-        <Field label={t("integrations.password")}><input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" /></Field>
+        {way === "quick" ? (
+          <>
+            <p className="text-sm text-soft">{t("integrations.qcHint")}</p>
+            <JellyfinQuickConnect url={url} onDone={onClose} />
+          </>
+        ) : (
+          <>
+            <Field label={t("integrations.username")} hint={t("integrations.jellyfinUserHint")}><input className={inputCls} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></Field>
+            <Field label={t("integrations.password")}><input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" /></Field>
+          </>
+        )}
         <button type="submit" hidden />
       </form>
     </Dialog>

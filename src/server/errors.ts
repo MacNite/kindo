@@ -12,7 +12,9 @@ export type ErrorCode =
   /** Someone else is talking through this camera (§22). */
   | "busy"
   /** Not a picture Kindo takes (D61). */
-  | "photo";
+  | "photo"
+  /** Jellyfin's Quick Connect is off, or its code ran out (D65). */
+  | "quickConnectOff" | "expired";
 
 export class UserError extends Error {
   constructor(public code: ErrorCode, message?: string) {

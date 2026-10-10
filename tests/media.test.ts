@@ -8,7 +8,7 @@ import { syncPresenceWatchers } from "@/server/homeassistant";
 import { loadSnapshot } from "@/server/snapshot";
 import { seedDemo } from "@/server/demo/seed";
 // @ts-expect-error: plain ESM test helper
-import { ABS_KEY, ABS_MIA_KEY, JF_PASSWORD, JF_USER, startMediaMock } from "../e2e/media-mock.mjs";
+import { ABS_KEY, ABS_MIA_KEY, JF_PASSWORD, JF_SSO_TOKEN, JF_USER, startMediaMock } from "../e2e/media-mock.mjs";
 // @ts-expect-error: plain ESM test helper
 import { HA_TOKEN, SPEAKER, startHaMock } from "../e2e/ha-mock.mjs";
 import { TEST_DB, VIEWER, resetTestDatabase } from "./db";
@@ -218,5 +218,41 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
     await C.updateConnection(db, { id: abs, name: "Hörbücher" });
     expect((await db.connection.findUniqueOrThrow({ where: { id: abs } })).name).toBe("Hörbücher");
     await expect(C.updateConnection(db, { id: abs, url: "ftp://nope" })).rejects.toThrow();
+  });
+
+  it("signs in to Jellyfin with Quick Connect, for a user without a password, new or in place (D65)", async () => {
+    // What Jellyfin's own screen does when Mia, signed in with single sign-on, enters the code.
+    const approve = (code: string) => fetch(`${media.jellyfin}/QuickConnect/Authorize?code=${code}`, { method: "POST", headers: { Authorization: `MediaBrowser Token="${JF_SSO_TOKEN}"` } });
+
+    await fetch(`${media.url}/__quickconnect`, { method: "POST", body: JSON.stringify({ enabled: false }) });
+    await expect(M.quickConnectStart({ url: media.jellyfin })).rejects.toMatchObject({ code: "quickConnectOff" });
+    await fetch(`${media.url}/__quickconnect`, { method: "POST", body: JSON.stringify({ enabled: true }) });
+
+    // A new connection: nothing until the code is entered, and the secret stays on the server.
+    const first = await M.quickConnectStart({ url: media.jellyfin });
+    expect(first.code).toMatch(/^\d{6}$/);
+    expect(first.attempt).not.toContain("qc-secret");
+    expect(await M.quickConnect(db, { attempt: first.attempt })).toEqual({ done: false });
+    await expect(M.quickConnect(db, { attempt: first.attempt }, Date.now() + 16 * 60_000)).rejects.toMatchObject({ code: "expired" });
+    await expect(M.quickConnect(db, { attempt: "v1:forged:attempt:x" })).rejects.toMatchObject({ code: "invalid" });
+    expect((await approve(first.code)).ok).toBe(true);
+    const made = await M.quickConnect(db, { attempt: first.attempt });
+    expect(made).toMatchObject({ done: true, name: "Mia", switched: false });
+    const fresh = await db.connection.findUniqueOrThrow({ where: { id: made.done ? made.id : "" } });
+    expect(fresh).toMatchObject({ kind: "jellyfin", username: "Mia", status: "ok", config: { userId: "user-mia", shelf: [] } });
+    expect(await M.browse(db, { id: fresh.id, search: "" })).not.toHaveLength(0);
+    // A code is good for one sign-in.
+    await expect(M.quickConnect(db, { attempt: first.attempt })).rejects.toMatchObject({ code: "expired" });
+    await db.connection.delete({ where: { id: fresh.id } });
+
+    // The cog: the existing connection signs in again as another user and keeps its shelf.
+    const again = await M.quickConnectStart({ url: media.jellyfin });
+    await expect(M.quickConnect(db, { attempt: again.attempt, id: abs })).rejects.toMatchObject({ code: "invalid" });
+    await approve(again.code);
+    expect(await M.quickConnect(db, { attempt: again.attempt, id: jf })).toEqual({ done: true, id: jf, name: "Mia", switched: true });
+    const conn = await db.connection.findUniqueOrThrow({ where: { id: jf } });
+    expect(conn).toMatchObject({ username: "Mia", config: { userId: "user-mia" } });
+    expect(M.shelfOf(conn)).toHaveLength(2);
+    expect((await M.queue(db, { itemId: M.shelfOf(conn)[0].id })).tracks.length).toBeGreaterThan(0);
   });
 });

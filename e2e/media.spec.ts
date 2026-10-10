@@ -29,6 +29,7 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   await card.getByRole("button", { name: /Set up|Add another/ }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByLabel("Server address").fill(`${MEDIA}/jellyfin`);
+  await dialog.getByRole("radio", { name: "Username & password" }).click();
   await dialog.getByLabel("Username").fill("kids");
   await dialog.getByLabel("Password", { exact: true }).fill("secret");
   await dialog.getByRole("button", { name: "Connect" }).click();
@@ -128,6 +129,53 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   assertNoErrors();
 });
 
+test("Jellyfin with Quick Connect: a child who signs in with single sign-on, and signing in again behind the cog (D65)", async ({ page, request }) => {
+  test.setTimeout(60_000);
+  const { assertNoErrors } = await prepare(page);
+  await request.post(`${MEDIA}/__reset`);
+  page.on("dialog", (d) => void d.accept());
+  // What Jellyfin's own screen does when the user enters the code.
+  const approve = async (token: string) => {
+    const code = (await page.getByTestId("quick-connect-code").innerText()).trim();
+    const r = await request.post(`${MEDIA}/jellyfin/QuickConnect/Authorize?code=${code}`, { headers: { Authorization: `MediaBrowser Token="${token}"` } });
+    expect(r.ok()).toBe(true);
+  };
+  await page.goto("/settings?section=integrations");
+
+  // Quick Connect is the first way; off in Jellyfin, it says so.
+  const card = page.getByTestId("integration-jellyfin");
+  await card.getByRole("button", { name: /Set up|Add another/ }).click();
+  let dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("radio", { name: "Quick Connect" })).toHaveAttribute("aria-checked", "true");
+  await expect(dialog.getByLabel("Password", { exact: true })).toHaveCount(0);
+  await dialog.getByLabel("Server address").fill(`${MEDIA}/jellyfin`);
+  await request.post(`${MEDIA}/__quickconnect`, { data: { enabled: false } });
+  await dialog.getByRole("button", { name: "Get a code" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("Quick Connect is off in Jellyfin");
+  await request.post(`${MEDIA}/__quickconnect`, { data: { enabled: true } });
+
+  // Mia has no password: she enters the code in Jellyfin, and Kindo is signed in as her.
+  await dialog.getByRole("button", { name: "Get a code" }).click();
+  await expect(dialog.getByText("Waiting for the code to be entered")).toBeVisible();
+  await approve("jf-sso-mia-token");
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(card).toContainText("Mia");
+
+  // Behind the cog: signing in again as another user keeps the shelf, and says so.
+  await card.getByRole("button", { name: /^Settings for / }).click();
+  dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Get a code" }).click();
+  await approve("jf-access-token");
+  await expect(dialog.getByRole("status").filter({ hasText: "Now signed in as Kids, another Jellyfin user" })).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByLabel("Username")).toHaveValue("Kids");
+  await dialog.getByRole("button", { name: "Close" }).last().click();
+
+  // Leave nothing behind.
+  await card.getByRole("button", { name: "Disconnect" }).click();
+  await expect(card.getByRole("button", { name: "Disconnect" })).toHaveCount(0);
+  assertNoErrors();
+});
+
 test("a locked wall asks for the PIN to start the shelf, and plays once it is in (D64)", async ({ browser }) => {
   test.setTimeout(90_000);
   const admin = await (await browser.newContext({ storageState: ADMIN_STATE })).newPage();
@@ -143,6 +191,7 @@ test("a locked wall asks for the PIN to start the shelf, and plays once it is in
   await card.getByRole("button", { name: /Set up|Add another/ }).click();
   let dialog = admin.getByRole("dialog");
   await dialog.getByLabel("Server address").fill(`${MEDIA}/jellyfin`);
+  await dialog.getByRole("radio", { name: "Username & password" }).click();
   await dialog.getByLabel("Username").fill("kids");
   await dialog.getByLabel("Password", { exact: true }).fill("secret");
   await dialog.getByRole("button", { name: "Connect" }).click();
