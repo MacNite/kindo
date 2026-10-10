@@ -9,6 +9,7 @@ import { useToday } from "@/lib/useToday";
 import { upcomingDates } from "@/lib/dates-important";
 import { dateKey } from "@/lib/dates";
 import { parseDay } from "@/lib/recurrence";
+import { AVATAR_EMOJI } from "@/lib/avatars";
 import { getAccountAdmin } from "@/lib/services/accounts";
 import { deleteImportantDate, deleteMember, saveImportantDate, saveMember, setDayTimes, setHolidayFeeds, syncHolidaysNow } from "@/lib/services/actions";
 import { Dialog } from "../ui/Dialog";
@@ -19,13 +20,6 @@ import { MemberPicker } from "../ui/MemberPicker";
 import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 import { MEMBER_COLORS, colorName } from "../ui/memberColors";
-
-/** Avatar choices: friendly animals first, then a few favourite things. Kept apart from task pictures. */
-const AVATAR_EMOJI = [
-  "🦊", "🐻", "🦄", "🐴", "🦖", "🐼", "🐸", "🦁", "🐯", "🐨", "🐰", "🐶", "🐱", "🐵", "🐷", "🐧",
-  "🦒", "🐘", "🦔", "🐙", "🦉", "🐝", "🦋", "🐞", "🐢", "🐬", "🐳", "🐉",
-  "🌻", "🌸", "🌈", "⭐", "🚀", "🚒", "⚽", "🎸", "🍓", "👑",
-];
 
 export function MemberEditor({ member, onClose }: { member: Member | null; onClose: () => void }) {
   const { t } = useI18n();

@@ -12,6 +12,7 @@ import { useNow } from "@/lib/useNow";
 
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
+import { Celebration } from "./Celebration";
 import { cn } from "../ui/cn";
 
 const PERIOD_ICON: Record<Period, typeof Sun> = { morning: Sunrise, afternoon: Sun, evening: Moon };
@@ -36,6 +37,9 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
   const [picked, setPicked] = useState<{ period: Period; auto: Period; day: string } | null>(null);
   const period = picked && picked.auto === auto && picked.day === dateKey(today) ? picked.period : auto;
   const setPeriod = (p: Period) => setPicked({ period: p, auto, day: dateKey(today) });
+  // The celebration plays when the last step is ticked here, not when the screen opens on a finished routine.
+  const [played, setPlayed] = useState<{ n: number; period: Period } | null>(null);
+  const celebrate = () => setPlayed((p) => ({ n: (p?.n ?? 0) + 1, period }));
   const { t } = useI18n();
   if (!member) return null;
 
@@ -73,20 +77,14 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
         </div>
 
         {allDone ? (
-          <div className="grid flex-1 place-items-center rounded-panel bg-surface/70 p-10 text-center animate-rise">
-            <div>
-              <div className="m-bg mx-auto grid h-40 w-40 place-items-center rounded-full text-white sm:h-56 sm:w-56">
-                <PeriodDone period={period} />
-              </div>
-              <p className="m-text mt-6 font-display text-5xl font-bold">{t("kids.allDone")}</p>
-              <div className="mt-6 flex justify-center gap-3">
-                {items.map((i) => <span key={i.id} className="m-text grid h-14 w-14 place-items-center rounded-tile bg-surface"><Pictogram id={i.pictogram} className="h-7 w-7" /></span>)}
-              </div>
+          <Celebration member={member} period={period} day={dateKey(today)} play={played?.period === period ? played.n : null} onReplay={celebrate}>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {items.map((i) => <span key={i.id} className="m-text grid h-14 w-14 place-items-center rounded-tile bg-surface"><Pictogram id={i.pictogram} className="h-7 w-7" /></span>)}
             </div>
-          </div>
+          </Celebration>
         ) : (
           <div className={cn("grid gap-4 sm:gap-6", GRID[Math.min(items.length, 5)])}>
-            {items.map((i, n) => <TaskCard key={i.id} item={i} done={isDone(i.id)} onToggle={() => toggleTaskItem(member.id, i)} next={!isDone(i.id) && items.findIndex((x) => !isDone(x.id)) === n}
+            {items.map((i, n) => <TaskCard key={i.id} item={i} done={isDone(i.id)} onToggle={() => { if (!isDone(i.id) && doneCount === items.length - 1) celebrate(); toggleTaskItem(member.id, i); }} next={!isDone(i.id) && items.findIndex((x) => !isDone(x.id)) === n}
               showReward={rewardMode !== "off"} />)}
           </div>
         )}
@@ -143,11 +141,6 @@ export function TaskCard({ item, done, onToggle, small, next, showReward = true 
       )}
     </button>
   );
-}
-
-function PeriodDone({ period }: { period: Period }) {
-  const I = period === "evening" ? Moon : Star;
-  return <I className="h-24 w-24 sm:h-32 sm:w-32" strokeWidth={1.5} fill="currentColor" />;
 }
 
 /** Kiosk exit: a press-and-hold so small hands don't leave by accident. */

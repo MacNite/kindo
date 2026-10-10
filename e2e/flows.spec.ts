@@ -26,6 +26,41 @@ test("a child can tick off a routine step by tapping its picture", async ({ page
   await expect(card).toHaveAttribute("aria-pressed", before === "true" ? "false" : "true");
 });
 
+test("the last step of a routine plays the avatar's celebration (D60)", async ({ page }) => {
+  const today = new Date();
+  await page.clock.install({ time: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 0) });
+  const { assertNoErrors } = await prepare(page);
+  await page.goto("/kids/lena");
+  // Lena's evening: nothing is ticked there in the demo.
+  const steps = ["Tidy room", "Pyjamas", "Brush teeth", "Reading time"];
+  for (const name of steps) {
+    const step = page.getByRole("button", { name, exact: true });
+    await step.click();
+    if (name !== steps.at(-1)) await expect(step).toHaveAttribute("aria-pressed", "true");
+  }
+  const replay = page.getByRole("button", { name: "Play again" });
+  await expect(replay).toBeVisible();
+  await expect(page.locator(".cel-play")).toHaveCount(1);
+  await expect(page.locator(".cel-cheer")).not.toBeEmpty();
+  await replay.click();
+  await expect(page.locator(".cel-play")).toHaveCount(1);
+
+  // Opened again later, the finished routine rests.
+  await page.reload();
+  await expect(replay).toBeVisible();
+  await expect(page.locator(".cel-play")).toHaveCount(0);
+  assertNoErrors();
+
+  // Untick on the wall, so other tests find the evening as the demo left it.
+  await page.goto("/wall");
+  const lane = page.locator("section.lane").filter({ hasText: "Lena" });
+  for (const name of steps) {
+    const step = lane.getByRole("button", { name, exact: true });
+    await step.click();
+    await expect(step).toHaveAttribute("aria-pressed", "false");
+  }
+});
+
 test("customize mode hides a widget and offers it again", async ({ page }) => {
   await prepare(page);
   await page.goto("/");
