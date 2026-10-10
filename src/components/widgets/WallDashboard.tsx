@@ -32,7 +32,7 @@ export function WallDashboard() {
   const [saver, setSaver] = useState(false);
   /** The birthday wheel over the whole screen (D46). */
   const [wheel, setWheel] = useState(false);
-  // The wall stays on, the photo frame is its screensaver (§13), except in the night rest (D57).
+  // The wall stays on, the photo frame is its screensaver (§13), except in the night rest (D59).
   const night = useNight();
   useWakeLock(!night);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

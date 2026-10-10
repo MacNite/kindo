@@ -4,7 +4,7 @@ import { useNow } from "../useNow";
 import { useStore } from "./store";
 
 /**
- * Whether the wall is in its night rest now (§13, D57). Checked every 20 s,
+ * Whether the wall is in its night rest now (§13, D59). Checked every 20 s,
  * so the screen lets go within a minute of the set time.
  */
 export function useNight(): boolean {

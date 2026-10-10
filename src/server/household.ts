@@ -246,7 +246,7 @@ export async function updateHousehold(db: Tx, input: In<"household">) {
 /**
  * Adds or edits a person. With an email, an adult who has no login yet gets
  * one in the same step: without a password, so single sign-on with that email
- * (§20 D57). A password can still be set under the person's login.
+ * (§20 D58). A password can still be set under the person's login.
  */
 export async function saveMember(db: Tx, input: In<"member">) {
   if (!input.email) return saveMemberOnly(db, input);

@@ -45,7 +45,7 @@ export function MemberEditor({ member, onClose }: { member: Member | null; onClo
       live = false;
     };
   }, []);
-  // An adult without a login can get one right here, for single sign-on with that email (§20 D57).
+  // An adult without a login can get one right here, for single sign-on with that email (§20 D58).
   const offerLogin = role !== "child" && !member?.account;
   const loginEmail = offerLogin && email.trim() ? email.trim() : undefined;
   const [error, setError] = useState<string | null>(null);
