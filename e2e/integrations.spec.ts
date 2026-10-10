@@ -61,7 +61,8 @@ test("Home control: switches, everything off and solar, on its page and on the w
   await dialog.getByRole("button", { name: "Connect" }).click();
   await expect(dialog).toBeHidden({ timeout: 20_000 });
 
-  await card.getByRole("button", { name: "Home control" }).click();
+  await card.getByRole("button", { name: /^Settings for / }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Home control" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: /Kitchen light/ }).click();
   await dialog.getByRole("button", { name: /Coffee machine/ }).click();

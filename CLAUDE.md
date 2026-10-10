@@ -42,7 +42,7 @@ decision in §20 in the same PR.
   Server Actions in `src/server/actions`. Every schema change ships as a
   migration in `prisma/migrations` (`npm run db:migrate:dev`), applied by the
   one-shot `migrate` image; `npm run db:drift` must pass. Never edit an applied
-  migration. New migration names must sort after `20261009100000_cameras`.
+  migration. New migration names must sort after `20261014090000_media_pin`.
 
 ## Commands
 
@@ -60,7 +60,7 @@ Development needs a `.env` with `DATABASE_URL` and `KINDO_SECRET_KEY` (see
 
 - `npm run test:e2e` needs a prior `npm run build`, a `DATABASE_URL` whose role
   can `CREATE DATABASE` (the suite makes `<name>_e2e`, or uses
-  `E2E_DATABASE_URL`), and free ports 3100 (`E2E_PORT`) and 3196–3199 (mocks).
+  `E2E_DATABASE_URL`), and free ports 3100 (`E2E_PORT`) and 3195–3199 (mocks).
 - `TEST_DATABASE_URL`: a disposable database for the integration tests in
   `tests/`, emptied on every run. Its name must contain `test` and differ from
   `DATABASE_URL` (`KINDO_TEST_DB_FORCE=1` overrides). Unset, they are skipped.

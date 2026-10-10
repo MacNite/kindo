@@ -2,13 +2,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type CSSProperties } from "react";
-import { Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
+import { BookHeadphones, Check, Home, Moon, Star, Sun, Sunrise } from "lucide-react";
 import type { Member, Period, TaskItem } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { stepName } from "@/lib/pictograms";
 import { dateKey } from "@/lib/dates";
 import { useNow } from "@/lib/useNow";
+import { shelfFor } from "@/lib/media";
 
 import { Avatar } from "../ui/Avatar";
 import { Pictogram } from "../ui/Pictogram";
@@ -28,7 +29,7 @@ const GRID: Record<number, string> = {
  * Pictures carry the meaning; words are small helpers for parents/older kids.
  */
 export function ChildRoutine({ memberId }: { memberId: string }) {
-  const { isDone, toggleTaskItem, rewardMode, getMember, routineFor, choresOn, routineDay: today, periodAt } = useStore();
+  const { isDone, toggleTaskItem, rewardMode, getMember, routineFor, choresOn, routineDay: today, periodAt, data } = useStore();
   const member = getMember(memberId);
   // The routine follows the time of day. A period the child picks holds until the
   // time of day moves on by itself or the household day resets (§19.3).
@@ -55,6 +56,12 @@ export function ChildRoutine({ memberId }: { memberId: string }) {
         <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
           <HoldToLeave />
           <Avatar member={member} size="xl" className="max-sm:!h-16 max-sm:!w-16 max-sm:!text-3xl" />
+          {/* Their shelf (§23): a picture, no words. */}
+          {shelfFor(data.media?.shelf ?? [], member.id).length > 0 && (
+            <Link href={`/kids/${member.id}/listen`} aria-label={t("media.title")} className="m-text grid h-14 w-14 shrink-0 place-items-center rounded-full bg-surface/70">
+              <BookHeadphones size={26} aria-hidden />
+            </Link>
+          )}
           <h1 className="m-text min-w-0 break-words font-display text-[clamp(2.5rem,13vw,3.75rem)] font-extrabold leading-tight tracking-tight sm:text-8xl">{member.name}</h1>
           <div className="ml-auto flex gap-2 rounded-full bg-surface/70 p-1.5 max-sm:ml-0 max-sm:w-full max-sm:justify-between" role="radiogroup" aria-label={t("routines.period")}>
             {(["morning", "afternoon", "evening"] as const).map((p) => {

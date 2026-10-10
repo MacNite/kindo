@@ -13,6 +13,7 @@ import { Avatar } from "../ui/Avatar";
 import { PinDialog } from "./PinDialog";
 import { ErrorToast } from "../ui/ErrorText";
 import { DoorbellWatcher } from "../cameras/Cameras";
+import { MiniPlayer } from "../media/Media";
 
 /**
  * Management shell for phones, tablets and desktops.
@@ -22,9 +23,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const { t } = useI18n();
   const [more, setMore] = useState(false);
-  const { getMembers, getMember, viewer, home, cameras } = useStore();
+  const { getMembers, getMember, viewer, home, cameras, data } = useStore();
   const me = getMember(viewer.memberId);
-  const NAV = navFor(Boolean(home), cameras.length > 0);
+  const NAV = navFor(Boolean(home) || data.voice, cameras.length > 0, Boolean(data.media));
 
   return (
     <div className="min-h-dvh md:flex">
@@ -81,6 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </nav>
 
+      {!path.startsWith("/media") && <MiniPlayer />}
       <DoorbellWatcher />
       <PinDialog />
       <ErrorToast />

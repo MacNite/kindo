@@ -12,7 +12,7 @@ import { Switch } from "../ui/Segmented";
  */
 export function WallTilesCard() {
   const { t } = useI18n();
-  const { wallTiles, moveWallTile, showWallTile, home, cameras } = useStore();
+  const { wallTiles, moveWallTile, showWallTile, home, cameras, data } = useStore();
   const label = (id: WallTileId) => t(`settings.dashboard.wallTile_${id}` as MessageKey);
   return (
     <div className="rounded-panel bg-surface p-5">
@@ -25,6 +25,7 @@ export function WallTilesCard() {
               <span className="block font-bold">{label(tile.id)}</span>
               {tile.id === "home" && !home && <span className="block text-sm text-soft">{t("settings.dashboard.wallHomeHint")}</span>}
               {tile.id === "cameras" && !cameras.length && <span className="block text-sm text-soft">{t("settings.dashboard.wallCamerasHint")}</span>}
+              {tile.id === "media" && !data.media && <span className="block text-sm text-soft">{t("settings.dashboard.wallMediaHint")}</span>}
             </span>
             <IconButton size="sm" label={t("common.moveEarlier")} disabled={i === 0} onClick={() => moveWallTile(tile.id, -1)}><ArrowUp size={16} /></IconButton>
             <IconButton size="sm" label={t("common.moveLater")} disabled={i === wallTiles.length - 1} onClick={() => moveWallTile(tile.id, 1)}><ArrowDown size={16} /></IconButton>

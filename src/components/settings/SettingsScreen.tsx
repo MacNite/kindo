@@ -15,6 +15,7 @@ import { AccountSection, DevicesSection, LoginEditor, PinCard } from "./AccountS
 import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSections";
 import { BirthdaySettings } from "./BirthdaySettings";
 import { WallTilesCard } from "./WallTiles";
+import { MediaPinCard } from "./MediaPinCard";
 import { DesignPicker } from "./DesignPicker";
 import { MemberColors } from "./MemberColors";
 import { lockAgain } from "@/lib/services/accounts";
@@ -173,6 +174,7 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
           </Card>
           <div className="md:col-span-2"><WallTilesCard /></div>
           <div className="md:col-span-2"><PinCard /></div>
+          <div className="md:col-span-2"><MediaPinCard /></div>
         </div>
       );
 

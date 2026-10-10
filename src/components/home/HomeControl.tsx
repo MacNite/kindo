@@ -9,6 +9,7 @@ import { domainOf, powerParts, type EnergyFlow, type SwitchState } from "@/lib/h
 import { Button, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Panel, PageHeader } from "../ui/Panel";
+import { VoiceButton } from "./Voice";
 import { cn } from "../ui/cn";
 
 const DOMAIN_ICON: Record<string, LucideIcon> = { light: Lightbulb, switch: Plug, fan: Fan, input_boolean: ToggleRight };
@@ -20,9 +21,12 @@ const DOMAIN_ICON: Record<string, LucideIcon> = { light: Lightbulb, switch: Plug
  */
 export function HomeControlScreen() {
   const { t } = useI18n();
-  const { viewer } = useStore();
+  const { viewer, data } = useStore();
   const { setup, state, loading, toggle, allOff } = useHome();
 
+  if (!setup && data.voice) {
+    return <PageHeader title={t("homeControl.title")} subtitle={t("voice.subtitle")} actions={<VoiceButton size="lg" />} />;
+  }
   if (!setup) {
     return (
       <>
@@ -38,7 +42,7 @@ export function HomeControlScreen() {
   return (
     <>
       <PageHeader title={t("homeControl.title")} subtitle={t("homeControl.subtitle")}
-        actions={setup.controls.length > 0 && <AllOffButton count={setup.controls.length} onConfirm={allOff} size="lg" />} />
+        actions={<><VoiceButton size="lg" />{setup.controls.length > 0 && <AllOffButton count={setup.controls.length} onConfirm={allOff} size="lg" />}</>} />
       {state && !state.reachable && <p role="status" className="mb-4 rounded-card bg-surface p-4 font-bold">{t("homeControl.unreachable")}</p>}
       <div className="flex flex-col gap-4">
         {setup.energy && (
@@ -66,9 +70,11 @@ export function HomeControlScreen() {
  */
 export function HomeTile({ large }: { large?: boolean }) {
   const { t } = useI18n();
+  const { data } = useStore();
   const { setup, state, loading, toggle, allOff } = useHome();
-  if (!setup) return null;
-  const switches = state?.switches ?? setup.controls.map((c) => ({ ...c, on: false, available: false }));
+  if (!setup && !data.voice) return null;
+  const controls = setup?.controls ?? [];
+  const switches = state?.switches ?? controls.map((c) => ({ ...c, on: false, available: false }));
   // In the wall's top strip only one row fits: the first switch and a way to the others.
   const more = large && switches.length > 2 ? switches.length - 1 : 0;
   return (
@@ -77,10 +83,13 @@ export function HomeTile({ large }: { large?: boolean }) {
       {large && <Link href="/home-control" aria-label={t("homeControl.title")} tabIndex={-1} className="wall-open" />}
       <header className="flex items-center justify-between gap-3">
         <Link href="/home-control" className={cn("min-w-0 font-bold hover:underline underline-offset-4", large ? "wall-tile-label text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("homeControl.title")}</Link>
-        {setup.controls.length > 0 && <AllOffButton count={setup.controls.length} onConfirm={allOff} size={large ? "md" : "sm"} />}
+        <span className="flex flex-wrap justify-end gap-2">
+          <VoiceButton size={large ? "md" : "sm"} />
+          {controls.length > 0 && <AllOffButton count={controls.length} onConfirm={allOff} size={large ? "md" : "sm"} />}
+        </span>
       </header>
-      {setup.energy && <EnergyView energy={state?.energy ?? null} loading={loading} compact />}
-      {setup.controls.length > 0 && (
+      {setup?.energy && <EnergyView energy={state?.energy ?? null} loading={loading} compact />}
+      {controls.length > 0 && (
         <ul className={cn("home-tile-chips grid grid-cols-2 gap-2", more > 0 && "home-tile-chips-more")}>
           {switches.map((s) => (
             <li key={s.entityId}><SwitchChip s={s} pending={!state} onToggle={toggle} large={large} /></li>

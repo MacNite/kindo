@@ -29,7 +29,7 @@ export const role = z.enum(["admin", "adult", "child"]);
 export const rewardMode = z.enum(["off", "stars", "tokens", "money"]);
 export const shoppingCategory = z.enum(["produce", "dairy", "bakery", "pantry", "frozen", "household", "hardware", "care", "other"]);
 export const widgetId = z.enum(["clock", "weather", "agenda", "upcoming", "routines", "chores", "meals", "shopping", "dates", "birthdays", "photos", "home", "cameras"]);
-export const wallTileId = z.enum(["weather", "meal", "shopping", "dates", "birthdays", "home", "cameras"]);
+export const wallTileId = z.enum(["weather", "meal", "shopping", "dates", "birthdays", "home", "cameras", "media"]);
 
 export const avatar = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("emoji"), value: z.string().min(1).max(16) }),

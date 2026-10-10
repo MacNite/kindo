@@ -371,6 +371,8 @@ function useHousehold(initial: HouseholdWire) {
     data, ...selectors, sync, error, clearError: () => setError(null), refresh, run,
     routineDay: today, times, periodAt, viewer: data.viewer, queued, presence,
     pinRequest, requestPin: () => setPinRequest({ retry: async () => {} }), closePin: () => setPinRequest(null),
+    /** Asks for the PIN, then runs `retry` (e.g. starting playback, D64). */
+    requestPinFor: (retry: () => Promise<unknown>) => setPinRequest({ retry }),
     isDone, setItemDone, toggleTaskItem,
     approvals: data.approvals, resolveApproval, balances: data.balances, redeem,
     rewardMode: data.household.rewardMode, pointValue: data.household.pointValue, setRewardMode, setRoutineRewards,

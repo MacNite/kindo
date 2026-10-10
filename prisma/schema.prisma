@@ -60,6 +60,15 @@ enum ConnectionKind {
   immich
   homeassistant
   frigate
+  jellyfin
+  audiobookshelf
+}
+
+/// What of the kids' shelf a locked wall may start (§23, D64).
+enum MediaPin {
+  off
+  speakers
+  all
 }
 
 enum ConnectionStatus {
@@ -90,6 +99,8 @@ model Household {
   nightOn          Boolean    @default(false)
   nightFrom        String     @default("22:00")
   nightUntil       String     @default("06:00")
+  /// Whether starting the kids' shelf needs the settings PIN on a wall (§23, D64).
+  mediaPin         MediaPin   @default(off)
   /// `WidgetConfig[]`: which home cards show, their order and size.
   widgets          Json
   /// `WallTile[]`: which household tiles the wall display shows beside the lanes, in order (§4, §21).
@@ -140,15 +151,16 @@ model Member {
   userId         String?  @unique
   user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  routines    Routine[]
-  chores      Chore[]
-  completions Completion[]
-  points      PointsEntry[]
-  tasks       Task[]
-  shopping    ShoppingItem[]
-  meals       Meal[]
-  dates       ImportantDate[]
-  contacts    ContactBirthday[]
+  routines      Routine[]
+  chores        Chore[]
+  completions   Completion[]
+  points        PointsEntry[]
+  tasks         Task[]
+  shopping      ShoppingItem[]
+  meals         Meal[]
+  dates         ImportantDate[]
+  contacts      ContactBirthday[]
+  mediaAccounts MediaAccount[]
 }
 
 model Routine {
@@ -514,26 +526,44 @@ model PairingRequest {
 }
 
 /// A connection to an outside service (§17): a Nextcloud account, a Google
-/// account, an ICS feed, an Immich server, Home Assistant, Frigate. Its secret
-/// (app password, API key, refresh token, private feed URL) is encrypted with
-/// KINDO_SECRET_KEY and never leaves the server.
+/// account, an ICS feed, an Immich server, Home Assistant, Frigate, Jellyfin,
+/// Audiobookshelf. Its secret (app password, API key, refresh token, private
+/// feed URL, access token) is encrypted with KINDO_SECRET_KEY and never leaves
+/// the server.
 model Connection {
-  id         String            @id @default(cuid())
-  kind       ConnectionKind
-  name       String
-  url        String?
-  username   String?
+  id            String            @id @default(cuid())
+  kind          ConnectionKind
+  name          String
+  url           String?
+  username      String?
   /// Encrypted (see src/server/crypto.ts).
-  secret     String?
+  secret        String?
   /// Kind-specific settings, never secret.
-  config     Json              @default("{}")
-  status     ConnectionStatus  @default(pending)
-  lastError  String?
-  lastSyncAt DateTime?
-  createdAt  DateTime          @default(now())
-  sources    CalendarSource[]
-  albums     PhotoAlbum[]
-  contacts   ContactBirthday[]
+  config        Json              @default("{}")
+  status        ConnectionStatus  @default(pending)
+  lastError     String?
+  lastSyncAt    DateTime?
+  createdAt     DateTime          @default(now())
+  sources       CalendarSource[]
+  albums        PhotoAlbum[]
+  contacts      ContactBirthday[]
+  mediaAccounts MediaAccount[]
+}
+
+/// A child's own Audiobookshelf account (§23): their API key, so each child
+/// keeps their own place in an audiobook. Encrypted like every other secret.
+model MediaAccount {
+  connectionId String
+  memberId     String
+  /// The account's name in Audiobookshelf, for Settings.
+  username     String
+  /// Encrypted (see src/server/crypto.ts).
+  secret       String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  member       Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([connectionId, memberId])
+  @@index([memberId])
 }
 
 /// A press of a doorbell (§22): Home Assistant's visitor sensor went from off

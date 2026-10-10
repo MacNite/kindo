@@ -5,6 +5,7 @@
  */
 import type { HomeSetup } from "./home";
 import type { CameraInfo } from "./cameras";
+import type { MediaPin, MediaSetup } from "./media";
 import type { NightRest } from "./night";
 
 /** User-entered text is a plain string. Mock data ships both languages so the
@@ -241,13 +242,13 @@ export type WidgetId = "clock" | "weather" | "agenda" | "upcoming" | "routines" 
 export type WidgetSize = "s" | "m" | "l";
 export interface WidgetConfig { id: WidgetId; enabled: boolean; size: WidgetSize }
 /** The household tiles beside the lanes on the wall display (§4, §21). */
-export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "birthdays" | "home" | "cameras";
+export type WallTileId = "weather" | "meal" | "shopping" | "dates" | "birthdays" | "home" | "cameras" | "media";
 export interface WallTile { id: WallTileId; enabled: boolean }
 
 /** A connection to an outside service, as an admin's Settings screen sees it: never its secret (§17). */
 export interface ConnectionInfo {
   id: string;
-  kind: "caldav" | "google" | "ics" | "immich" | "homeassistant" | "frigate";
+  kind: "caldav" | "google" | "ics" | "immich" | "homeassistant" | "frigate" | "jellyfin" | "audiobookshelf";
   name: string;
   url?: string;
   username?: string;
@@ -259,7 +260,7 @@ export interface ConnectionInfo {
 }
 
 export interface Integration {
-  id: "nextcloud" | "immich" | "google" | "ics" | "homeassistant" | "frigate";
+  id: "nextcloud" | "immich" | "google" | "ics" | "homeassistant" | "frigate" | "jellyfin" | "audiobookshelf";
   status: "connected" | "partial" | "off";
   detail?: Text;
 }
@@ -302,6 +303,8 @@ export interface HouseholdSettings {
   showPhotoMeta: boolean;
   /** When the wall lets its screen go dark (§13, D59). */
   night: NightRest;
+  /** What of the kids' shelf needs the PIN to start on a wall (§23, D64). */
+  mediaPin: MediaPin;
   widgets: WidgetConfig[];
   wallTiles: WallTile[];
   demo: boolean;
@@ -344,6 +347,10 @@ export interface HouseholdData {
   home: HomeSetup | null;
   /** Cameras from Frigate (§22): names and what they can do; empty when none are set up. */
   cameras: CameraInfo[];
+  /** The kids' shelf and the speakers it may play on (§23); null when nothing is on the shelf. */
+  media: MediaSetup | null;
+  /** Talking to Home Assistant is set up (§24). */
+  voice: boolean;
 }
 
 /** The snapshot as it crosses the wire: dates of days are filled in on the device. */
