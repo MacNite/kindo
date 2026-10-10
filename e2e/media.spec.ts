@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, request as playwrightRequest, test } from "@playwright/test";
 import { prepare } from "./helpers";
 import { ADMIN_STATE, E2E_PIN } from "./logins";
 
@@ -79,6 +79,13 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   await dialog.getByRole("radio", { name: "Kitchen speaker" }).click();
   await dialog.getByRole("button", { name: "Play Bibi & Tina Songs on Kitchen speaker" }).click();
   await expect(dialog.getByRole("status")).toHaveText("Playing: Bibi & Tina Songs", { timeout: 15_000 });
+  // The speaker fetches each address without a login (D61).
+  const { calls } = await (await request.get(`${HA}/__calls`)).json() as { calls: { service: string; media_content_id?: string }[] };
+  const addresses = calls.filter((c) => c.service === "play_media").map((c) => c.media_content_id!);
+  expect(addresses.length).toBeGreaterThan(0);
+  const speaker = await playwrightRequest.newContext();
+  for (const a of addresses) expect((await speaker.get(a, { headers: { range: "bytes=0-0" } })).status(), a).toBeLessThan(300);
+  await speaker.dispose();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 

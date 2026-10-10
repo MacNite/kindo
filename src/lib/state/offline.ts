@@ -124,3 +124,16 @@ export const dequeue = (key: IDBValidKey) => run(QUEUE, "readwrite", (s) => s.de
 /** The latest snapshot this device saw, so a reload without a connection isn't stuck in the past. */
 export const saveSnapshot = (w: HouseholdWire) => run(KV, "readwrite", (s) => s.put(w, "snapshot"));
 export const loadSnapshot = () => run<HouseholdWire>(KV, "readonly", (s) => s.get("snapshot") as IDBRequest<HouseholdWire>);
+
+/**
+ * Signing out leaves nothing of the household on this device: not the
+ * snapshot, not changes still waiting (they'd be sent as whoever signs in
+ * next), not the pages the service worker kept. The precache stays; it is the
+ * app shell and the offline page, the same for everyone.
+ */
+export async function forgetDevice() {
+  await Promise.all([run(QUEUE, "readwrite", (s) => s.clear()), run(KV, "readwrite", (s) => s.clear())]);
+  if (typeof caches === "undefined") return;
+  const names = await caches.keys().catch(() => [] as string[]);
+  await Promise.all(names.filter((n) => !n.startsWith("serwist-precache")).map((n) => caches.delete(n).catch(() => false)));
+}

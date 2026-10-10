@@ -4,6 +4,7 @@ import { Check, KeyRound, LogOut, Monitor, Pencil, Trash2, X } from "lucide-reac
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
+import { forgetDevice } from "@/lib/state/offline";
 import {
   approvePairing, changePassword, createLogin, getAccountAdmin, getLoginOptions, removeLogin, renameDevice, revokeDevice, setLoginPassword, setPin, signOut,
 } from "@/lib/services/accounts";
@@ -45,7 +46,7 @@ export function AccountSection() {
     <div className="flex max-w-xl flex-col gap-4">
       <Card>
         <p><span className="font-bold">{viewer.name}</span>{email && <span className="text-soft">, {email}</span>}</p>
-        <Button variant="outline" className="self-start" onClick={async () => { await signOut(); window.location.assign("/login"); }}><LogOut size={16} />{t("account.signOut")}</Button>
+        <Button variant="outline" className="self-start" onClick={async () => { await signOut(); await forgetDevice(); window.location.assign("/login"); }}><LogOut size={16} />{t("account.signOut")}</Button>
       </Card>
       {passwordLogin && <form onSubmit={save}>
         <Card>

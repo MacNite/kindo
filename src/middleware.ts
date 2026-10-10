@@ -6,8 +6,9 @@ import { AUTH_COOKIE_PREFIX, DEVICE_COOKIE } from "./server/cookie-names";
  * Everything is behind a login or a paired device (§19.4, §20 D24). This only
  * checks that some session or device cookie is present, which is cheap and
  * runs on the edge; the layouts and every Server Action check for real.
+ * A speaker can't sign in: its signed address is its permission (D61).
  */
-const PUBLIC = ["/login", "/setup", "/pair", "/api/auth", "/api/health", "/manifest.webmanifest", "/sw.js", "/offline"];
+const PUBLIC = ["/login", "/setup", "/pair", "/api/auth", "/api/health", "/api/media/cast", "/manifest.webmanifest", "/sw.js", "/offline"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;

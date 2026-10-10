@@ -23,6 +23,8 @@ test("signed out, every page leads to the sign-in page and back (§19.4)", async
 test("the household's API refuses requests without a login", async ({ request }) => {
   expect((await request.get("/api/stream")).status()).toBe(401);
   expect((await request.get("/api/health")).ok()).toBe(true);
+  // A speaker can't sign in; its signed address is checked by the route itself (D61), so a wrong one is refused there.
+  expect((await request.get("/api/media/cast/abcdef12-0.9999999999999.not-a-valid_signature")).status()).toBe(403);
 });
 
 test("single sign-on signs in a person who has a login", async ({ page, request }) => {
@@ -51,6 +53,41 @@ test("an adult doesn't see the admin's settings", async ({ page }) => {
   await page.goto("/settings");
   await expect(page.getByRole("button", { name: "Your account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Devices" })).toHaveCount(0);
+});
+
+test("signing out leaves no household data on the device (§19.7)", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/login");
+  await signIn(page, ADULT);
+  await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
+  await page.goto("/shopping");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+  const kept = () => page.evaluate(async () => {
+    // The sign-in page may be cached again on the way out; the household's pages must not.
+    let shopping = false;
+    for (const name of (await caches.keys()).filter((n) => !n.startsWith("serwist-precache"))) {
+      if ((await (await caches.open(name)).keys()).some((r) => new URL(r.url).pathname === "/shopping")) shopping = true;
+    }
+    const snapshot = await new Promise<boolean>((resolve) => {
+      const req = indexedDB.open("kindo");
+      req.onsuccess = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("kv")) return resolve(false), db.close();
+        const get = db.transaction("kv").objectStore("kv").get("snapshot");
+        get.onsuccess = () => (resolve(get.result !== undefined), db.close());
+      };
+      req.onerror = () => resolve(false);
+    });
+    return { shopping, snapshot };
+  });
+  await expect.poll(kept).toEqual({ shopping: true, snapshot: true });
+
+  await page.goto("/settings?section=account");
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await kept()).toEqual({ shopping: false, snapshot: false });
 });
 
 test("a wall display is paired with a code, ticks routines, and needs the PIN for settings", async ({ browser }) => {
