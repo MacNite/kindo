@@ -187,8 +187,14 @@ const en = {
     gridInvert: "Feed-in counts as positive", gridInvertHint: "Turn on if this sensor shows a positive number while you feed into the grid.",
   },
   kids: {
-    choose: "Who are you?", back: "Family screen", allDone: "All done",
-    parentHint: "Hold to leave",
+    choose: "Who are you?", back: "Family screen",
+    parentHint: "Hold to leave", playAgain: "Play again",
+    // Shown when a routine is finished, one per child, day and time of day (D60).
+    cheers: {
+      morning: { c1: "Ready, set, go, {name}!", c2: "What a strong start to the day!", c3: "You did it all by yourself!", c4: "Now the day can begin.", c5: "Up early and all done!", c6: "The sun is happy with you, {name}.", c7: "Off you go, the day is waiting!" },
+      afternoon: { c1: "Afternoon done!", c2: "Now there's time to play, {name}.", c3: "High five, you kept going!", c4: "Busy hands, happy heart.", c5: "Look how much you did today!", c6: "Well done. Time for a little break.", c7: "We can count on you, {name}!" },
+      evening: { c1: "All ready for bed, {name}.", c2: "Sleep tight, you did great today.", c3: "The moon says good night.", c4: "Time for sweet dreams.", c5: "Snuggle in, the day is done.", c6: "Tomorrow is a new adventure.", c7: "Quiet now, you did everything." },
+    },
   },
   errors: { pin: "This needs the settings PIN.", noPin: "No settings PIN has been set yet.", wrongPin: "That PIN isn't right.", tooManyAttempts: "Too many tries. Please wait a while, then try again.", wrongLogin: "Email or password isn't right.", sso: "Single sign-on didn't work. Is your email set up for a login?", notFound: "That no longer exists. The screen has been refreshed.", invalid: "Please check your entries.", forbidden: "You aren't allowed to do that.", unauthenticated: "Please sign in again.", conflict: "That has already been done.", notEnoughPoints: "Not enough points yet.", readOnly: "This calendar is read only.", remote: "The connected service didn't answer. Please try again later.", server: "Something went wrong. Please try again.", busy: "Someone else is talking through this camera right now.", micDenied: "Kindo may not use the microphone. Allow it in the browser's site settings.", insecure: "Talking needs Kindo to be opened over https.", aborted: "Stopped.", network: "No connection. Please try again." },
   setup: { defaultHousehold: "Household", defaultName: "Admin", claimIntro: "This household has no login yet. Create the admin's login to continue.", passwordHint: "At least 8 characters.", ssoHint: "Use the email of your {name} account. You sign in with {name} next.", title: "Welcome to Kindo", intro: "Set up your household. You can add more people, calendars and photos later in Settings.", household: "Household name", householdPlaceholder: "e.g. The Müllers", you: "Your name", youHint: "You become the household admin.", demo: "Start with the demo family", demoHint: "Loads the Müller family with routines, events and photos, to try everything out.", timezone: "Time zone: {zone}. You can change it later.", start: "Get started" },

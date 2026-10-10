@@ -16,6 +16,7 @@
   --soft: 91 106 109;
   --line: 211 219 210;
   --star: 225 160 30;
+  --night: 44 52 86;       /* the evening sky behind a finished routine */
   --ok: 46 139 110;
   --danger: 180 68 60;     /* errors, overdue */
   /* Same in both themes: a fill under white text, and danger on the black camera screen. */
@@ -31,6 +32,7 @@
   --soft: 150 164 165;
   --line: 45 57 60;
   --star: 240 186 72;
+  --night: 20 24 44;
   --ok: 92 190 155;
   --danger: 233 138 128;
   color-scheme: dark;

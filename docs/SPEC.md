@@ -53,6 +53,7 @@ The member's colour is used consistently on events, chores, routines and avatars
 - **Task:** a one-off item with an optional due date.
 - Each step is a pictogram, an optional short label and an optional reward (§9).
 - The child view must be fully usable without reading. Completed cards change calmly. No excessive gamification.
+- A finished routine shows the child's avatar playing one short animation (about three seconds, once, no sound), then a cheer for the time of day. Tapping the avatar plays it again (D60).
 
 ## §7 Recurrence
 
@@ -217,6 +218,7 @@ Still open:
 | D58 | The photo frame crops a photo to fill the screen only while at most a fifth of it is lost (3:2 on 16:9 fills); beyond that it shows the whole photo, contained, over a still, blurred and dimmed copy of itself. The choice is made per photo once it has loaded, from its size and the screen's, and again when the screen turns | Filling always cut most of a portrait photo away on a landscape wall, often the heads; black bars made a calm kitchen screen look broken. |
 | D58 | The person dialog takes an optional email for adults and admins without a login. Saving creates the person (or role change) and a login with that email, without a password, in one transaction; a taken email saves nothing. A password is set afterwards under the person's login, as before | Admins expected to enter the email where they add the person; with the separate "Give a login" step easy to miss, parents couldn't sign in through single sign-on. |
 | D59 | Night rest: between two times set per household (`nightOn`, `nightFrom`, `nightUntil`; off by default) the wall and `/screensaver` release the screen wake lock (D36) and the photo frame shows plain black. Presence does not wake the wall then; a touch does. Nothing turns the display back on in the morning | A browser page cannot switch a display on or off, only stop keeping it on; the device's screen timeout does the rest. Turning it on again needs the device's help (Fully Kiosk, Home Assistant), which the family's Chrome PWA does not have, so the morning starts with a touch. Black rather than a dimmed clock lets the screen go dark and keeps the kitchen dark until the timeout. |
+| D60 | When a child ticks the last step of a routine on the child screen, the avatar plays one of three animations chosen for it (`src/lib/avatars.ts`: 15 shared motions such as stomp, gallop, hop; photos, initials and unlisted emoji hop, spin or wiggle). Where the avatar emoji is only a head, the whole animal moves (🐴 → 🐎, 🐶 → 🐕, 🐱 → 🐈, 🐯 → 🐅, 🐰 → 🐇, 🐵 → 🐒, 🐷 → 🐖). A cheer follows, one of seven per time of day in each language. Animation and cheer are derived from child, day and period, so a reload keeps them and the next day always differs; the evening runs slower and yawns instead of roaring. A screen that opens on a routine finished earlier shows it at rest; reduced motion shows the end state | The star said "done" but felt the same every time. A short, calm moment that belongs to the child's own animal rewards finishing without points or streaks (§6, §9), and needs no storage or schema change. |
 
 ## §21 Home control
 
