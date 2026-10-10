@@ -8,6 +8,8 @@ import { decryptSecret, sha256 } from "../crypto";
 import { env } from "../env";
 import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
+import { DavRefused } from "../dav";
+import { retryDelayMs } from "../jobs";
 import * as caldav from "./caldav";
 import { icsProvider } from "./ics";
 import { googleProvider } from "./google";
@@ -105,6 +107,55 @@ const sourceName = (s: SourceRow) => {
   return (typeof n === "string" ? n : n?.en || n?.de) || s.remoteId || s.id;
 };
 
+/**
+ * How a connection's background sync is going, kept in its config (D60):
+ * failures in a row back off, a 429 waits as long as the server asks, and a
+ * refused login stops it until someone presses "Sync now" — asking again with
+ * the same wrong password only gets the household's IP blocked.
+ */
+export interface SyncHold { failures?: number; failedAt?: string; until?: string; stopped?: boolean }
+export const syncHold = (conn: Pick<Connection, "config">) => (conn.config as { sync?: SyncHold } | null)?.sync;
+/** The longest a failing connection waits between tries. */
+const MAX_BACKOFF_MS = 60 * 60_000;
+
+/** Is the connection's hold over (no refusal, no Retry-After still running)? */
+export const holdLifted = (conn: Pick<Connection, "config">, now: Date) => {
+  const hold = syncHold(conn);
+  return !hold?.stopped && !(hold?.until && now < new Date(hold.until));
+};
+
+function nextHold(previous: SyncHold | undefined, e: unknown, now: Date): SyncHold {
+  const hold: SyncHold = { failures: (previous?.failures ?? 0) + 1, failedAt: now.toISOString() };
+  if (e instanceof DavRefused && e.status === 401) hold.stopped = true;
+  if (e instanceof DavRefused && e.retryAfter) hold.until = e.retryAfter.toISOString();
+  return hold;
+}
+
+const holdMessage = (e: unknown, hold: SyncHold) => {
+  const msg = errorMessage(e);
+  if (hold.stopped) return `${msg}. Kindo stopped syncing this account until "Sync now".`;
+  if (hold.until) return `${msg}. Kindo waits until ${hold.until}.`;
+  return msg;
+};
+
+/** Records a failed sync on the connection: its status, the error, and how long to hold off. */
+export async function recordSyncFailure(db: Tx, connectionId: string, e: unknown, now = new Date()) {
+  const latest = await db.connection.findUnique({ where: { id: connectionId } });
+  if (!latest) return;
+  const hold = nextHold(syncHold(latest), e, now);
+  await db.connection.update({
+    where: { id: connectionId },
+    data: { status: "error", lastError: holdMessage(e, hold).slice(0, 500), lastSyncAt: now, config: { ...(latest.config as object), sync: hold } as unknown as Prisma.InputJsonValue },
+  });
+}
+
+async function recordSyncSuccess(db: Tx, connectionId: string, now: Date) {
+  const latest = await db.connection.findUnique({ where: { id: connectionId } });
+  if (!latest) return;
+  const { sync: _done, ...config } = (latest.config ?? {}) as { sync?: SyncHold };
+  await db.connection.update({ where: { id: connectionId }, data: { status: "ok", lastError: null, lastSyncAt: now, config: config as Prisma.InputJsonValue } });
+}
+
 /** Syncs every calendar of a connection and records how it went. Returns whether anything changed. */
 export async function syncConnection(db: Tx, conn: Connection, opts: { force?: boolean; now?: Date } = {}) {
   const p = providerFor(conn.kind);
@@ -119,6 +170,8 @@ export async function syncConnection(db: Tx, conn: Connection, opts: { force?: b
       try {
         changed = (await syncSource(db, conn, s, { ...opts, state: states.get(s.remoteId ?? "") })) || changed;
       } catch (e) {
+        // The server turned Kindo away: asking for the next calendar would only make it worse.
+        if (e instanceof DavRefused) throw e;
         failed.push({ name: sourceName(s), error: e });
       }
     }
@@ -127,9 +180,9 @@ export async function syncConnection(db: Tx, conn: Connection, opts: { force?: b
       const first = failed[0].error;
       throw first instanceof UserError ? new UserError(first.code, message) : new Error(message, { cause: first });
     }
-    await db.connection.update({ where: { id: conn.id }, data: { status: "ok", lastError: null, lastSyncAt: opts.now ?? new Date() } });
+    await recordSyncSuccess(db, conn.id, opts.now ?? new Date());
   } catch (e) {
-    await db.connection.update({ where: { id: conn.id }, data: { status: "error", lastError: errorMessage(e).slice(0, 500), lastSyncAt: opts.now ?? new Date() } });
+    await recordSyncFailure(db, conn.id, e, opts.now ?? new Date());
     log.warn("calendar sync failed", { connection: conn.id, kind: conn.kind, error: errorMessage(e) });
     throw e;
   }
@@ -139,16 +192,20 @@ export async function syncConnection(db: Tx, conn: Connection, opts: { force?: b
 /** Feeds change rarely and their hosts don't like being polled: at most every half hour. */
 const FEED_MINUTES = 30;
 
-/** Connections whose calendars are due for a sync. */
+/**
+ * Connections whose calendars are due for a sync: every few minutes, less
+ * often after failures in a row (2, 4, 8 … minutes, at most an hour), not
+ * while the server asked to wait, and not at all after it refused the login.
+ */
 export async function dueConnections(db: Tx, now = new Date()) {
-  const before = (minutes: number) => new Date(now.getTime() - minutes * 60_000);
-  return db.connection.findMany({
-    where: {
-      OR: [
-        { kind: { in: ["caldav", "google"] }, OR: [{ lastSyncAt: null }, { lastSyncAt: { lt: before(syncMinutes()) } }] },
-        { kind: "ics", OR: [{ lastSyncAt: null }, { lastSyncAt: { lt: before(Math.max(FEED_MINUTES, syncMinutes())) } }] },
-      ],
-    },
+  const all = await db.connection.findMany({ where: { kind: { in: ["caldav", "google", "ics"] } } });
+  return all.filter((c) => {
+    if (!holdLifted(c, now)) return false;
+    if (!c.lastSyncAt) return true;
+    const interval = (c.kind === "ics" ? Math.max(FEED_MINUTES, syncMinutes()) : syncMinutes()) * 60_000;
+    const failures = syncHold(c)?.failures;
+    const wait = failures ? Math.max(interval, retryDelayMs(failures, MAX_BACKOFF_MS)) : interval;
+    return now.getTime() - c.lastSyncAt.getTime() >= wait;
   });
 }
 
