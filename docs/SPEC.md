@@ -23,7 +23,7 @@ Kindo is **not** a smart-home dashboard. Family organisation comes first. Home c
 
 ## §3 People and accounts
 
-People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email; `KINDO_PASSWORD_LOGIN=false` leaves only single sign-on, §20 D42), right when adding the person or later (§20 D57). Wall displays are paired as devices and need no login (§19.4).
+People and login accounts are **separate**. Children never need an account. Adults get a login from an admin (email and password, or single sign-on with the same email; `KINDO_PASSWORD_LOGIN=false` leaves only single sign-on, §20 D42), right when adding the person or later (§20 D58). Wall displays are paired as devices and need no login (§19.4).
 
 A member has a name, avatar (emoji, photo or initial), colour, role (`admin`, `adult`, `child`), an optional birthday and an optional account.
 
@@ -98,7 +98,7 @@ Birthdays, anniversaries, school events and other yearly dates, with countdowns.
 - Each photo can show date, place and album.
 - Each photo fills the screen when little of it is cut away; otherwise (portrait photos on a landscape screen, panoramas) it is shown whole over a blurred copy of itself (D58).
 - Flow: dashboard → no touch for N minutes → photo frame → touch → dashboard. A Home Assistant presence entity triggers the same switch: someone there wakes the wall, nobody there brings the photos back.
-- **Night rest** (optional, e.g. 22:00–06:00 in the household's time zone, set on the Photos page): the photo frame is plain black and the wall lets go of its wake lock, so the device's own screen timeout turns the display off. A touch wakes the wall as usual; presence does not. In the morning the wall holds its wake lock again, but a display the system already turned off stays off until someone touches it (D57).
+- **Night rest** (optional, e.g. 22:00–06:00 in the household's time zone, set on the Photos page): the photo frame is plain black and the wall lets go of its wake lock, so the device's own screen timeout turns the display off. A touch wakes the wall as usual; presence does not. In the morning the wall holds its wake lock again, but a display the system already turned off stays off until someone touches it (D59).
 
 ## §14 Localisation
 
@@ -215,6 +215,8 @@ Still open:
 | D57 | The person dialog takes an optional email for adults and admins without a login. Saving creates the person (or role change) and a login with that email, without a password, in one transaction; a taken email saves nothing. A password is set afterwards under the person's login, as before | Admins expected to enter the email where they add the person; with the separate "Give a login" step easy to miss, parents couldn't sign in through single sign-on. |
 | D57 | Night rest: between two times set per household (`nightOn`, `nightFrom`, `nightUntil`; off by default) the wall and `/screensaver` release the screen wake lock (D36) and the photo frame shows plain black. Presence does not wake the wall then; a touch does. Nothing turns the display back on in the morning | A browser page cannot switch a display on or off, only stop keeping it on; the device's screen timeout does the rest. Turning it on again needs the device's help (Fully Kiosk, Home Assistant), which the family's Chrome PWA does not have, so the morning starts with a touch. Black rather than a dimmed clock lets the screen go dark and keeps the kitchen dark until the timeout. |
 | D58 | The photo frame crops a photo to fill the screen only while at most a fifth of it is lost (3:2 on 16:9 fills); beyond that it shows the whole photo, contained, over a still, blurred and dimmed copy of itself. The choice is made per photo once it has loaded, from its size and the screen's, and again when the screen turns | Filling always cut most of a portrait photo away on a landscape wall, often the heads; black bars made a calm kitchen screen look broken. |
+| D58 | The person dialog takes an optional email for adults and admins without a login. Saving creates the person (or role change) and a login with that email, without a password, in one transaction; a taken email saves nothing. A password is set afterwards under the person's login, as before | Admins expected to enter the email where they add the person; with the separate "Give a login" step easy to miss, parents couldn't sign in through single sign-on. |
+| D59 | Night rest: between two times set per household (`nightOn`, `nightFrom`, `nightUntil`; off by default) the wall and `/screensaver` release the screen wake lock (D36) and the photo frame shows plain black. Presence does not wake the wall then; a touch does. Nothing turns the display back on in the morning | A browser page cannot switch a display on or off, only stop keeping it on; the device's screen timeout does the rest. Turning it on again needs the device's help (Fully Kiosk, Home Assistant), which the family's Chrome PWA does not have, so the morning starts with a touch. Black rather than a dimmed clock lets the screen go dark and keeps the kitchen dark until the timeout. |
 
 ## §21 Home control
 

@@ -67,7 +67,7 @@ function householdTime(h: number, m: number): Date {
   return new Date(guess - (shown - guess));
 }
 
-test("the night rest lets the wall's screen go dark and holds it again in the morning (§13, D57)", async ({ page }) => {
+test("the night rest lets the wall's screen go dark and holds it again in the morning (§13, D59)", async ({ page }) => {
   await page.addInitScript(() => {
     const w = window as unknown as { wakeLocks: number; released: number };
     w.wakeLocks = 0;

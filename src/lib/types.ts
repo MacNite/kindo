@@ -296,7 +296,7 @@ export interface HouseholdSettings {
   pointValue: number;
   idleMinutes: number;
   showPhotoMeta: boolean;
-  /** When the wall lets its screen go dark (§13, D57). */
+  /** When the wall lets its screen go dark (§13, D59). */
   night: NightRest;
   widgets: WidgetConfig[];
   wallTiles: WallTile[];
