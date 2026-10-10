@@ -89,3 +89,39 @@ test("a tap on the wall's birthday tile opens the wheel full screen and closes i
   await page.getByRole("switch", { name: "Birthday wheel" }).click();
   await expect(page.getByRole("switch", { name: "Birthday wheel" })).toHaveAttribute("aria-checked", "false");
 });
+
+test("a contact is muted until it gets its own colour or photo (D61)", async ({ page }) => {
+  const { assertNoErrors } = await prepare(page);
+  await page.goto("/calendar?view=birthdays");
+  const wheel = page.getByRole("group", { name: "Birthdays in the year" });
+  const dot = wheel.getByRole("button", { name: /^Oma Biggy,/ });
+  // Oma Biggy belongs to Max, but takes the muted colour, not his.
+  await expect(dot.locator("circle").nth(1)).toHaveAttribute("fill", "rgb(var(--contact))");
+
+  await page.goto("/settings?section=birthdays");
+  await page.getByRole("button", { name: "Colour and photo of Oma Biggy" }).click();
+  const look = page.getByRole("radiogroup", { name: "Colour and photo of Oma Biggy" });
+  await expect(look.getByRole("radio", { name: "Muted" })).toHaveAttribute("aria-checked", "true");
+  await look.getByRole("radio", { name: "Green" }).click();
+  await expect(look.getByRole("radio", { name: "Green" })).toHaveAttribute("aria-checked", "true");
+  await page.goto("/calendar?view=birthdays");
+  await expect(dot.locator("circle").nth(1)).toHaveAttribute("fill", "#2E8B6E");
+
+  // Any picture will do: a screenshot of the wheel itself.
+  const picture = await wheel.screenshot();
+  await page.goto("/settings?section=birthdays");
+  await page.getByRole("button", { name: "Colour and photo of Oma Biggy" }).click();
+  await page.locator("input[type=file]").setInputFiles({ name: "oma.png", mimeType: "image/png", buffer: picture });
+  await expect(page.getByRole("button", { name: "Remove photo" })).toBeVisible();
+  await page.goto("/calendar?view=birthdays");
+  const image = dot.locator("image");
+  await expect(image).toHaveAttribute("href", /^\/api\/contacts\/.+\/photo\?v=\d+$/);
+  const res = await page.request.get((await image.getAttribute("href"))!);
+  expect([res.status(), res.headers()["content-type"]]).toEqual([200, "image/jpeg"]);
+
+  await page.goto("/settings?section=birthdays");
+  await page.getByRole("button", { name: "Colour and photo of Oma Biggy" }).click();
+  await page.getByRole("button", { name: "Remove photo" }).click();
+  await expect(page.getByRole("button", { name: "Upload photo" })).toBeVisible();
+  assertNoErrors();
+});

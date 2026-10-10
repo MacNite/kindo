@@ -295,7 +295,7 @@ model ImportantDate {
 }
 
 /// A birthday from a contact in a connected address book (§12, D46). The sync
-/// keeps `name` and `date` up to date; `show`, `alias` and `memberId` are the
+/// keeps `name` and `date` up to date; `show`, `alias`, `memberId`, `color` and the photo are the
 /// household's own and are never written back.
 model ContactBirthday {
   id           String      @id @default(cuid())
@@ -311,9 +311,16 @@ model ContactBirthday {
   show         Boolean     @default(false)
   /// The name Kindo shows instead, e.g. "Oma Biggy" for "Mama Nitschke".
   alias        String?
-  /// Whose colour it takes.
+  /// The family member it belongs to (filters on the calendar). Not its colour any more (D61).
   memberId     String?
   member       Member?     @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  /// Its dot's colour (#rrggbb); null for the muted default (D61).
+  color        String?
+  /// A picture uploaded in Kindo: a small square JPEG, PNG or WebP, served by
+  /// `/api/contacts/<id>/photo`. `photoAt` versions its address.
+  photo        Bytes?
+  photoType    String?
+  photoAt      DateTime?
 
   @@unique([connectionId, uid])
 }
