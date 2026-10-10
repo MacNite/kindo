@@ -135,7 +135,7 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   assertNoErrors();
 });
 
-test("Jellyfin with Quick Connect: a child who signs in with single sign-on, and signing in again behind the cog (D65)", async ({ page, request }) => {
+test("Jellyfin with Quick Connect: a child who signs in with single sign-on, and signing in again behind the cog (D66)", async ({ page, request }) => {
   test.setTimeout(60_000);
   const { assertNoErrors } = await prepare(page);
   await request.post(`${MEDIA}/__reset`);

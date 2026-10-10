@@ -13,7 +13,7 @@ export type ErrorCode =
   | "busy"
   /** Not a picture Kindo takes (D61). */
   | "photo"
-  /** Jellyfin's Quick Connect is off, or its code ran out (D65). */
+  /** Jellyfin's Quick Connect is off, or its code ran out (D66). */
   | "quickConnectOff" | "expired";
 
 export class UserError extends Error {

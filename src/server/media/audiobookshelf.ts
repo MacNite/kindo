@@ -41,23 +41,73 @@ export async function whoAmI(t: AbsTarget): Promise<{ id: string; username: stri
   return { id: me.id, username: me.username ?? "" };
 }
 
-interface Item { id: string; media?: { metadata?: { title?: string; authorName?: string } } }
+interface Metadata {
+  title?: string;
+  authorName?: string;
+  /** "Name #2", as Audiobookshelf writes it. */
+  seriesName?: string;
+  authors?: { name?: string }[];
+  series?: { name?: string; sequence?: string | null }[];
+}
+interface Item { id: string; media?: { metadata?: Metadata } }
+/** What Audiobookshelf's own search finds in a library: books by title, series with their books, and authors, narrators and tags by name. */
+interface Found {
+  book?: { libraryItem?: Item }[];
+  series?: { books?: Item[] }[];
+  authors?: { id?: string }[];
+  narrators?: { name?: string }[];
+  tags?: { name?: string }[];
+}
 
-/** The audiobooks the account may see, for the admin to pick. Podcasts stay out. */
+/** The most choices the admin gets at once; a search narrows them. */
+const MAX_CHOICES = 300;
+
+function choiceOf(i: Item): MediaChoice {
+  const m = i.media?.metadata ?? {};
+  const author = m.authorName || m.authors?.map((a) => a.name).filter(Boolean).join(", ");
+  const s = m.series?.[0];
+  const series = m.seriesName || (s?.name ? (s.sequence ? `${s.name} #${s.sequence}` : s.name) : "");
+  return { remoteId: i.id, kind: "book", name: m.title ?? i.id, detail: [author, series].filter(Boolean).join(" · ") || undefined };
+}
+
+/** A library's books, sorted by title; `filter` narrows them as Audiobookshelf's own screens do (`authors.<base64 id>`). */
+async function itemsOf(t: AbsTarget, libraryId: string, limit: number, filter?: string): Promise<Item[]> {
+  const q = new URLSearchParams({ limit: String(limit), sort: "media.metadata.title", minified: "1", ...(filter ? { filter } : {}) });
+  return (await call<{ results?: Item[] }>(t, `/api/libraries/${encodeURIComponent(libraryId)}/items?${q}`))?.results ?? [];
+}
+const filterOf = (key: "authors" | "narrators" | "tags", value: string) => `${key}.${Buffer.from(value).toString("base64")}`;
+
+/**
+ * The audiobooks the account may see, for the admin to pick. Podcasts stay
+ * out. Without a search, the first titles of each book library. A search
+ * goes to Audiobookshelf's own search, so it reaches every book however
+ * large the library is, and finds books by title, series, author, narrator
+ * or tag: authors, narrators and tags come back as names, and their books
+ * are asked for as Audiobookshelf's own screens do.
+ */
 export async function browse(t: AbsTarget, search = ""): Promise<MediaChoice[]> {
   const libs = (await call<{ libraries?: { id: string; mediaType?: string }[] }>(t, "/api/libraries"))?.libraries ?? [];
-  const found: MediaChoice[] = [];
-  const s = search.trim().toLowerCase();
+  const found = new Map<string, MediaChoice>();
+  const add = (items: (Item | undefined)[]) => {
+    for (const i of items) if (i?.id && !found.has(i.id)) found.set(i.id, choiceOf(i));
+  };
+  const q = search.trim();
   for (const lib of libs.filter((l) => (l.mediaType ?? "book") === "book")) {
-    const r = await call<{ results?: Item[] }>(t, `/api/libraries/${encodeURIComponent(lib.id)}/items?${new URLSearchParams({ limit: "500", sort: "media.metadata.title", minified: "1" })}`);
-    for (const i of r?.results ?? []) {
-      const name = i.media?.metadata?.title ?? i.id;
-      const author = i.media?.metadata?.authorName || undefined;
-      if (s && !`${name} ${author ?? ""}`.toLowerCase().includes(s)) continue;
-      found.push({ remoteId: i.id, kind: "book", name, detail: author });
+    if (!q) {
+      add(await itemsOf(t, lib.id, MAX_CHOICES));
+      continue;
     }
+    const r = await call<Found>(t, `/api/libraries/${encodeURIComponent(lib.id)}/search?${new URLSearchParams({ q, limit: "50" })}`);
+    add((r?.book ?? []).map((b) => b.libraryItem));
+    for (const s of r?.series ?? []) add(s.books ?? []);
+    const filters = [
+      ...(r?.authors ?? []).flatMap((a) => (a.id ? [filterOf("authors", a.id)] : [])).slice(0, 5),
+      ...(r?.narrators ?? []).flatMap((n) => (n.name ? [filterOf("narrators", n.name)] : [])).slice(0, 3),
+      ...(r?.tags ?? []).flatMap((n) => (n.name ? [filterOf("tags", n.name)] : [])).slice(0, 3),
+    ];
+    for (const f of filters) add(await itemsOf(t, lib.id, 100, f));
   }
-  return found.slice(0, 300);
+  return [...found.values()].slice(0, MAX_CHOICES);
 }
 
 interface AudioFile { ino: string; index?: number; duration?: number; exclude?: boolean; metadata?: { filename?: string } }

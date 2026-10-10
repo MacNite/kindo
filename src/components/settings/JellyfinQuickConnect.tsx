@@ -12,7 +12,7 @@ const CHECK_MS = 2000;
 export type QuickConnectDone = { id: string; name: string; switched: boolean };
 
 /**
- * Jellyfin's Quick Connect (§23, D65): Kindo shows a code, someone signed in
+ * Jellyfin's Quick Connect (§23, D66): Kindo shows a code, someone signed in
  * to Jellyfin as the children's user enters it there, and Kindo signs in as
  * that user. For users who sign in with single sign-on and have no password
  * Jellyfin takes. With `connId` it signs an existing connection in again.

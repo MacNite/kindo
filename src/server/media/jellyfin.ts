@@ -37,7 +37,7 @@ export async function signIn(url: string, username: string, password: string): P
 }
 
 /**
- * Quick Connect (D65): for a user who signs in through single sign-on and has
+ * Quick Connect (D66): for a user who signs in through single sign-on and has
  * no password Jellyfin takes. Kindo asks for a code, someone signed in to
  * Jellyfin as that user enters it, and Kindo trades the secret behind the
  * code for the user's token. The secret never leaves the server.

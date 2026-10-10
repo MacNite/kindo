@@ -92,7 +92,14 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
   it("connects Audiobookshelf, offers books only, and keeps each child's own place", async () => {
     await expect(M.addAudiobookshelf(db, { url: media.abs, apiKey: "wrong-key-0123456789" })).rejects.toMatchObject({ code: "remote" });
     abs = await M.addAudiobookshelf(db, { url: media.abs, apiKey: ABS_KEY });
-    expect((await M.browse(db, { id: abs, search: "" })).map((c) => [c.remoteId, c.kind, c.detail])).toEqual([["li_dragon", "book", "Ingo Siegner"]]);
+    expect((await M.browse(db, { id: abs, search: "" })).map((c) => [c.remoteId, c.kind, c.detail])).toEqual([["li_dragon", "book", "Ingo Siegner"], ["li_rock", "book", "Heavysaurus · Dino-Rocker #1"]]);
+    // Audiobookshelf's own search: by title, by series and by author, each book once, never a podcast.
+    const found = async (search: string) => (await M.browse(db, { id: abs, search })).map((c) => c.remoteId);
+    expect(await found("drache")).toEqual(["li_dragon"]);
+    expect(await found("dino")).toEqual(["li_rock"]);
+    expect(await found("heavysaurus")).toEqual(["li_rock"]);
+    expect(await found("r")).toEqual(["li_dragon", "li_rock"]);
+    expect(await found("podcast")).toEqual([]);
     await M.saveShelf(db, { id: abs, items: [{ remoteId: "li_dragon", kind: "album", name: "Drache", memberIds: [] }] });
     const [book] = M.shelfOf(await db.connection.findUniqueOrThrow({ where: { id: abs } }));
     expect(book.kind).toBe("book");
@@ -220,7 +227,7 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
     await expect(C.updateConnection(db, { id: abs, url: "ftp://nope" })).rejects.toThrow();
   });
 
-  it("signs in to Jellyfin with Quick Connect, for a user without a password, new or in place (D65)", async () => {
+  it("signs in to Jellyfin with Quick Connect, for a user without a password, new or in place (D66)", async () => {
     // What Jellyfin's own screen does when Mia, signed in with single sign-on, enters the code.
     const approve = (code: string) => fetch(`${media.jellyfin}/QuickConnect/Authorize?code=${code}`, { method: "POST", headers: { Authorization: `MediaBrowser Token="${JF_SSO_TOKEN}"` } });
 

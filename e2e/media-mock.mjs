@@ -3,11 +3,13 @@
  * for the tests (§23). Jellyfin: the "kids" user (password "secret") sees an
  * album, an audio playlist and a video playlist Kindo must leave out. "Mia"
  * signs in with single sign-on and has no password, so only Quick Connect
- * signs Kindo in as her (D65): her token approves a code, as Jellyfin's own
+ * signs Kindo in as her (D66): her token approves a code, as Jellyfin's own
  * screen would (`POST /jellyfin/QuickConnect/Authorize?code=`).
  * `POST /__quickconnect {"enabled": false}` turns Quick Connect off.
  * Audiobookshelf: a family account and Mia's own account, one book of two
- * files (and one excluded file), and a podcast library Kindo must leave out.
+ * files (and one excluded file), a second book found only by its author or
+ * series, and a podcast library Kindo must leave out. Its search answers like
+ * the real one: books by title, series with their books, authors by name.
  * The sound is real WAV (silence), served with Range like the real servers,
  * so a browser can play and seek it. `GET /__progress` shows the saved places.
  */
@@ -50,6 +52,10 @@ const JF_ITEMS = [
   { Id: "vid1", Name: "Movie night", Type: "Playlist", MediaType: "Video" },
 ];
 const JF_TRACKS = { alb1: [{ Id: "t1", Name: "Song one", RunTimeTicks: 30_000_000 }, { Id: "t2", Name: "Song two", RunTimeTicks: 20_000_000 }], pl1: [{ Id: "t3", Name: "Lullaby", RunTimeTicks: 20_000_000 }] };
+const ABS_BOOKS = [
+  { id: "li_dragon", media: { metadata: { title: "Der kleine Drache", authorName: "Ingo Siegner", authors: [{ id: "aut-siegner", name: "Ingo Siegner" }], series: [] } } },
+  { id: "li_rock", media: { metadata: { title: "Rock'n'Rarr!", authorName: "Heavysaurus", seriesName: "Dino-Rocker #1", authors: [{ id: "aut-heavy", name: "Heavysaurus" }], series: [{ id: "ser-dino", name: "Dino-Rocker", sequence: "1" }] } } },
+];
 const ABS_FILES = [{ ino: "f1", index: 1, duration: 4, metadata: { filename: "01 Chapter one.mp3" } }, { ino: "f2", index: 2, duration: 4, metadata: { filename: "02 Chapter two.mp3" } }, { ino: "fx", index: 3, duration: 9, exclude: true }];
 
 export function startMediaMock(port = 0) {
@@ -155,7 +161,24 @@ export function startMediaMock(port = 0) {
       if (!user) return res.writeHead(401).end();
       if (ap === "/api/me") return json(res, user);
       if (ap === "/api/libraries") return json(res, { libraries: [{ id: "lib-books", mediaType: "book" }, { id: "lib-pods", mediaType: "podcast" }] });
-      if (ap === "/api/libraries/lib-books/items") return json(res, { results: [{ id: "li_dragon", media: { metadata: { title: "Der kleine Drache", authorName: "Ingo Siegner" } } }] });
+      if (ap === "/api/libraries/lib-books/items") {
+        // Only an author filter, as Kindo asks for it: `authors.<base64 id>`.
+        const f = /^authors\.(.+)$/.exec(url.searchParams.get("filter") ?? "");
+        const author = f ? Buffer.from(f[1], "base64").toString() : null;
+        return json(res, { results: ABS_BOOKS.filter((b) => !author || b.media.metadata.authors.some((a) => a.id === author)) });
+      }
+      if (ap === "/api/libraries/lib-books/search") {
+        const q = (url.searchParams.get("q") ?? "").toLowerCase();
+        if (!q) return res.writeHead(400).end();
+        const has = (v) => v.toLowerCase().includes(q);
+        const series = [...new Map(ABS_BOOKS.flatMap((b) => b.media.metadata.series).map((x) => [x.id, x])).values()].filter((x) => has(x.name));
+        const authors = [...new Map(ABS_BOOKS.flatMap((b) => b.media.metadata.authors).map((x) => [x.id, x])).values()].filter((x) => has(x.name));
+        return json(res, {
+          book: ABS_BOOKS.filter((b) => has(b.media.metadata.title)).map((b) => ({ libraryItem: b, matchKey: "title", matchText: b.media.metadata.title })),
+          series: series.map((x) => ({ series: x, books: ABS_BOOKS.filter((b) => b.media.metadata.series.some((y) => y.id === x.id)) })),
+          authors: authors.map((a) => ({ ...a, numBooks: 1 })), narrators: [], tags: [], genres: [],
+        });
+      }
       if (ap === "/api/libraries/lib-pods/items") return json(res, { results: [{ id: "li_pod", media: { metadata: { title: "A podcast" } } }] });
       if (ap === "/api/items/li_dragon") return json(res, { id: "li_dragon", media: { metadata: { title: "Der kleine Drache" }, audioFiles: ABS_FILES } });
       const prog = /^\/api\/me\/progress\/([^/]+)$/.exec(ap);
