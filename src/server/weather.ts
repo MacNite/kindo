@@ -16,7 +16,7 @@ import { errorMessage, log } from "./log";
 export const WEATHER_JOB = "weather";
 const WEATHER_MINUTES = 30;
 /** Today plus the four days the widget lists. */
-const FORECAST_DAYS = 5;
+const FORECAST_DAYS = 6;
 
 /** What `Household.weather` holds. Days are keys in the household's time zone. */
 export interface StoredWeather {

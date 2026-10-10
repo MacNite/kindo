@@ -72,7 +72,9 @@ export function HomeTile({ large }: { large?: boolean }) {
   // In the wall's top strip only one row fits: the first switch and a way to the others.
   const more = large && switches.length > 2 ? switches.length - 1 : 0;
   return (
-    <section data-testid="home-tile" className={cn("home-tile flex flex-col gap-4 rounded-panel bg-surface", large ? "p-6" : "p-5")}>
+    <section data-testid="home-tile" className={cn("home-tile flex flex-col gap-4 rounded-panel bg-surface", large ? "wall-openable p-6" : "p-5")}>
+      {/* On the wall a tap beside the switches opens the page (D60). */}
+      {large && <Link href="/home-control" aria-label={t("homeControl.title")} tabIndex={-1} className="wall-open" />}
       <header className="flex items-center justify-between gap-3">
         <Link href="/home-control" className={cn("min-w-0 font-bold hover:underline underline-offset-4", large ? "wall-tile-label text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("homeControl.title")}</Link>
         {setup.controls.length > 0 && <AllOffButton count={setup.controls.length} onConfirm={allOff} size={large ? "md" : "sm"} />}

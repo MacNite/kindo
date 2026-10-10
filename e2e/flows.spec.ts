@@ -45,6 +45,16 @@ test("the wall display opens the photo frame and a tap returns", async ({ page }
   await expect(saver).toBeHidden();
 });
 
+test("the wall opens a child's view from their lane's header and shows the coming days' weather (D60)", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/wall");
+  // The demo weather has five days ahead; however many fit, at least three show.
+  await expect(page.locator(".wall-forecast > li").filter({ visible: true }).nth(2)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Child view: Paul" })).toBeVisible();
+  await page.locator(".lane-open").filter({ hasText: "Paul" }).getByRole("heading", { name: "Paul" }).click();
+  await expect(page).toHaveURL(/\/kids\/paul$/);
+});
+
 test("the wall shows what each child has collected", async ({ page }) => {
   await prepare(page);
   await page.goto("/wall");
