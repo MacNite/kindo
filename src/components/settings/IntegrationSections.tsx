@@ -308,7 +308,7 @@ function FrigateForm({ onClose }: { onClose: () => void }) {
  * Jellyfin, music only (§23): signs in as a Jellyfin user. Best one made for
  * the children, so Jellyfin's own library access and parental controls apply
  * to everything Kindo shows. Only the access token is kept. Quick Connect
- * comes first: it also works for users who sign in with single sign-on (D65).
+ * comes first: it also works for users who sign in with single sign-on (D66).
  */
 function JellyfinForm({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();

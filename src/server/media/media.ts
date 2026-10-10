@@ -114,7 +114,7 @@ async function storeJellyfin(db: Tx, conn: Connection, url: string, token: strin
  */
 const QUICK_CONNECT_MS = 15 * 60_000;
 
-/** Asks Jellyfin for a Quick Connect code (D65): the code to show, and the attempt to check back with. */
+/** Asks Jellyfin for a Quick Connect code (D66): the code to show, and the attempt to check back with. */
 export async function quickConnectStart(input: In<"quickConnectStart">) {
   const { secret, code } = await JF.quickConnectStart(input.url);
   return { code, attempt: encryptSecret(JSON.stringify({ url: input.url, secret, at: Date.now() })) };
