@@ -6,3 +6,4 @@ import { act } from "./act";
 export const listAddressBooks = act(B.B.byId, B.addressBooksOf, { level: "admin", topic: null });
 export const setContactBooks = act(B.B.contactBooks, B.setContactBooks, { level: "admin" });
 export const updateContactBirthday = act(B.B.contactBirthday, B.updateContactBirthday, { level: "admin" });
+export const setContactPhoto = act(B.B.contactPhoto, B.setContactPhoto, { level: "admin" });

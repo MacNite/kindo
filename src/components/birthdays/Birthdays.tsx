@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useId, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import type { Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -15,6 +15,8 @@ const SOON_DAYS = 30;
 /** From this many days on, children see the sleeps until their birthday as dots. */
 const SLEEPS_FROM = 14;
 const NEUTRAL = "rgb(var(--soft))";
+/** A contact without a colour of its own: quiet beside the family (D61). */
+export const CONTACT_MUTED = "rgb(var(--contact))";
 
 /** Everyone on the birthday wheel, soonest first (§12, D46). `filter` keeps people and whatever belongs to them. */
 function useBirthdays(filter?: Set<string>) {
@@ -52,13 +54,16 @@ function useWords() {
   };
 }
 
-const colorOf = (b: { memberId?: string }, getMember: (id?: string) => Member | undefined) => getMember(b.memberId)?.color ?? NEUTRAL;
+/** A contact has its own colour or the muted one; anyone else takes the colour of the person they are or belong to. */
+const colorOf = (b: { origin: UpcomingBirthday["origin"]; memberId?: string; color?: string }, getMember: (id?: string) => Member | undefined) =>
+  b.origin === "contact" ? b.color ?? CONTACT_MUTED : getMember(b.memberId)?.color ?? NEUTRAL;
 
-/** A person's own picture; anyone else gets their initials in the colour of the person they belong to. */
+/** A person's own picture, a contact's uploaded one; anyone else gets their initials in their colour. */
 function BirthdayAvatar({ b, size = "md" }: { b: UpcomingBirthday; size?: "sm" | "md" }) {
   const { getMember } = useStore();
   const m = getMember(b.memberId);
   if (b.origin === "member" && m) return <Avatar member={m} size={size} />;
+  if (b.photo) return <img src={b.photo} alt="" className={cn("shrink-0 rounded-full object-cover", size === "sm" ? "h-8 w-8" : "h-11 w-11")} />;
   return (
     <span style={{ "--m": colorOf(b, getMember) } as CSSProperties}
       className={cn("tint-strong m-text inline-grid shrink-0 place-items-center rounded-full font-display font-bold leading-none", size === "sm" ? "h-8 w-8 text-xs" : "h-11 w-11 text-base")}>
@@ -85,6 +90,9 @@ function BirthdayWheel({ list, selected, onSelect, compact = false }: {
   const { t, fmt } = useI18n();
   const { getMember } = useStore();
   const words = useWords();
+  // Clip-path ids for the pictures: unique per wheel, and plain enough for url(#…).
+  const uid = useId();
+  const clipId = (id: string) => `bd${uid}${id}`.replace(/[^\w-]/g, "_");
   const R = compact ? 172 : 160, dot = compact ? 22 : 17;
   // Neighbours may overlap a little, like stacked chips; only close ones move inwards.
   const rings = wheelRings(list, (1.3 * dot) / (2 * Math.PI * R));
@@ -138,10 +146,18 @@ function BirthdayWheel({ list, selected, onSelect, compact = false }: {
             onClick={() => onSelect(b.id)} onKeyDown={key(b.id)} className="cursor-pointer outline-none [&:focus-visible>circle:first-child]:stroke-[rgb(var(--ink))]">
             <circle cx={x} cy={y} r={dot + 6} fill="none" strokeWidth={3} stroke={on ? color : "transparent"} />
             <circle cx={x} cy={y} r={dot} fill={color} stroke="rgb(var(--surface))" strokeWidth={3} />
-            <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff"
-              className={cn("pointer-events-none font-display font-bold", emoji ? (compact ? "text-[22px]" : "text-[17px]") : compact ? "text-[15px]" : "text-[12px]")}>
-              {emoji ?? initials(b.name)}
-            </text>
+            {b.photo ? (
+              <>
+                <clipPath id={clipId(b.id)}><circle cx={x} cy={y} r={dot - 1.5} /></clipPath>
+                <image href={b.photo} x={x - dot} y={y - dot} width={2 * dot} height={2 * dot} preserveAspectRatio="xMidYMid slice"
+                  clipPath={`url(#${clipId(b.id)})`} className="pointer-events-none" />
+              </>
+            ) : (
+              <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle" fill="#fff"
+                className={cn("pointer-events-none font-display font-bold", emoji ? (compact ? "text-[22px]" : "text-[17px]") : compact ? "text-[15px]" : "text-[12px]")}>
+                {emoji ?? initials(b.name)}
+              </text>
+            )}
           </g>
         );
       })}

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { inTx, type Tx } from "../db";
 import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
-import { id } from "../validation";
+import { color, id } from "../validation";
 import { retryDelayMs } from "../jobs";
 import { DavRefused } from "../dav";
 import { caldavAccount, holdLifted, recordSyncFailure } from "../calendar/sync";
@@ -26,6 +26,9 @@ export interface ContactsConfig {
   failures?: number;
 }
 const CONTACT_MINUTES = 60;
+/** A contact's picture is at most this big; the browser sends about 30 kB. */
+export const PHOTO_MAX_BYTES = 512 * 1024;
+const PHOTO_MAX_CHARS = Math.ceil((PHOTO_MAX_BYTES * 4) / 3) + 64;
 
 export const B = {
   contactBooks: z.object({ id, books: z.array(z.string().url().max(2000)).max(20), autoShow: z.boolean() }),
@@ -34,7 +37,11 @@ export const B = {
     show: z.boolean().optional(),
     alias: z.string().trim().max(80).optional(),
     memberId: id.nullable().optional(),
+    /** Its own colour; null for the muted default (D61). */
+    color: color.nullable().optional(),
   }),
+  /** A picture as a data: URL (the browser makes it small and square first), or null to remove it. */
+  contactPhoto: z.object({ id, photo: z.string().max(PHOTO_MAX_CHARS).nullable() }),
   byId: z.object({ id }),
 };
 type In<K extends keyof typeof B> = z.output<(typeof B)[K]>;
@@ -114,7 +121,7 @@ export async function setContactBooks(db: Tx, input: In<"contactBooks">) {
   }
 }
 
-/** The household's own settings for one contact: shown, the name Kindo uses, whose colour. */
+/** The household's own settings for one contact: shown, the name Kindo uses, whose it is and its colour. */
 export async function updateContactBirthday(db: Tx, input: In<"contactBirthday">) {
   const c = await db.contactBirthday.findUnique({ where: { id: input.id } });
   if (!c) throw notFound("contact");
@@ -125,6 +132,45 @@ export async function updateContactBirthday(db: Tx, input: In<"contactBirthday">
       show: input.show,
       alias: input.alias === undefined ? undefined : input.alias || null,
       memberId: input.memberId === undefined ? undefined : input.memberId,
+      color: input.color,
     },
   });
+}
+
+const IMAGE_TYPES: [type: string, magic: (b: Buffer) => boolean][] = [
+  ["image/jpeg", (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff],
+  ["image/png", (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))],
+  ["image/webp", (b) => b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP"],
+];
+
+/**
+ * A data: URL as image bytes, if it is a JPEG, PNG or WebP that is what it
+ * says. Anything else (SVG above all, which could carry script) is refused.
+ */
+export function decodePhoto(dataUrl: string): { type: string; body: Buffer } | null {
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(dataUrl);
+  if (!m) return null;
+  const body = Buffer.from(m[2], "base64");
+  if (!body.length || body.length > PHOTO_MAX_BYTES) return null;
+  const kind = IMAGE_TYPES.find(([, magic]) => magic(body));
+  return kind && kind[0] === m[1] ? { type: kind[0], body } : null;
+}
+
+/** Uploads (or with null removes) a contact's picture for the birthday wheel (D61). */
+export async function setContactPhoto(db: Tx, input: In<"contactPhoto">) {
+  const c = await db.contactBirthday.findUnique({ where: { id: input.id }, select: { id: true } });
+  if (!c) throw notFound("contact");
+  const img = input.photo === null ? null : decodePhoto(input.photo);
+  if (input.photo !== null && !img) throw new UserError("photo", "not a JPEG, PNG or WebP picture");
+  await db.contactBirthday.update({
+    where: { id: c.id },
+    data: img ? { photo: new Uint8Array(img.body), photoType: img.type, photoAt: new Date() } : { photo: null, photoType: null, photoAt: null },
+  });
+}
+
+/** A contact's picture for a screen. Screens without admin rights only get the contacts that show. */
+export async function contactPhoto(db: Tx, contactId: string, admin: boolean) {
+  const c = await db.contactBirthday.findUnique({ where: { id: contactId }, select: { photo: true, photoType: true, show: true } });
+  if (!c?.photo || !c.photoType || (!admin && !c.show)) throw notFound("photo");
+  return { type: c.photoType, body: Buffer.from(c.photo) };
 }
