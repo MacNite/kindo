@@ -13,6 +13,7 @@ import { HomeSetupDialog } from "./HomeSetup";
 import { CameraSetupDialog } from "./CameraSetup";
 import { ShelfSetupDialog } from "./ShelfSetup";
 import { SpeakersVoiceDialog } from "./SpeakersVoiceSetup";
+import { JellyfinQuickConnect, type QuickConnectDone } from "./JellyfinQuickConnect";
 
 type FieldKey = "name" | "url" | "username" | "secret" | "entityId" | "trustCertificate";
 type View = "main" | "home" | "speakers" | "cameras" | "shelf";
@@ -77,12 +78,14 @@ function ConnectionDialog({ conn, onClose, onOpen }: { conn: ConnectionInfo; onC
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ code: string; detail?: string } | null>(null);
   const [saved, setSaved] = useState(false);
+  const [signedIn, setSignedIn] = useState<QuickConnectDone | null>(null);
   const has = (f: FieldKey) => fields.includes(f);
 
   const save = async (e?: FormEvent) => {
     e?.preventDefault();
     setBusy(true);
     setSaved(false);
+    setSignedIn(null);
     const r = await run(() => updateConnection({
       id: conn.id,
       ...(has("name") ? { name } : {}), ...(has("url") ? { url } : {}), ...(has("username") ? { username } : {}),
@@ -133,6 +136,24 @@ function ConnectionDialog({ conn, onClose, onOpen }: { conn: ConnectionInfo; onC
           )}
           <button type="submit" hidden />
         </form>
+        {conn.kind === "jellyfin" && (
+          <section className="flex flex-col gap-3" aria-label={t("integrations.qcAgain")}>
+            <h3 className="font-bold">{t("integrations.qcAgain")}</h3>
+            <p className="text-sm text-soft">{t("integrations.qcAgainHint")}</p>
+            <JellyfinQuickConnect url={url} connId={conn.id} onDone={(r) => {
+              setSaved(false);
+              setError(null);
+              setSecret("");
+              setUsername(r.name);
+              setSignedIn(r);
+            }} />
+            {signedIn && (
+              <p role="status" className={signedIn.switched ? "rounded-card bg-sunken p-3 text-sm font-bold" : "text-sm font-bold text-ok"}>
+                {t(signedIn.switched ? "integrations.qcSwitched" : "integrations.qcSignedIn", { name: signedIn.name })}
+              </p>
+            )}
+          </section>
+        )}
       </div>
     </Dialog>
   );

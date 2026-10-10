@@ -2,6 +2,7 @@
 import * as C from "../connections";
 import * as K from "../cameras";
 import * as M from "../media/media";
+import { notify } from "../realtime";
 import { act } from "./act";
 
 /** Integrations (§15, §19.5–8): admin only; secrets go in, never come out. */
@@ -15,6 +16,13 @@ export const addIcs = act(C.C.addIcs, async (db, input) => C.addIcs(db, input), 
 export const addHomeAssistant = act(C.C.addHomeAssistant, async (db, input) => C.addHomeAssistant(db, input), { level: "admin", topic: "household" });
 export const addFrigate = act(K.K.addFrigate, async (db, input) => K.addFrigate(db, input), { level: "admin", topic: "household" });
 export const addJellyfin = act(M.M.addJellyfin, async (db, input) => M.addJellyfin(db, input), { level: "admin", topic: "household" });
+export const startJellyfinQuickConnect = act(M.M.quickConnectStart, async (_db, input) => M.quickConnectStart(input), { level: "admin", topic: null });
+// Checked every few seconds while the admin enters the code: only a sign-in is news for the other screens.
+export const checkJellyfinQuickConnect = act(M.M.quickConnect, async (db, input) => {
+  const r = await M.quickConnect(db, input);
+  if (r.done) await notify("household");
+  return r;
+}, { level: "admin", topic: null });
 export const addAudiobookshelf = act(M.M.addAudiobookshelf, async (db, input) => M.addAudiobookshelf(db, input), { level: "admin", topic: "household" });
 export const updateConnection = act(C.C.update, C.updateConnection, { level: "admin", topic: "household" });
 export const addImmich = act(C.C.addImmich, async (db, input) => C.addImmich(db, input), { level: "admin", topic: "household" });

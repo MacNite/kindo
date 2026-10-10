@@ -1,7 +1,11 @@
 /**
  * Stand-ins for Jellyfin (under /jellyfin) and Audiobookshelf (under /abs)
  * for the tests (§23). Jellyfin: the "kids" user (password "secret") sees an
- * album, an audio playlist and a video playlist Kindo must leave out.
+ * album, an audio playlist and a video playlist Kindo must leave out. "Mia"
+ * signs in with single sign-on and has no password, so only Quick Connect
+ * signs Kindo in as her (D65): her token approves a code, as Jellyfin's own
+ * screen would (`POST /jellyfin/QuickConnect/Authorize?code=`).
+ * `POST /__quickconnect {"enabled": false}` turns Quick Connect off.
  * Audiobookshelf: a family account and Mia's own account, one book of two
  * files (and one excluded file), and a podcast library Kindo must leave out.
  * The sound is real WAV (silence), served with Range like the real servers,
@@ -14,6 +18,8 @@ export const JF_PASSWORD = "secret";
 export const ABS_KEY = "abs-family-key-0123456789";
 export const ABS_MIA_KEY = "abs-mia-key-0123456789";
 const JF_TOKEN = "jf-access-token";
+export const JF_SSO_TOKEN = "jf-sso-mia-token";
+const JF_USERS = { [JF_TOKEN]: { Id: "user-kids", Name: "Kids" }, [JF_SSO_TOKEN]: { Id: "user-mia", Name: "Mia" } };
 const ABS_USERS = { [ABS_KEY]: { id: "usr-family", username: "family" }, [ABS_MIA_KEY]: { id: "usr-mia", username: "mia" } };
 
 /** `seconds` of 8 kHz 8-bit mono silence as a WAV file. */
@@ -49,6 +55,8 @@ const ABS_FILES = [{ ino: "f1", index: 1, duration: 4, metadata: { filename: "01
 export function startMediaMock(port = 0) {
   /** Saved places in a book, per account. */
   const progress = {};
+  /** Quick Connect: whether it is on, and its codes by secret, with whom they were approved for. */
+  const qc = { enabled: true, codes: new Map(), next: 100000 };
   /** Every sound request: path and Range, for the tests to check. */
   const requests = [];
   const json = (res, v, status = 200) => res.writeHead(status, { "content-type": "application/json" }).end(JSON.stringify(v));
@@ -78,6 +86,13 @@ export function startMediaMock(port = 0) {
     if (p === "/__reset" && req.method === "POST") {
       for (const k of Object.keys(progress)) delete progress[k];
       requests.length = 0;
+      qc.enabled = true;
+      qc.codes.clear();
+      return res.writeHead(200).end();
+    }
+
+    if (p === "/__quickconnect" && req.method === "POST") {
+      qc.enabled = (await body(req)).enabled !== false;
       return res.writeHead(200).end();
     }
 
@@ -89,8 +104,36 @@ export function startMediaMock(port = 0) {
         if (b.Username !== JF_USER || b.Pw !== JF_PASSWORD) return res.writeHead(401).end();
         return json(res, { AccessToken: JF_TOKEN, User: { Id: "user-kids", Name: "Kids" } });
       }
-      if (!String(req.headers.authorization ?? "").includes(`Token="${JF_TOKEN}"`)) return res.writeHead(401).end();
-      if (jp === "/Users/Me") return json(res, { Id: "user-kids", Name: "Kids" });
+      if (jp === "/QuickConnect/Enabled") return json(res, qc.enabled);
+      if (jp === "/QuickConnect/Initiate" && req.method === "POST") {
+        if (!qc.enabled) return res.writeHead(401).end();
+        const secret = `qc-secret-${qc.next}`;
+        const code = String(qc.next++);
+        qc.codes.set(secret, { code, user: null });
+        return json(res, { Secret: secret, Code: code, Authenticated: false });
+      }
+      if (jp === "/QuickConnect/Connect") {
+        const c = qc.codes.get(url.searchParams.get("secret") ?? "");
+        if (!c) return res.writeHead(404).end();
+        return json(res, { Code: c.code, Authenticated: Boolean(c.user) });
+      }
+      if (jp === "/Users/AuthenticateWithQuickConnect" && req.method === "POST") {
+        const secret = (await body(req)).Secret ?? "";
+        const c = qc.codes.get(secret);
+        if (!c?.user) return res.writeHead(401).end();
+        qc.codes.delete(secret);
+        const token = Object.keys(JF_USERS).find((k) => JF_USERS[k].Id === c.user);
+        return json(res, { AccessToken: token, User: JF_USERS[token] });
+      }
+      const me = JF_USERS[/Token="([^"]+)"/.exec(String(req.headers.authorization ?? ""))?.[1] ?? ""];
+      if (!me) return res.writeHead(401).end();
+      if (jp === "/QuickConnect/Authorize" && req.method === "POST") {
+        const c = [...qc.codes.values()].find((v) => v.code === url.searchParams.get("code"));
+        if (!c) return res.writeHead(404).end();
+        c.user = me.Id;
+        return json(res, true);
+      }
+      if (jp === "/Users/Me") return json(res, me);
       if (jp === "/Items" && url.searchParams.get("ParentId")) return json(res, { Items: JF_TRACKS[url.searchParams.get("ParentId")] ?? [] });
       if (jp === "/Items") {
         const s = (url.searchParams.get("SearchTerm") ?? "").toLowerCase();

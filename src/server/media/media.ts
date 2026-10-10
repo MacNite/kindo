@@ -30,6 +30,9 @@ const shelfId = z.string().regex(/^[a-z0-9]{6,24}$/);
 const speakerId = z.string().trim().regex(/^media_player\.[a-z0-9_]+$/, "a media player").max(255);
 export const M = {
   addJellyfin: z.object({ url: httpUrl, username: z.string().trim().min(1).max(200), password: z.string().max(500) }),
+  quickConnectStart: z.object({ url: httpUrl }),
+  /** A Quick Connect attempt, checked again until the code was entered; with `id`, it signs an existing connection in again. */
+  quickConnect: z.object({ attempt: z.string().min(1).max(4000), id: id.optional() }),
   addAudiobookshelf: z.object({ url: httpUrl, apiKey: z.string().trim().min(10).max(2000) }),
   browse: z.object({ id, search: z.string().max(100).default("") }),
   shelf: z.object({
@@ -82,14 +85,64 @@ export function mediaSetupOf(connections: Pick<Connection, "kind" | "config">[])
 // ── Connecting ───────────────────────────────────────────────────────────────
 /** Connects Jellyfin: signs in as the user whose music the children may hear; only the token is kept. */
 export async function addJellyfin(db: Tx, input: In<"addJellyfin">) {
-  const me = await JF.signIn(input.url, input.username, input.password);
+  return createJellyfin(db, input.url, await JF.signIn(input.url, input.username, input.password));
+}
+
+async function createJellyfin(db: Tx, url: string, me: { token: string; userId: string; name: string }) {
   const conn = await db.connection.create({
     data: {
-      kind: "jellyfin", name: new URL(input.url).host, url: input.url, username: me.name, secret: encryptSecret(me.token),
+      kind: "jellyfin", name: new URL(url).host, url, username: me.name, secret: encryptSecret(me.token),
       config: json({ userId: me.userId, shelf: [] } satisfies MediaStoredConfig), status: "ok", lastSyncAt: new Date(),
     },
   });
   return conn.id;
+}
+
+/** A Jellyfin connection's new address or sign-in. The shelf stays. */
+async function storeJellyfin(db: Tx, conn: Connection, url: string, token: string, me: { userId: string; name: string }, name = conn.name) {
+  await db.connection.update({
+    where: { id: conn.id },
+    data: { name, url, username: me.name, secret: encryptSecret(token), config: json({ ...cfgOf(conn), userId: me.userId }), status: "ok", lastError: null, lastSyncAt: new Date() },
+  });
+  forgetTracks(conn.id);
+}
+
+/**
+ * Jellyfin's Quick Connect lasts a few minutes; Kindo gives up a little later.
+ * The attempt the screen holds is encrypted, so the secret behind the code
+ * stays on the server (§17).
+ */
+const QUICK_CONNECT_MS = 15 * 60_000;
+
+/** Asks Jellyfin for a Quick Connect code (D65): the code to show, and the attempt to check back with. */
+export async function quickConnectStart(input: In<"quickConnectStart">) {
+  const { secret, code } = await JF.quickConnectStart(input.url);
+  return { code, attempt: encryptSecret(JSON.stringify({ url: input.url, secret, at: Date.now() })) };
+}
+
+export type QuickConnectResult = { done: false } | { done: true; id: string; name: string; switched: boolean };
+
+/**
+ * Checks a Quick Connect attempt. Once the code was entered in Jellyfin it
+ * signs in as that user: a new connection, or with `id` the existing one,
+ * whose shelf stays even when it is now another user (`switched`).
+ */
+export async function quickConnect(db: Tx, input: In<"quickConnect">, now = Date.now()): Promise<QuickConnectResult> {
+  let a: { url: string; secret: string; at: number };
+  try {
+    a = JSON.parse(decryptSecret(input.attempt));
+  } catch {
+    throw new UserError("invalid", "not a Quick Connect attempt");
+  }
+  if (now - a.at > QUICK_CONNECT_MS) throw new UserError("expired", "the Quick Connect code expired");
+  const conn = input.id ? await mediaById(db, input.id) : null;
+  if (conn && conn.kind !== "jellyfin") throw new UserError("invalid", "Quick Connect is Jellyfin's");
+  if (!(await JF.quickConnectApproved(a.url, a.secret))) return { done: false };
+  const me = await JF.quickConnectSignIn(a.url, a.secret);
+  if (!conn) return { done: true, id: await createJellyfin(db, a.url, me), name: me.name, switched: false };
+  const switched = cfgOf(conn).userId !== me.userId;
+  await storeJellyfin(db, conn, a.url, me.token, me);
+  return { done: true, id: conn.id, name: me.name, switched };
 }
 
 /** Connects Audiobookshelf with an account's API key. */
@@ -122,10 +175,7 @@ export async function updateMediaConnection(db: Tx, conn: Connection, input: { n
       if (input.username && input.username !== conn.username) throw new UserError("invalid", "another user needs their password");
       me = await JF.whoAmI(url, token);
     }
-    await db.connection.update({
-      where: { id: conn.id },
-      data: { name: input.name || conn.name, url, username: me.name, secret: encryptSecret(token), config: json({ ...cfgOf(conn), userId: me.userId }), status: "ok", lastError: null, lastSyncAt: new Date() },
-    });
+    await storeJellyfin(db, conn, url, token, me, input.name || conn.name);
   } else if (conn.kind === "audiobookshelf") {
     const token = input.secret || (conn.secret ? decryptSecret(conn.secret) : "");
     const me = await ABS.whoAmI({ url, token });

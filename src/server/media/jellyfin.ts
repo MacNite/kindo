@@ -16,15 +16,15 @@ const authHeader = (token?: string) =>
   `MediaBrowser Client="Kindo", Device="Kindo", DeviceId="kindo-server", Version="1.0"${token ? `, Token="${token}"` : ""}`;
 export const jellyfinHeaders = (token: string): Record<string, string> => ({ Authorization: authHeader(token) });
 
-async function call<T>(url: string, path: string, init: { token?: string; body?: unknown } = {}): Promise<T> {
+async function call<T>(url: string, path: string, init: { token?: string; body?: unknown; method?: "GET" | "POST"; on404?: UserError } = {}): Promise<T> {
   const res = await fetchChecked(`${base(url)}${path}`, {
-    method: init.body === undefined ? "GET" : "POST",
+    method: init.method ?? (init.body === undefined ? "GET" : "POST"),
     headers: { Authorization: authHeader(init.token), Accept: "application/json", ...(init.body === undefined ? {} : { "Content-Type": "application/json" }) },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
     timeoutMs: 20_000,
   });
   if (res.status === 401 || res.status === 403) throw new UserError("remote", "Jellyfin refused the sign-in");
-  if (res.status === 404) throw new UserError("remote", "no Jellyfin at this address (HTTP 404)");
+  if (res.status === 404) throw init.on404 ?? new UserError("remote", "no Jellyfin at this address (HTTP 404)");
   if (!res.ok) throw new UserError("remote", `Jellyfin: HTTP ${res.status}`);
   return readJson<T>(res);
 }
@@ -34,6 +34,33 @@ export async function signIn(url: string, username: string, password: string): P
   const r = await call<{ AccessToken?: string; User?: { Id?: string; Name?: string } }>(url, "/Users/AuthenticateByName", { body: { Username: username, Pw: password } });
   if (!r.AccessToken || !r.User?.Id) throw new UserError("remote", "Jellyfin didn't sign in");
   return { token: r.AccessToken, userId: r.User.Id, name: r.User.Name ?? username };
+}
+
+/**
+ * Quick Connect (D65): for a user who signs in through single sign-on and has
+ * no password Jellyfin takes. Kindo asks for a code, someone signed in to
+ * Jellyfin as that user enters it, and Kindo trades the secret behind the
+ * code for the user's token. The secret never leaves the server.
+ */
+export async function quickConnectStart(url: string): Promise<{ secret: string; code: string }> {
+  const on = await call<boolean>(url, "/QuickConnect/Enabled");
+  if (on !== true) throw new UserError("quickConnectOff", "Quick Connect is off in Jellyfin");
+  const r = await call<{ Secret?: string; Code?: string }>(url, "/QuickConnect/Initiate", { method: "POST" });
+  if (!r.Secret || !r.Code) throw new UserError("remote", "Jellyfin didn't give a Quick Connect code");
+  return { secret: r.Secret, code: r.Code };
+}
+
+/** Whether the code was entered yet. Jellyfin forgets a code after a few minutes. */
+export async function quickConnectApproved(url: string, secret: string): Promise<boolean> {
+  const r = await call<{ Authenticated?: boolean }>(url, `/QuickConnect/Connect?${new URLSearchParams({ secret })}`, { on404: new UserError("expired", "the Quick Connect code expired") });
+  return r.Authenticated === true;
+}
+
+/** Signs in with an approved Quick Connect secret: the token and the user's id, as with a password. */
+export async function quickConnectSignIn(url: string, secret: string): Promise<{ token: string; userId: string; name: string }> {
+  const r = await call<{ AccessToken?: string; User?: { Id?: string; Name?: string } }>(url, "/Users/AuthenticateWithQuickConnect", { body: { Secret: secret } });
+  if (!r.AccessToken || !r.User?.Id) throw new UserError("remote", "Jellyfin didn't sign in");
+  return { token: r.AccessToken, userId: r.User.Id, name: r.User.Name ?? "" };
 }
 
 /** Checks a stored token: the user it belongs to. */
