@@ -2,7 +2,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import {
-  Cake, CalendarDays, CalendarHeart, ChevronRight, Gift, House, ImageIcon, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Sparkles, UserRound, Users,
+  Cake, CalendarDays, CalendarHeart, ChevronRight, Gift, House, ImageIcon, Library, KeyRound, Languages, LayoutGrid, Lock, Monitor, Palette, Pencil, Plug, Plus, Sparkles, UserRound, Users,
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
@@ -16,6 +16,7 @@ import { CalendarSourcesSection, IntegrationsSection } from "./IntegrationSectio
 import { BirthdaySettings } from "./BirthdaySettings";
 import { WallTilesCard } from "./WallTiles";
 import { MediaPinCard } from "./MediaPinCard";
+import { MediaSection } from "./MediaSection";
 import { DesignPicker } from "./DesignPicker";
 import { MemberColors } from "./MemberColors";
 import { lockAgain } from "@/lib/services/accounts";
@@ -29,12 +30,12 @@ import { cn } from "../ui/cn";
 
 const SECTIONS = [
   { id: "family", Icon: House }, { id: "members", Icon: Users }, { id: "dates", Icon: CalendarHeart }, { id: "birthdays", Icon: Cake }, { id: "calendar", Icon: CalendarDays },
-  { id: "routines", Icon: Sparkles }, { id: "rewards", Icon: Gift }, { id: "photos", Icon: ImageIcon },
+  { id: "routines", Icon: Sparkles }, { id: "rewards", Icon: Gift }, { id: "photos", Icon: ImageIcon }, { id: "media", Icon: Library },
   { id: "dashboard", Icon: LayoutGrid }, { id: "appearance", Icon: Palette }, { id: "language", Icon: Languages },
   { id: "integrations", Icon: Plug }, { id: "devices", Icon: Monitor }, { id: "account", Icon: UserRound },
 ] as const;
 /** Sections only an admin changes; everyone else doesn't see them (the server refuses anyway). */
-const ADMIN_ONLY = new Set(["integrations", "devices", "birthdays"]);
+const ADMIN_ONLY = new Set(["integrations", "devices", "birthdays", "media"]);
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function SettingsScreen() {
@@ -78,7 +79,7 @@ export function SettingsScreen() {
         <div className={cn("min-w-0", !section && "max-md:hidden")}>
           <button onClick={() => setSection(null)} className="mb-3 font-bold text-soft md:hidden"><span aria-hidden>← </span>{t("common.back")}</button>
           <h2 className="mb-4 font-display text-2xl font-bold">{t(`settings.sections.${active}`)}</h2>
-          <Section id={active} code={params.get("code") ?? undefined} />
+          <Section id={active} code={params.get("code") ?? undefined} onGo={setSection} />
         </div>
       </div>
     </div>
@@ -92,7 +93,7 @@ function Hint({ children }: { children: ReactNode }) {
   return <p className="mb-4 max-w-prose text-soft">{children}</p>;
 }
 
-function Section({ id, code }: { id: SectionId; code?: string }) {
+function Section({ id, code, onGo }: { id: SectionId; code?: string; onGo: (id: SectionId) => void }) {
   const { t, fmt, language, weekdayName, region } = useI18n();
   const { prefs, setPrefs } = usePrefs();
   const { getMembers, getMember, viewer } = useStore();
@@ -158,6 +159,9 @@ function Section({ id, code }: { id: SectionId; code?: string }) {
 
     case "photos":
       return <LinkButton href="/photos" variant="outline">{t("nav.photos")}<ChevronRight size={16} /></LinkButton>;
+
+    case "media":
+      return <MediaSection onIntegrations={() => onGo("integrations")} />;
 
     case "dashboard":
       return (

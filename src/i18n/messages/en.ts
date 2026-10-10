@@ -244,7 +244,7 @@ const en = {
       devices: "Devices", account: "Your account",
       dates: "Dates",
       family: "Family", members: "Members", calendar: "Calendar", routines: "Routines & chores",
-      rewards: "Rewards", photos: "Photos", dashboard: "Dashboard", appearance: "Appearance",
+      rewards: "Rewards", photos: "Photos", media: "Media & kids' shelf", dashboard: "Dashboard", appearance: "Appearance",
       language: "Language & region", integrations: "Integrations", birthdays: "Birthdays",
     },
     birthdays: {
@@ -294,6 +294,14 @@ const en = {
       language: "Language", region: "Formats", preview: "Preview", date: "Date", time: "Time",
       weekStart: "Week starts", number: "Number", currency: "Currency",
       hint: "Language and formats are set separately, e.g. English text with German dates.",
+    },
+    media: {
+      hint: "The kids' shelf is what the children may listen to on the wall or a speaker: music from Jellyfin and audiobooks from Audiobookshelf. Only what is on the shelf can be played.",
+      requires: "Needs Jellyfin or Audiobookshelf",
+      none: "The kids' shelf only works with a Jellyfin server (music) or an Audiobookshelf server (audiobooks). Connect and set up at least one of them under Integrations; their shelves then appear here.",
+      requiresHint: "The shelf is filled from the Jellyfin and Audiobookshelf connections set up under Integrations. Only what their accounts may see can go on it.",
+      openIntegrations: "Go to Integrations",
+      shelfOf: "Kids' shelf: {name}", items: "{count} on the shelf",
     },
     integrations: {
       hint: "Kindo talks to these services from the server, so passwords and keys never reach a device.",
