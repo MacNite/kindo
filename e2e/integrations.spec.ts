@@ -101,6 +101,9 @@ test("Home control: switches, everything off and solar, on its page and on the w
   await tile.getByRole("switch", { name: "Kitchen" }).click();
   await expect(tile.getByRole("switch", { name: "Kitchen" })).toHaveAttribute("aria-checked", "true");
   await expect(tile.getByTestId("energy-solar")).toContainText("500");
+  // Beside the switches, a tap on the tile opens the page (D60); force taps the spot, as a finger would.
+  await tile.getByTestId("energy-solar").click({ force: true });
+  await expect(page).toHaveURL(/\/home-control$/);
   assertNoErrors();
 
   // Leave the wall as the other tests expect it.

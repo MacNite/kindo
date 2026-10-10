@@ -1,7 +1,4 @@
-import { createDAVClient } from "tsdav";
-import { UserError } from "../errors";
-import { errorMessage } from "../log";
-import { timedFetch } from "../http";
+import { withDav } from "../dav";
 import type { CalDavAccount } from "../calendar/caldav";
 import { parseVCardBirthdays, type VCardBirthday } from "./vcard";
 
@@ -12,24 +9,8 @@ import { parseVCardBirthdays, type VCardBirthday } from "./vcard";
  */
 export interface AddressBook { url: string; name: string }
 
-async function client(a: CalDavAccount) {
-  try {
-    return await createDAVClient({
-      serverUrl: a.url,
-      credentials: { username: a.username, password: a.password },
-      authMethod: "Basic",
-      defaultAccountType: "carddav",
-      fetch: timedFetch(),
-    });
-  } catch (e) {
-    const msg = errorMessage(e);
-    throw new UserError("remote", /401|unauthori[sz]ed/i.test(msg) ? "wrong username or app password" : msg);
-  }
-}
-
 export async function listAddressBooks(a: CalDavAccount): Promise<AddressBook[]> {
-  const c = await client(a);
-  const books = await c.fetchAddressBooks();
+  const books = await withDav(a, "carddav", (c) => c.fetchAddressBooks());
   return books.map((b) => ({
     url: b.url,
     name: typeof b.displayName === "string" && b.displayName ? b.displayName : decodeURIComponent(b.url.replace(/\/$/, "").split("/").pop() ?? "Contacts"),
@@ -38,10 +19,9 @@ export async function listAddressBooks(a: CalDavAccount): Promise<AddressBook[]>
 
 /** Every contact with a birthday in these address books. */
 export async function fetchBirthdays(a: CalDavAccount, bookUrls: string[]): Promise<VCardBirthday[]> {
-  const c = await client(a);
   const out: VCardBirthday[] = [];
   for (const url of bookUrls) {
-    const cards = await c.fetchVCards({ addressBook: { url } });
+    const cards = await withDav(a, "carddav", (c) => c.fetchVCards({ addressBook: { url } }));
     for (const card of cards) {
       if (typeof card.data !== "string") continue;
       try {

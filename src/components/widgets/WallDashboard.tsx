@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Cake, Cctv, ImageIcon, LayoutGrid, Lightbulb, Smile } from "lucide-react";
+import { ImageIcon, LayoutGrid } from "lucide-react";
 import type { WallTileId } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
@@ -10,7 +10,7 @@ import { useWakeLock } from "@/lib/useWakeLock";
 import { useNight } from "@/lib/state/useNight";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
-import { BigClock, WeatherNow, DatesList } from "./Widgets";
+import { BigClock, WallWeather, DatesList } from "./Widgets";
 import { Screensaver } from "../photos/Screensaver";
 import { Avatar } from "../ui/Avatar";
 import { HomeTile } from "../home/HomeControl";
@@ -27,7 +27,7 @@ import { useGreeting } from "./HomeScreen";
 export function WallDashboard() {
   const today = useToday();
   const { t, tx } = useI18n();
-  const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync, wallTiles, home, cameras } = useStore();
+  const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync, wallTiles } = useStore();
   const greeting = useGreeting();
   const [saver, setSaver] = useState(false);
   /** The birthday wheel over the whole screen (D46). */
@@ -64,7 +64,7 @@ export function WallDashboard() {
   const cook = getMember(tonight?.cookId);
   const toBuy = shopping.filter((s) => s.listId === shoppingLists[0]?.id && !s.done);
   const tiles: Record<WallTileId, ReactNode> = {
-    weather: data.weather && <div className="wall-tile"><WeatherNow large /></div>,
+    weather: data.weather && <div className="wall-tile wall-weather"><WallWeather /></div>,
     meal: tonight && (
       <Link href="/meals" className="wall-tile">
         <p className="wall-tile-label text-lg font-bold text-soft">{t("meals.tonight")}</p>
@@ -85,16 +85,17 @@ export function WallDashboard() {
         <DatesList limit={3} large />
       </div>
     ),
-    // The birthday wheel, when the household turned it on (D46).
+    // The birthday wheel, when the household turned it on (D46). A tap anywhere opens it over the whole screen (D60).
     birthdays: (
-      <div className="wall-tile wall-grow">
+      <div className="wall-tile wall-grow wall-openable wall-openable-all">
+        <button type="button" onClick={() => setWheel(true)} aria-label={t("widgets.birthdays")} className="wall-open" />
         <p className="wall-tile-title wall-tile-label mb-2 text-lg font-bold text-soft">{t("widgets.birthdays")}</p>
         <BirthdaysCompact large />
       </div>
     ),
-    // Switches and solar from Home Assistant (§21), when the household turned the tile on.
+    // Switches and solar from Home Assistant (§21), when the household turned the tile on. A tap beside the switches opens its page (D60).
     home: <HomeTile large />,
-    // Frigate's cameras as still pictures, live on a tap (§22). A ring opens over everything on its own.
+    // Frigate's cameras as still pictures, live on a tap (§22); beside them a tap opens their page. A ring opens over everything on its own.
     cameras: <CamerasTile large />,
   };
 
@@ -106,19 +107,15 @@ export function WallDashboard() {
           <BigClock size="xl" />
         </div>
         {wallTiles.filter((x) => x.enabled).map((x) => <Fragment key={x.id}>{tiles[x.id]}</Fragment>)}
+        {/* The tiles open their own pages (D60); what is left is the photo frame and the way back to the app. */}
+        <nav className="wall-actions">
+          <button onClick={() => setSaver(true)} className={WALL_BTN}><ImageIcon size={26} />{t("nav.photos")}</button>
+          <Link href="/" className={WALL_BTN}><LayoutGrid size={26} />{t("nav.home")}</Link>
+        </nav>
       </aside>
 
       <main className="wall-main">
-        <FamilyLanes variant="wall" actions={
-          <nav className="ml-auto flex flex-wrap items-center justify-end gap-3">
-            <button onClick={() => setWheel(true)} className={WALL_BTN}><Cake size={24} />{t("widgets.birthdays")}</button>
-            <WallBtn href="/kids" label={t("nav.kids")}><Smile size={24} /></WallBtn>
-            {home && <WallBtn href="/home-control" label={t("nav.homeControl")}><Lightbulb size={24} /></WallBtn>}
-            {cameras.length > 0 && <WallBtn href="/cameras" label={t("nav.cameras")}><Cctv size={24} /></WallBtn>}
-            <button onClick={() => setSaver(true)} className={WALL_BTN}><ImageIcon size={24} />{t("nav.photos")}</button>
-            <WallBtn href="/" label={t("nav.home")}><LayoutGrid size={24} /></WallBtn>
-          </nav>
-        } />
+        <FamilyLanes variant="wall" />
       </main>
 
       {wheel && <BirthdaysFullscreen onClose={() => setWheel(false)} />}
@@ -127,8 +124,5 @@ export function WallDashboard() {
   );
 }
 
-const WALL_BTN = "flex h-12 items-center gap-2 rounded-full bg-surface px-3.5 text-base font-bold min-[1280px]:gap-2.5 min-[1280px]:px-4 min-[1280px]:text-lg min-[1600px]:h-14 min-[1600px]:px-5";
-
-function WallBtn({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
-  return <Link href={href} className={WALL_BTN}>{children}{label}</Link>;
-}
+/** Laid out by `.wall-actions` for the strip, the column and a phone. */
+const WALL_BTN = "rounded-panel bg-surface font-bold";

@@ -81,7 +81,23 @@ body {
 .wall-side > .wall-clock { flex: 0 1 auto; padding: 0 0.25rem; }
 .wall-side > .wall-tile-narrow { flex: 0 1 11rem; }
 .wall-side > .wall-grow { flex-grow: 2; }
+@media (max-width: 1023px), (orientation: portrait) { .wall-side > .wall-weather { flex-basis: 22rem; } }
 .wall-tile { border-radius: 28px; background: rgb(var(--surface)); padding: 1.25rem; }
+/* A tile that opens its page or overlay on a tap anywhere (D60): `.wall-open` covers it, and only
+   the tile's own controls (switches, cameras) stay above it. `-all` keeps none. */
+.wall-openable { position: relative; }
+.wall-open { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.wall-openable > :not(.wall-open) { position: relative; z-index: 1; pointer-events: none; }
+.wall-openable:not(.wall-openable-all) > :not(.wall-open) :is(a, button) { pointer-events: auto; }
+.wall-openable:has(.wall-open:active) { background: rgb(var(--sunken)); }
+/* Photos and back to the app (D60): their own slot at the end of the tiles, as tall as the strip. */
+.wall-side > .wall-actions { display: flex; flex: 1 1 100%; gap: 0.75rem; min-width: 0; }
+.wall-actions > * { display: flex; flex: 1 1 0; align-items: center; justify-content: center; gap: 0.625rem; min-height: 3.5rem; padding: 0 1.25rem; font-size: 1.125rem; line-height: 1.5rem; white-space: nowrap; }
+/* In the strip: stacked, each half its height, the picture above the word so they stay narrow. */
+@media (min-width: 768px) {
+  .wall-side > .wall-actions { flex: 0 0 auto; flex-direction: column; gap: 0.5rem; height: var(--strip); }
+  .wall-actions > * { flex-direction: column; gap: 0.25rem; min-height: 0; min-width: 5.5rem; padding: 0 1rem; font-size: 1rem; }
+}
 .wall-greeting { margin-bottom: 0.5rem; font-size: 1.25rem; line-height: 1.75rem; }
 .wall-time { font-size: clamp(4.5rem, 6vw, 7.25rem); }
 .wall-date { margin-top: 0.75rem; font-size: 1.5rem; line-height: 2rem; }
@@ -92,7 +108,7 @@ body {
 @media (min-width: 768px) {
   .wall { --strip: clamp(7.5rem, 22vh, 11.25rem); }
   .wall-side > * { height: var(--strip); overflow: hidden; }
-  .wall-side > :not(.wall-clock) { container: tile / size; padding: clamp(0.625rem, 1.5vh, 1rem) 1.125rem; }
+  .wall-side > :not(.wall-clock):not(.wall-actions) { container: tile / size; padding: clamp(0.625rem, 1.5vh, 1rem) 1.125rem; }
   .wall-side > .wall-clock { height: auto; overflow: visible; }
   /* A container can't query itself: the tiles' own spacing is set here. */
   .wall-side > .home-tile, .wall-side > .cameras-tile { gap: 0.375rem; }
@@ -111,6 +127,8 @@ body {
   .wall-side > .wall-clock { flex: 0 0 auto; }
   .wall-side > .wall-tile-narrow { flex: 0 1 11rem; }
   .wall-side > .wall-grow { flex-grow: 1.6; }
+  /* Weather keeps room for at least three days of forecast. */
+  .wall-side > .wall-weather { flex-grow: 2; min-width: min(17rem, 26%); }
 }
 .wall-main { display: flex; min-width: 0; min-height: 0; flex-direction: column; gap: 1rem; }
 @media (min-width: 768px) and (max-height: 700px) { .wall-main { gap: 0.75rem; } }
@@ -118,11 +136,16 @@ body {
   .wall { grid-template-columns: 400px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 1.25rem; padding: 1.5rem; }
   .wall-side { flex-direction: column; flex-wrap: nowrap; gap: 1.25rem; overflow-y: auto; }
   .wall-side > *, .wall-side > .wall-tile-narrow { flex: 0 0 auto; height: auto; overflow: visible; }
-  .wall-side > :not(.wall-clock) { container-type: normal; padding: 1.5rem; }
+  .wall-side > :not(.wall-clock):not(.wall-actions) { container-type: normal; padding: 1.5rem; }
   .wall-side > .home-tile { gap: 1rem; }
   .wall-side > .cameras-tile { gap: 0.75rem; }
   .wall-side > .wall-grow { flex-grow: 1; }
+  .wall-side > .wall-weather { flex-grow: 0; }
   .wall-side .wall-tile-title { margin-bottom: 1rem; }
+  /* In the column the two buttons sit side by side under the clock, so a long column never hides them. */
+  .wall-side > .wall-clock { order: -2; }
+  .wall-side > .wall-actions { order: -1; flex-direction: row; height: auto; }
+  .wall-actions > * { flex-direction: row; gap: 0.625rem; min-height: 4rem; font-size: 1.125rem; }
   .wall-time { font-size: clamp(4.5rem, 6vw, 7.25rem); }
   .wall-date { margin-top: 0.75rem; font-size: 1.5rem; line-height: 2rem; }
 }
@@ -135,6 +158,27 @@ body {
 @container tile (max-width: 14rem) { .wall-weather-sky { display: none; } }
 @container tile (max-width: 10.5rem) { .wall-weather-icon { height: 2.5rem; width: 2.5rem; margin-right: -0.5rem; } }
 @container tile (max-width: 8rem) { .wall-weather-icon { display: none; } }
+/* The forecast beside it (D60): up to five days below the current weather in the column and on a
+   phone; in the strip beside it, three, four or five by the tile's width. To make room the sky in
+   words goes, then the picture and the nightly lows; only a very narrow tile drops the forecast. */
+.wall-weather-body { display: flex; flex-direction: column; gap: 1rem; }
+.wall-forecast { display: flex; gap: 0.375rem; }
+.wall-forecast > li { flex: 1 1 0; min-width: 0; }
+@container tile (min-width: 0px) {
+  .wall-weather-body { height: 100%; flex-direction: row; align-items: center; gap: 0.75rem; }
+  .wall-forecast { flex: 1 1 0; min-width: 0; align-self: stretch; justify-content: flex-end; }
+  .wall-forecast > li { max-width: 5.5rem; padding-left: 0; padding-right: 0; }
+  .wall-forecast > li:nth-child(n+4) { display: none; }
+}
+@container tile (min-width: 27rem) { .wall-forecast > li:nth-child(4) { display: flex; } }
+@container tile (min-width: 31rem) { .wall-forecast > li:nth-child(5) { display: flex; } }
+@container tile (min-width: 13.5rem) { .wall-weather-sky { display: none; } }
+@container tile (min-width: 13.5rem) and (max-width: 24rem) {
+  .wall-weather-icon { display: none; }
+  .wall-forecast-low { display: none; }
+}
+@container tile (min-width: 13.5rem) and (max-width: 18rem) { .wall-weather-range { display: none; } }
+@container tile (max-width: 13.5rem) { .wall-forecast { display: none; } }
 /* Tonight's dinner: two lines at most, the cook only where there is room. */
 @container tile (min-width: 0px) { .wall-meal-dish { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; } }
 @container tile (max-height: 9.25rem) { .wall-meal-cook { display: none; } }
@@ -204,13 +248,15 @@ body {
 
 /* A lane is a container, so its header and steps adapt to its own width. */
 .lane { container: lane / inline-size; }
-.lane-wall { padding: clamp(1rem, 1.6vw, 1.5rem); scrollbar-width: thin; }
+.lane-wall { --lane-pad: clamp(1rem, 1.6vw, 1.5rem); padding: var(--lane-pad); scrollbar-width: thin; }
+/* A child's header opens their view (D60): the hit area reaches to the lane's edges and its coloured bar. */
+.lane-open { display: block; flex-shrink: 0; margin: calc(-1 * var(--lane-pad)) calc(-1 * var(--lane-pad)) 0; padding: var(--lane-pad) var(--lane-pad) 0.25rem; border-top-left-radius: inherit; border-top-right-radius: inherit; }
+.lane-open:active { background: color-mix(in srgb, var(--m) 8%, transparent); }
 .lane-routine { padding: clamp(0.75rem, 1.1vw, 1rem); }
 /* Short screens (1024×600): the lane's header and balance give the routine their height. */
 @media (min-width: 768px) and (max-height: 700px) {
-  .lane-wall { padding: 0.875rem; }
+  .lane-wall { --lane-pad: 0.875rem; }
   .lane-wall .lane-avatar { height: 3rem; width: 3rem; font-size: 1.5rem; }
-  .lane-wall .lane-expand { height: 3rem; width: 3rem; }
   .lane-wall .lane-balance { margin-top: 0.5rem; padding: 0.125rem 0.875rem; }
   .lane-wall .lane-balance > * { font-size: 1.5rem; line-height: 2rem; }
   .lane-wall .lane-routine { margin-top: 0.625rem; }

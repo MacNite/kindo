@@ -59,7 +59,7 @@ const en = {
     none: "No birthdays yet. Add them to people in Settings → Members, with “Important day” in the calendar, or from Nextcloud contacts in Settings → Birthdays.",
     turns: "turns {n}", turnsToday: "turns {n} today", days: "{n} days", oneDay: "1 day", months: "{n} months", oneMonth: "1 month",
     sleeps: "{n} more sleeps", oneSleep: "1 more sleep",
-    legend: "▲ today. The arc shows the time until the chosen birthday.", wheel: "Birthdays in the year",
+    wheel: "Birthdays in the year",
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Subscription", local: "Local" },
   routines: {

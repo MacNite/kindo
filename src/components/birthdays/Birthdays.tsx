@@ -185,7 +185,6 @@ export function BirthdaysView({ filter, wall = false }: { filter?: Set<string>; 
     <div className={cn("grid gap-5", wall ? "min-h-0 flex-1 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]" : "items-start xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]")}>
       <section className={cn("flex flex-col items-center gap-2 rounded-panel bg-surface p-4 md:p-6", wall && "min-h-0 justify-center")}>
         <div className={cn("w-full", wall ? "max-w-[min(100%,calc(100dvh-220px))]" : "max-w-[540px]")}><BirthdayWheel list={list} selected={selected} onSelect={select} /></div>
-        <p className="text-center text-sm text-soft">{t("birthdays.legend")}</p>
       </section>
       <div className={cn("flex flex-col gap-5", wall && "no-scrollbar min-h-0 overflow-y-auto")}>
         {soon.length > 0 && <BirthdayGroup title={t("birthdays.soon")} list={soon} selected={selected} onSelect={select} />}
