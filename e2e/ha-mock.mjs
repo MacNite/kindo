@@ -76,6 +76,7 @@ export function startHaMock(port = 0) {
       calls.length = 0;
       return res.writeHead(200).end();
     }
+    if (url.pathname === "/__calls") return json(res, { calls });
     if (url.pathname === "/api/tts_proxy/answer.mp3") return res.writeHead(200, { "content-type": "audio/mpeg" }).end(TTS);
     if (req.headers.authorization !== `Bearer ${HA_TOKEN}`) return res.writeHead(401).end();
     if (url.pathname === "/api/") return json(res, { message: "API running." });
