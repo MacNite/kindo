@@ -201,9 +201,13 @@ export interface ContactBirthday {
   /** YYYY-MM-DD, or --MM-DD when the contact has no year. */
   date: string;
   show: boolean;
-  /** The family member the contact belongs to, for the colour. */
+  /** The family member the contact belongs to. */
   memberId?: string;
   connectionId?: string;
+  /** Its own colour on the wheel (#rrggbb); unset, it is muted (D61). */
+  color?: string;
+  /** Its uploaded picture (`/api/contacts/<id>/photo?v=…`). */
+  photo?: string;
 }
 
 /** An important date's next occurrence, computed for "today". */

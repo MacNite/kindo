@@ -63,6 +63,13 @@ describe("collectBirthdays", () => {
     ]);
   });
 
+  it("gives a contact its own colour and photo, never the colour of whom it belongs to (D61)", () => {
+    const [plain, own] = collectBirthdays([], [], [contact("c1", { memberId: "max" }), contact("c2", { name: "Opa", color: "#2E8B6E", photo: "/api/contacts/c2/photo?v=1" })], tx);
+    expect(plain).toMatchObject({ memberId: "max" });
+    expect(plain.color).toBeUndefined();
+    expect(own).toMatchObject({ color: "#2E8B6E", photo: "/api/contacts/c2/photo?v=1" });
+  });
+
   it("shows each person once", () => {
     const list = collectBirthdays([member("lena", "2018-10-20")], [date("d1", { memberId: "lena", title: "Lena", date: "2018-10-20" }), date("d2")],
       [contact("c1", { name: "uroma hilde", date: "--11-25" })], tx);

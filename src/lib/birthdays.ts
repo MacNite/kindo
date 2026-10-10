@@ -12,8 +12,12 @@ export interface Birthday {
   name: string;
   /** YYYY-MM-DD, or --MM-DD when the year is unknown. */
   date: string;
-  /** Whose colour it takes: the person themself, or the person a contact belongs to. */
+  /** Who it belongs to: the person themself, or the person a date or contact belongs to. */
   memberId?: string;
+  /** A contact's own colour; a contact without one is muted, never in the colour of whom it belongs to (D61). */
+  color?: string;
+  /** A contact's picture. */
+  photo?: string;
 }
 
 export interface UpcomingBirthday extends Birthday {
@@ -103,7 +107,7 @@ export function collectBirthdays(members: Member[], dates: ImportantDate[], cont
     if (!c.show) continue;
     const name = c.alias?.trim() || c.name;
     if (own.some((b) => sameName(b.name, name) && monthDay(b.date) === monthDay(c.date))) continue;
-    out.push({ id: `contact:${c.id}`, origin: "contact", name, date: c.date, memberId: c.memberId });
+    out.push({ id: `contact:${c.id}`, origin: "contact", name, date: c.date, memberId: c.memberId, color: c.color, photo: c.photo });
   }
   return out;
 }

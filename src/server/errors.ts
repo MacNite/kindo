@@ -10,7 +10,9 @@ export type ErrorCode =
   /** A wall display needs the settings PIN for this. */
   | "pin" | "noPin" | "wrongPin" | "tooManyAttempts" | "wrongLogin"
   /** Someone else is talking through this camera (§22). */
-  | "busy";
+  | "busy"
+  /** Not a picture Kindo takes (D61). */
+  | "photo";
 
 export class UserError extends Error {
   constructor(public code: ErrorCode, message?: string) {

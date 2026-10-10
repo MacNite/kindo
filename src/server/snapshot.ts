@@ -48,7 +48,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     db.meal.findMany({ where: { day: { gte: dateKey(addDays(today, -14)) } }, orderBy: { day: "asc" } }),
     db.importantDate.findMany(),
     // Only the contacts the household chose reach the devices; admins see all of them to choose from (D46).
-    db.contactBirthday.findMany({ where: viewer.isAdmin ? {} : { show: true }, orderBy: { name: "asc" } }),
+    db.contactBirthday.findMany({ where: viewer.isAdmin ? {} : { show: true }, orderBy: { name: "asc" }, omit: { photo: true } }),
     db.calendarSource.findMany({ orderBy: { sortOrder: "asc" } }),
     db.event.findMany({
       where: { end: { gte: addDays(today, -EVENTS_BEFORE_DAYS) }, start: { lte: addDays(today, EVENTS_AFTER_DAYS) } },
@@ -113,6 +113,7 @@ export async function loadSnapshot(db: Tx, viewer: Viewer, now = new Date()): Pr
     dates: dates.map((d): ImportantDate => ({ id: d.id, kind: d.kind, title: d.title as Text, date: d.date, yearly: d.yearly, memberId: d.memberId ?? undefined })),
     birthdays: contacts.map((c): ContactBirthday => ({
       id: c.id, name: c.name, alias: c.alias ?? undefined, date: c.date, show: c.show, memberId: c.memberId ?? undefined, connectionId: c.connectionId ?? undefined,
+      color: c.color ?? undefined, photo: c.photoAt ? `/api/contacts/${c.id}/photo?v=${c.photoAt.getTime()}` : undefined,
     })),
     sources: sources.map((s): CalendarSource => ({
       id: s.id, provider: s.provider, name: s.name as Text, account: s.account ?? undefined, defaultMemberIds: s.defaultMemberIds, readOnly: s.readOnly,
