@@ -5,7 +5,7 @@ import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { usePhotoPlaylist } from "@/lib/state/photos";
 import { useNight } from "@/lib/state/useNight";
-import { Photo } from "../ui/PhotoPlaceholder";
+import { FramedPhoto } from "./FramedPhoto";
 
 /** Full-screen photo frame; plain black during the night rest (D57). Any touch calls onWake. */
 export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; interval?: number }) {
@@ -33,9 +33,7 @@ export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; i
       {/* Keyed so each photo fades in over the previous one */}
       {photo && (
         <div key={photo.id} className="absolute inset-0 animate-fade">
-          <div className="absolute inset-0 animate-[kenburns_20s_ease-out_both]">
-            <Photo photo={photo} className="h-full w-full" />
-          </div>
+          <FramedPhoto photo={photo} motion="animate-[kenburns_20s_ease-out_both]" />
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-6 bg-gradient-to-t from-black/50 via-black/10 to-transparent p-10">
