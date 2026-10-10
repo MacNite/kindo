@@ -280,6 +280,7 @@ export function demoWeather(today: Date): Weather {
       { date: addDays(today, 2), sky: "cloud", high: 12, low: 7 },
       { date: addDays(today, 3), sky: "sun", high: 16, low: 6 },
       { date: addDays(today, 4), sky: "partly", high: 15, low: 8 },
+      { date: addDays(today, 5), sky: "sun", high: 18, low: 9 },
     ],
   };
 }

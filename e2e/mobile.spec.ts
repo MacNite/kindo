@@ -32,7 +32,7 @@ test("the wall goes fullscreen on the first touch and the app leaves it (D56)", 
   const fullscreen = () => page.evaluate(() => document.fullscreenElement !== null);
   await page.locator(".wall-clock").tap();
   await expect.poll(fullscreen).toBe(true);
-  await page.locator(".wall-main nav").getByRole("link", { name: "Home", exact: true }).tap();
+  await page.locator(".wall-actions").getByRole("link", { name: "Home", exact: true }).tap();
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(fullscreen).toBe(false);
 });

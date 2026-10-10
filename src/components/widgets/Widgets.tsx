@@ -49,9 +49,32 @@ export function WeatherNow({ large }: { large?: boolean }) {
       <WeatherIcon sky={w.sky} className={large ? "wall-weather-icon h-16 w-16 shrink-0" : "h-12 w-12"} strokeWidth={1.5} />
       <div>
         <p className={cn("num font-display font-semibold leading-none", large ? "text-5xl" : "text-4xl")}>{w.now}°</p>
-        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}><span className={cn(large && "wall-weather-sky")}>{t(`sky.${w.sky}`)}, </span><span className="whitespace-nowrap">{t("weather.range", { high: w.high, low: w.low })}</span></p>
+        <p className={cn("text-soft", large ? "text-lg" : "text-sm")}><span className={cn(large && "wall-weather-sky")}>{t(`sky.${w.sky}`)}, </span><span className={cn("whitespace-nowrap", large && "wall-weather-range")}>{t("weather.range", { high: w.high, low: w.low })}</span></p>
       </div>
       <span className="sr-only">{fmt.dateLong(today)}</span>
+    </div>
+  );
+}
+/** The wall's weather tile: now, and the next days as fit (3 in a tight strip, up to 5; D60). */
+export function WallWeather() {
+  const { t, fmt } = useI18n();
+  const w = useStore().data.weather;
+  if (!w) return null;
+  return (
+    <div className="wall-weather-body">
+      <WeatherNow large />
+      {w.days.length > 0 && (
+        <ol className="wall-forecast">
+          {w.days.slice(0, 5).map((d) => (
+            <li key={d.date.toISOString()} className="flex flex-col items-center justify-center gap-0.5 rounded-tile bg-sunken px-1 py-1.5">
+              <span className="text-sm font-bold">{fmt.weekday(d.date)}</span>
+              <WeatherIcon sky={d.sky} className="h-7 w-7" strokeWidth={1.75} />
+              <span className="sr-only">{t(`sky.${d.sky}`)}</span>
+              <span className="num whitespace-nowrap text-lg font-semibold leading-tight">{d.high}°<span className="wall-forecast-low text-base font-normal text-soft"> {d.low}°</span></span>
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
