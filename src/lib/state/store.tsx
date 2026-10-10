@@ -358,7 +358,7 @@ function useHousehold(initial: HouseholdWire) {
     mutate((d) => ({ ...d, household: { ...d.household, idleMinutes } }), () => A.setPhotoPrefs({ idleMinutes }));
   const setShowPhotoMeta = (showPhotoMeta: boolean) =>
     mutate((d) => ({ ...d, household: { ...d.household, showPhotoMeta } }), () => A.setPhotoPrefs({ showPhotoMeta }));
-  /** The wall's night rest (§13, D57). */
+  /** The wall's night rest (§13, D59). */
   const setNight = (patch: Partial<NightRest>) => {
     const night = { ...(data.household.night ?? DEFAULT_NIGHT), ...patch };
     return mutate((d) => ({ ...d, household: { ...d.household, night } }), () => A.setPhotoPrefs({ nightOn: night.on, nightFrom: night.from, nightUntil: night.until }));

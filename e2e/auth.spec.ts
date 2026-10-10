@@ -111,7 +111,7 @@ test("a wall display is paired with a code, ticks routines, and needs the PIN fo
   await expect(wall).toHaveURL(/\/login/);
 });
 
-test("an adult added with an email signs in through single sign-on (§20 D57)", async ({ browser, request }) => {
+test("an adult added with an email signs in through single sign-on (§20 D58)", async ({ browser, request }) => {
   const admin = await (await browser.newContext({ storageState: ADMIN_STATE })).newPage();
   await prepare(admin);
   await admin.goto("/settings?section=members");

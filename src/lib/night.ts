@@ -1,7 +1,7 @@
 import { wallClockIn } from "./dates";
 import { minutesOf } from "./recurrence";
 
-/** The wall's night rest (§13, D57): from `from` to `until` (HH:MM, household time), across midnight if `until` is earlier. */
+/** The wall's night rest (§13, D59): from `from` to `until` (HH:MM, household time), across midnight if `until` is earlier. */
 export interface NightRest {
   on: boolean;
   from: string;
