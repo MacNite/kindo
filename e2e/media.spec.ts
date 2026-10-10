@@ -46,6 +46,12 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
 
+  // The same shelf has its own place in settings too.
+  await page.goto("/settings?section=media");
+  await expect(page.getByText("Needs Jellyfin or Audiobookshelf")).toBeVisible();
+  await expect(page.getByTestId("media-shelf-jellyfin")).toContainText("2 on the shelf");
+  await page.goto("/settings?section=integrations");
+
   // The speaker, at most half as loud, and talking on.
   await haCard.getByRole("button", { name: /^Settings for / }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Speakers & talking" }).click();

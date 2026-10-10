@@ -239,7 +239,7 @@ const de: Messages = {
       devices: "Geräte", account: "Dein Konto",
       dates: "Termine",
       family: "Familie", members: "Personen", calendar: "Kalender", routines: "Routinen & Haushalt",
-      rewards: "Belohnungen", photos: "Fotos", dashboard: "Übersicht", appearance: "Darstellung",
+      rewards: "Belohnungen", photos: "Fotos", media: "Medien & Kinderregal", dashboard: "Übersicht", appearance: "Darstellung",
       language: "Sprache & Region", integrations: "Integrationen", birthdays: "Geburtstage",
     },
     birthdays: {
@@ -289,6 +289,14 @@ const de: Messages = {
       language: "Sprache", region: "Formate", preview: "Vorschau", date: "Datum", time: "Uhrzeit",
       weekStart: "Wochenbeginn", number: "Zahl", currency: "Währung",
       hint: "Sprache und Formate sind getrennt einstellbar, z. B. englischer Text mit deutschem Datum.",
+    },
+    media: {
+      hint: "Das Kinderregal ist, was die Kinder an der Wand oder auf einem Lautsprecher hören dürfen: Musik aus Jellyfin und Hörbücher aus Audiobookshelf. Abspielen lässt sich nur, was im Regal steht.",
+      requires: "Braucht Jellyfin oder Audiobookshelf",
+      none: "Das Kinderregal funktioniert nur mit einem Jellyfin-Server (Musik) oder einem Audiobookshelf-Server (Hörbücher). Verbinde und richte mindestens einen davon unter Integrationen ein; ihre Regale erscheinen dann hier.",
+      requiresHint: "Das Regal wird aus den Jellyfin- und Audiobookshelf-Verbindungen unter Integrationen gefüllt. Hinein kann nur, was deren Konten sehen dürfen.",
+      openIntegrations: "Zu den Integrationen",
+      shelfOf: "Kinderregal: {name}", items: "{count} im Regal",
     },
     integrations: {
       hint: "Kindo spricht vom Server aus mit diesen Diensten, Passwörter und Schlüssel erreichen nie ein Gerät.",
