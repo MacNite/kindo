@@ -1,57 +1,74 @@
-import { createDAVClient, type DAVCalendar } from "tsdav";
+import type { DAVCalendar, DAVClient, DAVResponse } from "tsdav";
 import { UserError } from "../errors";
 import { errorMessage } from "../log";
-import { timedFetch } from "../http";
+import { withDav, type DavAccount } from "../dav";
 import { parseCalendar, buildEventIcs, updateEventIcs, type EventToWrite, type ParsedEvent } from "./ical";
 
 /**
  * Nextcloud and any other CalDAV server (§5, §19.5). Credentials are an app
- * password; this module only ever runs on the server.
+ * password; this module only ever runs on the server. Requests go through
+ * one reused login per account (see `withDav`, D60).
  */
-export interface CalDavAccount { url: string; username: string; password: string }
+export type CalDavAccount = DavAccount;
 export interface RemoteCalendar { remoteId: string; name: string; color?: string; ctag?: string; readOnly: boolean }
 export interface RemoteEvent extends ParsedEvent { href: string; etag?: string }
 
-async function client(a: CalDavAccount) {
-  try {
-    return await createDAVClient({
-      serverUrl: a.url,
-      credentials: { username: a.username, password: a.password },
-      authMethod: "Basic",
-      defaultAccountType: "caldav",
-      fetch: timedFetch(),
-    });
-  } catch (e) {
-    const msg = errorMessage(e);
-    throw new UserError("remote", /401|unauthori[sz]ed/i.test(msg) ? "wrong username or app password" : msg);
-  }
-}
+const caldav = <T>(a: CalDavAccount, work: (c: DAVClient) => Promise<T>) => withDav(a, "caldav", work);
 
-/** The account's calendars that hold events (not task lists or address books). */
+/** A property's text, however the XML parser handed it over. */
+const text = (v: unknown): string | undefined => {
+  if (typeof v === "string" || typeof v === "number") return String(v);
+  const t = (v as { _cdata?: unknown; _text?: unknown } | undefined)?._cdata ?? (v as { _text?: unknown } | undefined)?._text;
+  return typeof t === "string" ? t : undefined;
+};
+const componentNames = (comp: unknown) =>
+  (Array.isArray(comp) ? comp : comp ? [comp] : []).map((c) => (c as { _attributes?: { name?: unknown } })?._attributes?.name).filter((n): n is string => typeof n === "string");
+
+/**
+ * The account's calendars that hold events (not task lists or address books).
+ * One PROPFIND on the calendar home: tsdav's `fetchCalendars` would ask once
+ * more for every calendar, whether Kindo shows it or not.
+ */
 export async function listCalendars(a: CalDavAccount): Promise<RemoteCalendar[]> {
-  const c = await client(a);
-  const cals = await c.fetchCalendars();
-  return cals
-    .filter((cal) => !cal.components || cal.components.includes("VEVENT"))
-    .map((cal) => ({
-      remoteId: cal.url,
-      name: typeof cal.displayName === "string" && cal.displayName ? cal.displayName : decodeURIComponent(cal.url.replace(/\/$/, "").split("/").pop() ?? "Calendar"),
-      color: cal.calendarColor,
-      ctag: cal.ctag ?? cal.syncToken,
-      // Nextcloud shares read-only calendars with this privilege missing; we let the family decide too.
-      readOnly: false,
-    }));
+  return caldav(a, async (c) => {
+    const home = c.account?.homeUrl;
+    if (!home) throw new UserError("remote", "no calendar home on this server");
+    const res: DAVResponse[] = await c.propfind({
+      url: home,
+      props: {
+        "d:displayname": {}, "ca:calendar-color": {}, "cs:getctag": {}, "d:sync-token": {},
+        "d:resourcetype": {}, "c:supported-calendar-component-set": {},
+      },
+      depth: "1",
+    });
+    if (!res.some((r) => r.ok)) throw new Error(`calendar discovery failed: HTTP ${res[0]?.status ?? "no response"}`);
+    const base = new URL(home.endsWith("/") ? home : `${home}/`);
+    return res
+      .filter((r) => r.ok && r.href && Object.keys(r.props?.resourcetype ?? {}).includes("calendar"))
+      .filter((r) => componentNames(r.props?.supportedCalendarComponentSet?.comp).includes("VEVENT"))
+      .map((r) => {
+        const url = new URL(r.href!, base).href;
+        const displayName = text(r.props?.displayname);
+        const color = text(r.props?.calendarColor);
+        return {
+          remoteId: url,
+          name: displayName || decodeURIComponent(url.replace(/\/$/, "").split("/").pop() ?? "Calendar"),
+          color,
+          ctag: text(r.props?.getctag) ?? text(r.props?.syncToken),
+          // Nextcloud shares read-only calendars with this privilege missing; we let the family decide too.
+          readOnly: false,
+        };
+      });
+  });
 }
 
 const asCalendar = (remoteId: string): DAVCalendar => ({ url: remoteId });
 
 /** Every event in [from, to), recurring series expanded, with each object's address and version. */
 export async function fetchEvents(a: CalDavAccount, remoteId: string, window: { from: Date; to: Date }): Promise<RemoteEvent[]> {
-  const c = await client(a);
-  const objects = await c.fetchCalendarObjects({
-    calendar: asCalendar(remoteId),
-    timeRange: { start: window.from.toISOString(), end: window.to.toISOString() },
-  });
+  const objects = await caldav(a, (c) =>
+    c.fetchCalendarObjects({ calendar: asCalendar(remoteId), timeRange: { start: window.from.toISOString(), end: window.to.toISOString() } }),
+  );
   const out: RemoteEvent[] = [];
   for (const o of objects) {
     if (typeof o.data !== "string" || !o.data.includes("BEGIN:VEVENT")) continue;
@@ -69,8 +86,9 @@ async function check(res: Response, what: string) {
 }
 
 export async function createEvent(a: CalDavAccount, remoteId: string, e: EventToWrite) {
-  const c = await client(a);
-  await check(await c.createCalendarObject({ calendar: asCalendar(remoteId), filename: `${e.uid}.ics`, iCalString: buildEventIcs(e) }), "create");
+  await caldav(a, async (c) =>
+    check(await c.createCalendarObject({ calendar: asCalendar(remoteId), filename: `${e.uid}.ics`, iCalString: buildEventIcs(e) }), "create"),
+  );
 }
 
 /**
@@ -80,19 +98,19 @@ export async function createEvent(a: CalDavAccount, remoteId: string, e: EventTo
  * someone else's newer change.
  */
 export async function updateEvent(a: CalDavAccount, remoteId: string, href: string, etag: string | undefined, e: EventToWrite) {
-  const c = await client(a);
-  const [current] = await c.fetchCalendarObjects({ calendar: asCalendar(remoteId), objectUrls: [href], urlFilter: () => true });
-  if (typeof current?.data !== "string" || !current.data.includes("BEGIN:VEVENT")) throw new UserError("conflict", "update: the event is gone from the server");
-  let data: string;
-  try {
-    data = updateEventIcs(current.data, e);
-  } catch (err) {
-    throw new UserError("remote", `update: ${errorMessage(err)}`);
-  }
-  await check(await c.updateCalendarObject({ calendarObject: { url: href, etag: etag ?? current.etag, data } }), "update");
+  await caldav(a, async (c) => {
+    const [current] = await c.fetchCalendarObjects({ calendar: asCalendar(remoteId), objectUrls: [href], urlFilter: () => true });
+    if (typeof current?.data !== "string" || !current.data.includes("BEGIN:VEVENT")) throw new UserError("conflict", "update: the event is gone from the server");
+    let data: string;
+    try {
+      data = updateEventIcs(current.data, e);
+    } catch (err) {
+      throw new UserError("remote", `update: ${errorMessage(err)}`);
+    }
+    await check(await c.updateCalendarObject({ calendarObject: { url: href, etag: etag ?? current.etag, data } }), "update");
+  });
 }
 
 export async function deleteEvent(a: CalDavAccount, href: string, etag: string | undefined) {
-  const c = await client(a);
-  await check(await c.deleteCalendarObject({ calendarObject: { url: href, etag } }), "delete");
+  await caldav(a, async (c) => check(await c.deleteCalendarObject({ calendarObject: { url: href, etag } }), "delete"));
 }

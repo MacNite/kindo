@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import * as C from "@/server/connections";
 import { saveEvent, deleteEvent } from "@/server/household";
-import { syncConnection } from "@/server/calendar/sync";
+import { dueConnections, syncConnection, syncHold } from "@/server/calendar/sync";
+import { encryptSecret } from "@/server/crypto";
 import { seedDemo } from "@/server/demo/seed";
 import { TEST_DB, resetTestDatabase } from "./db";
 
@@ -90,5 +91,45 @@ describe.skipIf(!TEST_DB || !URL_)("Nextcloud / CalDAV (§19.5)", () => {
     await C.removeSource(db, { id: sourceId });
     await C.syncNow(db, { id: connectionId });
     expect(await db.calendarSource.count({ where: { remoteId: calendarUrl } })).toBe(0);
+  });
+
+  it("stops the background sync after a refused login, until Sync now works again (D60)", async () => {
+    const now = new Date();
+    const conn = await db.connection.update({ where: { id: connectionId }, data: { secret: encryptSecret("wrong") } });
+    await expect(syncConnection(db, conn, { now })).rejects.toMatchObject({ status: 401 });
+    const refused = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
+    expect(refused.status).toBe("error");
+    expect(refused.lastError).toContain("wrong username or app password");
+    expect(syncHold(refused)).toMatchObject({ stopped: true, failures: 1 });
+    // Not even hours later: the same wrong password would only get the household's IP blocked.
+    expect((await dueConnections(db, new Date(now.getTime() + 6 * 3_600_000))).map((c) => c.id)).not.toContain(connectionId);
+
+    await db.connection.update({ where: { id: connectionId }, data: { secret: encryptSecret(PASS) } });
+    await C.syncNow(db, { id: connectionId });
+    const fixed = await db.connection.findUniqueOrThrow({ where: { id: connectionId } });
+    expect(fixed.status).toBe("ok");
+    expect(syncHold(fixed)).toBeUndefined();
+    expect((await dueConnections(db, new Date(Date.now() + 6 * 60_000))).map((c) => c.id)).toContain(connectionId);
+  });
+
+  it("waits longer after each failure in a row, at most an hour", async () => {
+    const at = new Date();
+    const down = await db.connection.create({ data: { kind: "caldav", name: "down", url: "http://127.0.0.1:1/", username: USER, secret: encryptSecret(PASS) } });
+    const due = async (minutes: number) => (await dueConnections(db, new Date(at.getTime() + minutes * 60_000))).some((c) => c.id === down.id);
+    expect(await due(0)).toBe(true);
+    await expect(syncConnection(db, down, { now: at })).rejects.toThrow();
+    expect(await due(4)).toBe(false);
+    expect(await due(5)).toBe(true);
+    await db.connection.update({ where: { id: down.id }, data: { config: { sync: { failures: 5 } } } });
+    expect(await due(31)).toBe(false);
+    expect(await due(32)).toBe(true);
+    await db.connection.update({ where: { id: down.id }, data: { config: { sync: { failures: 12 } } } });
+    expect(await due(59)).toBe(false);
+    expect(await due(60)).toBe(true);
+    // A server that asked to wait (429 with Retry-After) is left alone until then.
+    await db.connection.update({ where: { id: down.id }, data: { config: { sync: { failures: 1, until: new Date(at.getTime() + 90 * 60_000).toISOString() } } } });
+    expect(await due(89)).toBe(false);
+    expect(await due(90)).toBe(true);
+    await db.connection.delete({ where: { id: down.id } });
   });
 });
