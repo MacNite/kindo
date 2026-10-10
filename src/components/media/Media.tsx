@@ -3,10 +3,10 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import {
-  AudioLines, BookHeadphones, ChevronRight, Disc3, ListMusic, MonitorSmartphone, Pause, Play, SkipBack, SkipForward, Speaker, Square, Volume2,
+  AudioLines, BookHeadphones, ChevronRight, Disc3, ListMusic, Lock, MonitorSmartphone, Pause, Play, SkipBack, SkipForward, Speaker, Square, Volume2,
 } from "lucide-react";
 import type { Member } from "@/lib/types";
-import { shelfFor, type ShelfEntry, type ShelfKind } from "@/lib/media";
+import { shelfFor, startNeedsPin, type ShelfEntry, type ShelfKind } from "@/lib/media";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { coverUrl, player, playerState, usePlayer } from "@/lib/state/player";
@@ -15,6 +15,7 @@ import { Button, IconButton, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Panel, PageHeader } from "../ui/Panel";
 import { Avatar } from "../ui/Avatar";
+import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 
 const KIND_ICON: Record<ShelfKind, typeof Disc3> = { album: Disc3, playlist: ListMusic, book: BookHeadphones };
@@ -179,9 +180,31 @@ export function PlayerSheet({ item, memberId, onClose }: { item: ShelfEntry; mem
 
 const BIG = "grid h-20 w-20 place-items-center rounded-full bg-ink text-surface transition-transform active:scale-95 disabled:opacity-40";
 
+/** A small lock on a play button whose start needs the PIN here (D64). */
+function PinBadge() {
+  const { t } = useI18n();
+  return <span aria-label={t("media.needsPin")} title={t("media.needsPin")} className="absolute -right-1 -top-1 grid h-8 w-8 place-items-center rounded-full bg-star text-ink"><Lock size={16} aria-hidden /></span>;
+}
+
+/** Whether starting here needs the PIN, and the start that asks for it when it does. */
+function useGuardedStart(where: "screen" | "speaker") {
+  const { data, viewer, requestPinFor } = useStore();
+  const [refused, setRefused] = useState<string | null>(null);
+  const locked = startNeedsPin(data.household.mediaPin, where) && !viewer.canManage;
+  const start = async (go: () => Promise<string | undefined>) => {
+    setRefused(null);
+    const error = await go();
+    // A locked wall asks for the PIN and starts once it is in; a child's own login is told no.
+    if (error === "pin") requestPinFor(go);
+    else if (error === "forbidden") setRefused(error);
+  };
+  return { locked, start, refused };
+}
+
 function ScreenControls({ item, memberId }: { item: ShelfEntry; memberId?: string }) {
   const { t } = useI18n();
   const p = usePlayer();
+  const guard = useGuardedStart("screen");
   const mine = p.item?.id === item.id && p.memberId === memberId;
   const q = mine ? p.queue : null;
   const many = (q?.tracks.length ?? 0) > 1;
@@ -189,9 +212,10 @@ function ScreenControls({ item, memberId }: { item: ShelfEntry; memberId?: strin
     <div className="flex w-full flex-col items-center gap-4">
       <div className="flex items-center gap-4">
         {many && <IconButton size="lg" label={t("media.previous")} onClick={() => void player.previous()}><SkipBack size={28} /></IconButton>}
-        <button type="button" className={BIG} disabled={mine && p.loading && !p.playing} aria-label={mine && p.playing ? t("media.pause") : t("media.play", { name: item.name })}
-          onClick={() => (mine ? player.toggle() : void player.play(item, memberId))}>
+        <button type="button" className={cn(BIG, "relative")} disabled={mine && p.loading && !p.playing} aria-label={mine && p.playing ? t("media.pause") : t("media.play", { name: item.name })}
+          onClick={() => (mine ? player.toggle() : void guard.start(() => player.play(item, memberId)))}>
           {mine && p.playing ? <Pause size={36} /> : <Play size={36} className="translate-x-0.5" />}
+          {!mine && guard.locked && <PinBadge />}
         </button>
         {many && <IconButton size="lg" label={t("media.next")} disabled={p.index >= (q?.tracks.length ?? 1) - 1} onClick={() => void player.next()}><SkipForward size={28} /></IconButton>}
       </div>
@@ -208,6 +232,7 @@ function ScreenControls({ item, memberId }: { item: ShelfEntry; memberId?: strin
       )}
       {mine && <Button variant="ghost" onClick={() => void player.stop()}><Square size={16} />{t("media.stop")}</Button>}
       {mine && p.error && <p role="alert" className="text-sm font-bold">{t(p.error === "tapToPlay" ? "media.tapToPlay" : "media.unavailable")}</p>}
+      <ErrorText code={guard.refused} />
     </div>
   );
 }
@@ -215,6 +240,7 @@ function ScreenControls({ item, memberId }: { item: ShelfEntry; memberId?: strin
 function SpeakerControls({ speaker, item, memberId }: { speaker: string; item: ShelfEntry; memberId?: string }) {
   const { t } = useI18n();
   const { speakers, play, command, volume } = useSpeakers();
+  const { locked } = useGuardedStart("speaker");
   const s = speakers.find((x) => x.entityId === speaker);
   const [busy, setBusy] = useState(false);
   const [vol, setVol] = useState<number | null>(null);
@@ -233,8 +259,10 @@ function SpeakerControls({ speaker, item, memberId }: { speaker: string; item: S
         {s.state === "unavailable" ? t("media.speakerUnavailable") : s.title ? t("media.speakerPlaying", { title: s.title }) : t(`media.speaker_${s.state}`)}
       </p>
       <div className="flex items-center gap-4">
-        <button type="button" className={BIG} disabled={busy || s.state === "unavailable"} aria-label={t("media.playOn", { name: item.name, speaker: s.name })} onClick={start}>
+        {/* A locked wall is asked for the PIN by the store, which then plays (D64). */}
+        <button type="button" className={cn(BIG, "relative")} disabled={busy || s.state === "unavailable"} aria-label={t("media.playOn", { name: item.name, speaker: s.name })} onClick={start}>
           <Play size={36} className="translate-x-0.5" />
+          {locked && <PinBadge />}
         </button>
         <IconButton size="lg" label={playing ? t("media.pause") : t("media.resume")} disabled={s.state === "unavailable" || s.state === "off"} onClick={() => command(speaker, playing ? "pause" : "play")}>
           {playing ? <Pause size={28} /> : <Play size={28} />}

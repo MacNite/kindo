@@ -2,10 +2,11 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Connection, Prisma } from "@prisma/client";
 import {
-  MAX_SHELF, MAX_SPEAKERS, clampVolume, isMediaPlayer, resumeAt, speakerStateOf, totalOf, trackAt, withStarts,
+  MAX_SHELF, MAX_SPEAKERS, clampVolume, isMediaPlayer, resumeAt, speakerStateOf, startNeedsPin, totalOf, trackAt, withStarts,
   type MediaChoice, type MediaSetup, type MediaSource, type Queue, type ShelfItem, type Speaker, type SpeakerState,
 } from "@/lib/media";
 import type { Tx } from "../db";
+import { can, type Actor } from "../actor";
 import { decryptSecret, encryptSecret, sign, verify } from "../crypto";
 import { UserError, notFound } from "../errors";
 import { id } from "../validation";
@@ -49,6 +50,7 @@ export const M = {
   }),
   cast: z.object({ itemId: shelfId, memberId: id.optional(), speaker: speakerId }),
   speaker: z.object({ speaker: speakerId, command: z.enum(["play", "pause", "stop", "volume"]), volume: z.number().min(0).max(100).optional() }),
+  mediaPin: z.object({ mode: z.enum(["off", "speakers", "all"]) }),
   none: z.object({}).optional(),
 };
 type In<K extends keyof typeof M> = z.output<(typeof M)[K]>;
@@ -199,6 +201,22 @@ export async function saveAccount(db: Tx, input: In<"account">) {
 }
 
 // ── Playing ──────────────────────────────────────────────────────────────────
+/**
+ * Starting playback where the household asked for the PIN (D64): a locked
+ * wall is asked for it, a child's own login may not. Only starting is
+ * guarded; what plays carries on, and pause, stop and volume stay free.
+ */
+export async function mayStart(db: Tx, actor: Actor, where: "screen" | "speaker") {
+  const h = await db.household.findUnique({ where: { id: 1 }, select: { mediaPin: true } });
+  if (!startNeedsPin(h?.mediaPin ?? "off", where) || can(actor, "manage")) return;
+  throw new UserError(actor.kind === "device" ? "pin" : "forbidden", "starting playback needs the PIN");
+}
+
+/** Which starts need the PIN (admin). */
+export async function setMediaPin(db: Tx, input: In<"mediaPin">) {
+  await db.household.update({ where: { id: 1 }, data: { mediaPin: input.mode } });
+}
+
 /** A shelf item and its connection. Only what is on the shelf can be played. */
 export async function itemOf(db: Tx, itemId: string) {
   const conns = await db.connection.findMany({ where: { kind: { in: [...MEDIA_KINDS] } } });

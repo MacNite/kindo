@@ -8,15 +8,25 @@ import { act } from "./act";
 /**
  * Listening (§23) and talking to Home Assistant (§24). Everyone who sees the
  * household may listen, a wall without the PIN included, and play the shelf
- * on the admin's speakers; what is on the shelf and which speakers there are
- * is the admin's. Talking is for adults or a wall unlocked with the PIN (the
+ * on the admin's speakers, unless the admin asked for the PIN to start it
+ * (D64); what is on the shelf and which speakers there are is the admin's. Talking is for adults or a wall unlocked with the PIN (the
  * recording itself goes to `/api/assist`).
  */
-export const mediaQueue = act(M.M.queue, async (db, input) => M.queue(db, input), { level: "view", topic: null });
+export const mediaQueue = act(M.M.queue, async (db, input, actor) => {
+  await M.mayStart(db, actor, "screen");
+  return M.queue(db, input);
+}, { level: "view", topic: null });
 export const saveMediaProgress = act(M.M.progress, async (db, input) => M.saveProgress(db, input), { level: "view", topic: null });
 export const readSpeakers = act(M.M.none, async (db) => M.readSpeakers(db), { level: "view", topic: null });
-export const playOnSpeaker = act(M.M.cast, async (db, input) => M.castToSpeaker(db, input, await publicBase()), { level: "tick", topic: null });
-export const speakerCommand = act(M.M.speaker, async (db, input) => M.speakerCommand(db, input), { level: "tick", topic: null });
+export const playOnSpeaker = act(M.M.cast, async (db, input, actor) => {
+  await M.mayStart(db, actor, "speaker");
+  return M.castToSpeaker(db, input, await publicBase());
+}, { level: "tick", topic: null });
+export const speakerCommand = act(M.M.speaker, async (db, input, actor) => {
+  // Playing again starts sound; pausing, stopping and the volume never need the PIN.
+  if (input.command === "play") await M.mayStart(db, actor, "speaker");
+  return M.speakerCommand(db, input);
+}, { level: "tick", topic: null });
 
 export const browseMedia = act(M.M.browse, async (db, input) => M.browse(db, input), { level: "admin", topic: null });
 export const saveShelf = act(M.M.shelf, async (db, input) => M.saveShelf(db, input), { level: "admin", topic: "household" });
@@ -25,6 +35,7 @@ export const saveMediaAccount = act(M.M.account, async (db, input) => M.saveAcco
 export const listSpeakerChoices = act(M.M.byId, async (db, input) => M.listSpeakerChoices(db, input), { level: "admin", topic: null });
 export const saveSpeakers = act(M.M.speakers, async (db, input) => M.saveSpeakers(db, input), { level: "admin", topic: "household" });
 export const listVoicePipelines = act(V.V.byId, async (db, input) => V.voiceChoices(db, input), { level: "admin", topic: null });
+export const setMediaPin = act(M.M.mediaPin, async (db, input) => M.setMediaPin(db, input), { level: "admin", topic: "household" });
 export const saveVoice = act(V.V.setup, async (db, input) => V.saveVoice(db, input), { level: "admin", topic: "household" });
 
 /**

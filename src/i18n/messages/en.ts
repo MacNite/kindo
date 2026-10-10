@@ -193,7 +193,7 @@ const en = {
     output: "Plays on", thisScreen: "This screen", previous: "Back", next: "Next", pause: "Pause", play: "Play {name}", resume: "Play", stop: "Stop",
     position: "Position", part: "Part {n} of {total}", tapToPlay: "Tap play once more to start the sound.", unavailable: "This can't be played right now.",
     speakerUnavailable: "The speaker isn't reachable.", speakerPlaying: "Playing: {title}", speaker_playing: "Playing", speaker_paused: "Paused",
-    speaker_idle: "Ready", speaker_off: "Off", speaker_unavailable: "Not reachable", playOn: "Play {name} on {speaker}", volume: "Volume",
+    speaker_idle: "Ready", speaker_off: "Off", speaker_unavailable: "Not reachable", playOn: "Play {name} on {speaker}", needsPin: "Needs the settings PIN", volume: "Volume",
   },
   voice: {
     subtitle: "Hold the button, say what Home Assistant should do, and let go.", hold: "Hold to talk", listening: "Listening…", thinking: "Thinking…",
@@ -279,7 +279,7 @@ const en = {
       pin: "Settings need a PIN on the wall display",
       wallTiles: "Wall display tiles", wallTilesHint: "What the wall shows beside the family lanes, from top to bottom.",
       wallTile_weather: "Weather", wallTile_meal: "Tonight's dinner", wallTile_shopping: "Shopping", wallTile_dates: "Dates to remember", wallTile_home: "Home control", wallTile_cameras: "Cameras", wallTile_birthdays: "Birthday wheel", wallTile_media: "Listening",
-      wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.", wallCamerasHint: "Shows once Frigate cameras are set up.", wallMediaHint: "Shows once something is on the kids' shelf.",
+      wallHomeHint: "Shows once Home Assistant switches or solar sensors are set up.", wallCamerasHint: "Shows once Frigate cameras are set up.", wallMediaHint: "Shows once something is on the kids' shelf.", mediaPin: "Listening and the PIN", mediaPinHint: "Whether starting the kids' shelf on a wall display needs the settings PIN. Pausing, stopping and the volume never do, and what plays carries on.", mediaPin_off: "Free", mediaPin_speakers: "Speakers", mediaPin_all: "Everything", mediaPinIs_off: "Anyone at the wall may start the shelf, here and on the speakers.", mediaPinIs_speakers: "Playing on the wall itself is free; starting a speaker needs the PIN.", mediaPinIs_all: "Starting anything on the wall needs the PIN; children with their own login can't start it.", mediaPinNoPin: "Set a settings PIN above, or nobody at the wall can start what needs it.",
     },
     appearance: {
       theme: "Theme", light: "Light", dark: "Dark", system: "Match device", textSize: "Text size", normal: "Normal", large: "Large",

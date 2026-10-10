@@ -65,6 +65,15 @@ export interface SpeakerState {
   maxVolume: number;
 }
 
+/** What of the kids' shelf needs the settings PIN to start on a wall (D64): nothing, speakers, or everything. */
+export type MediaPin = "off" | "speakers" | "all";
+
+/**
+ * Whether starting playback here needs someone who may manage (an adult, or
+ * a wall unlocked with the PIN). Pausing, stopping and the volume never do.
+ */
+export const startNeedsPin = (mode: MediaPin, where: "screen" | "speaker") => mode === "all" || (mode === "speakers" && where === "speaker");
+
 /** At most this many items on one connection's shelf. */
 export const MAX_SHELF = 48;
 /** At most this many speakers. */

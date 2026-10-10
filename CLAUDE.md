@@ -42,7 +42,7 @@ decision in §20 in the same PR.
   Server Actions in `src/server/actions`. Every schema change ships as a
   migration in `prisma/migrations` (`npm run db:migrate:dev`), applied by the
   one-shot `migrate` image; `npm run db:drift` must pass. Never edit an applied
-  migration. New migration names must sort after `20261013090000_media`.
+  migration. New migration names must sort after `20261014090000_media_pin`.
 
 ## Commands
 

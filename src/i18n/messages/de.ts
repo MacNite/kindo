@@ -189,7 +189,7 @@ const de: Messages = {
     output: "Spielt auf", thisScreen: "Diesem Bildschirm", previous: "Zurück", next: "Weiter", pause: "Pause", play: "{name} abspielen", resume: "Abspielen", stop: "Stopp",
     position: "Position", part: "Teil {n} von {total}", tapToPlay: "Tippe noch einmal auf Abspielen, um den Ton zu starten.", unavailable: "Das lässt sich gerade nicht abspielen.",
     speakerUnavailable: "Der Lautsprecher ist nicht erreichbar.", speakerPlaying: "Läuft: {title}", speaker_playing: "Spielt", speaker_paused: "Pausiert",
-    speaker_idle: "Bereit", speaker_off: "Aus", speaker_unavailable: "Nicht erreichbar", playOn: "{name} auf {speaker} abspielen", volume: "Lautstärke",
+    speaker_idle: "Bereit", speaker_off: "Aus", speaker_unavailable: "Nicht erreichbar", playOn: "{name} auf {speaker} abspielen", needsPin: "Braucht die Einstellungs-PIN", volume: "Lautstärke",
   },
   voice: {
     subtitle: "Taste halten, sagen, was Home Assistant tun soll, und loslassen.", hold: "Zum Sprechen halten", listening: "Ich höre zu…", thinking: "Einen Moment…",
@@ -274,7 +274,7 @@ const de: Messages = {
       pin: "Einstellungen an der Wandanzeige mit PIN schützen",
       wallTiles: "Kacheln der Wandanzeige", wallTilesHint: "Was die Wandanzeige neben den Spalten der Familie zeigt, von oben nach unten.",
       wallTile_weather: "Wetter", wallTile_meal: "Abendessen", wallTile_shopping: "Einkauf", wallTile_dates: "Wichtige Tage", wallTile_home: "Zuhause", wallTile_cameras: "Kameras", wallTile_birthdays: "Geburtstagsrad", wallTile_media: "Hören",
-      wallHomeHint: "Erscheint, sobald Schalter oder Solarsensoren aus Home Assistant eingerichtet sind.", wallCamerasHint: "Erscheint, sobald Kameras aus Frigate eingerichtet sind.", wallMediaHint: "Erscheint, sobald etwas im Kinderregal steht.",
+      wallHomeHint: "Erscheint, sobald Schalter oder Solarsensoren aus Home Assistant eingerichtet sind.", wallCamerasHint: "Erscheint, sobald Kameras aus Frigate eingerichtet sind.", wallMediaHint: "Erscheint, sobald etwas im Kinderregal steht.", mediaPin: "Hören und die PIN", mediaPinHint: "Ob das Starten aus dem Kinderregal an der Wandanzeige die Einstellungs-PIN braucht. Pause, Stopp und Lautstärke nie, und was läuft, läuft weiter.", mediaPin_off: "Frei", mediaPin_speakers: "Lautsprecher", mediaPin_all: "Alles", mediaPinIs_off: "Jeder an der Wand darf das Regal starten, hier und auf den Lautsprechern.", mediaPinIs_speakers: "Auf der Wand selbst abspielen ist frei; einen Lautsprecher starten braucht die PIN.", mediaPinIs_all: "Alles an der Wand zu starten braucht die PIN; Kinder mit eigenem Login können nichts starten.", mediaPinNoPin: "Lege oben eine Einstellungs-PIN fest, sonst kann an der Wand niemand starten, was sie braucht.",
     },
     appearance: {
       theme: "Farbschema", light: "Hell", dark: "Dunkel", system: "Wie das Gerät", textSize: "Schriftgröße", normal: "Normal", large: "Groß",

@@ -29,6 +29,8 @@ let state: PlayerState = IDLE;
 const listeners = new Set<() => void>();
 let audio: HTMLAudioElement | null = null;
 let lastSaved = 0;
+/** The latest start: an older one answering late doesn't take over. */
+let ticket = 0;
 
 function set(patch: Partial<PlayerState>) {
   state = { ...state, ...patch };
@@ -98,18 +100,29 @@ function mediaSession() {
 }
 
 export const player = {
-  /** Starts a shelf item on this screen; an audiobook where this child stopped. */
-  async play(item: ShelfEntry, memberId?: string) {
-    if (state.item?.id === item.id && state.memberId === memberId && state.queue) return player.resume();
+  /**
+   * Starts a shelf item on this screen; an audiobook where this child
+   * stopped. Returns the error code when it couldn't start ("pin": a locked
+   * wall, when the household asked for the PIN, D64); what played before
+   * then carries on.
+   */
+  async play(item: ShelfEntry, memberId?: string): Promise<string | undefined> {
+    if (state.item?.id === item.id && state.memberId === memberId && state.queue) return void (await player.resume());
+    const mine = ++ticket;
+    const r = await mediaQueue({ itemId: item.id, memberId }).catch(() => ({ ok: false as const, error: "network" }));
+    if (mine !== ticket) return undefined;
+    if (!r.ok && (r.error === "pin" || r.error === "forbidden")) return r.error;
     if (state.playing) await saveProgress();
     audio?.pause();
     set({ ...IDLE, item, memberId, loading: true });
-    const r = await mediaQueue({ itemId: item.id, memberId }).catch(() => ({ ok: false as const, error: "network" }));
-    if (state.item?.id !== item.id) return;
-    if (!r.ok) return set({ loading: false, error: r.error });
+    if (!r.ok) {
+      set({ loading: false, error: r.error });
+      return r.error;
+    }
     const { index, offset } = trackAt(r.data.tracks, r.data.position);
     set({ queue: r.data, duration: totalOf(r.data.tracks) });
     await loadTrack(index, offset, true);
+    return undefined;
   },
   async resume() {
     if (!audio || !state.queue) return;

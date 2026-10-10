@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampVolume, resumeAt, shelfFor, speakerStateOf, toPcm16, totalOf, trackAt, withStarts } from "./media";
+import { clampVolume, resumeAt, shelfFor, speakerStateOf, startNeedsPin, toPcm16, totalOf, trackAt, withStarts } from "./media";
 
 describe("the kids' shelf (§23)", () => {
   const shelf = [{ id: "a", memberIds: [] }, { id: "b", memberIds: ["mia"] }, { id: "c", memberIds: ["ben", "mia"] }];
@@ -32,6 +32,14 @@ describe("places in an item", () => {
     expect(resumeAt(3590, 3600)).toBe(0);
     expect(resumeAt(3500, 3600)).toBe(3500);
     expect(resumeAt(-1, 100)).toBe(0);
+  });
+});
+
+describe("starting with the PIN (D64)", () => {
+  it("guards nothing, the speakers, or everything", () => {
+    expect([startNeedsPin("off", "screen"), startNeedsPin("off", "speaker")]).toEqual([false, false]);
+    expect([startNeedsPin("speakers", "screen"), startNeedsPin("speakers", "speaker")]).toEqual([false, true]);
+    expect([startNeedsPin("all", "screen"), startNeedsPin("all", "speaker")]).toEqual([true, true]);
   });
 });
 

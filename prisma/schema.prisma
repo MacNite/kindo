@@ -64,6 +64,13 @@ enum ConnectionKind {
   audiobookshelf
 }
 
+/// What of the kids' shelf a locked wall may start (§23, D64).
+enum MediaPin {
+  off
+  speakers
+  all
+}
+
 enum ConnectionStatus {
   ok
   error
@@ -92,6 +99,8 @@ model Household {
   nightOn          Boolean    @default(false)
   nightFrom        String     @default("22:00")
   nightUntil       String     @default("06:00")
+  /// Whether starting the kids' shelf needs the settings PIN on a wall (§23, D64).
+  mediaPin         MediaPin   @default(off)
   /// `WidgetConfig[]`: which home cards show, their order and size.
   widgets          Json
   /// `WallTile[]`: which household tiles the wall display shows beside the lanes, in order (§4, §21).

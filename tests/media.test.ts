@@ -163,6 +163,27 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
     await expect(M.speakerCommand(db, { speaker: "media_player.other", command: "play" })).rejects.toMatchObject({ code: "notFound" });
   });
 
+  it("asks a locked wall for the PIN to start, as the household chose, and never to pause or stop (D64)", async () => {
+    const wall = { kind: "device" as const, deviceId: "d", name: "Kitchen", elevated: false };
+    const unlocked = { ...wall, elevated: true };
+    const child = { kind: "user" as const, userId: "u", memberId: mia, role: "child" as const, name: "Lena" };
+    const adult = { kind: "user" as const, userId: "a", memberId: "anna", role: "adult" as const, name: "Anna" };
+    // Free by default.
+    await M.mayStart(db, wall, "speaker");
+    await M.setMediaPin(db, { mode: "speakers" });
+    expect((await loadSnapshot(db, VIEWER))?.household.mediaPin).toBe("speakers");
+    await M.mayStart(db, wall, "screen");
+    await expect(M.mayStart(db, wall, "speaker")).rejects.toMatchObject({ code: "pin" });
+    await expect(M.mayStart(db, child, "speaker")).rejects.toMatchObject({ code: "forbidden" });
+    await M.mayStart(db, unlocked, "speaker");
+    await M.setMediaPin(db, { mode: "all" });
+    await expect(M.mayStart(db, wall, "screen")).rejects.toMatchObject({ code: "pin" });
+    await M.mayStart(db, adult, "screen");
+    await M.mayStart(db, unlocked, "screen");
+    await M.setMediaPin(db, { mode: "off" });
+    await M.mayStart(db, child, "speaker");
+  });
+
   it("talks to Home Assistant: what was heard, the answer and its sound", async () => {
     expect((await loadSnapshot(db, VIEWER))?.voice).toBe(false);
     await expect(V.assist(db, new Uint8Array(6400))).rejects.toMatchObject({ code: "notFound" });

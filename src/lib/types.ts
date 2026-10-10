@@ -5,7 +5,7 @@
  */
 import type { HomeSetup } from "./home";
 import type { CameraInfo } from "./cameras";
-import type { MediaSetup } from "./media";
+import type { MediaPin, MediaSetup } from "./media";
 import type { NightRest } from "./night";
 
 /** User-entered text is a plain string. Mock data ships both languages so the
@@ -299,6 +299,8 @@ export interface HouseholdSettings {
   showPhotoMeta: boolean;
   /** When the wall lets its screen go dark (§13, D59). */
   night: NightRest;
+  /** What of the kids' shelf needs the PIN to start on a wall (§23, D64). */
+  mediaPin: MediaPin;
   widgets: WidgetConfig[];
   wallTiles: WallTile[];
   demo: boolean;
