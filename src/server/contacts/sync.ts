@@ -5,7 +5,8 @@ import { UserError, notFound } from "../errors";
 import { errorMessage, log } from "../log";
 import { id } from "../validation";
 import { retryDelayMs } from "../jobs";
-import { caldavAccount } from "../calendar/sync";
+import { DavRefused } from "../dav";
+import { caldavAccount, holdLifted, recordSyncFailure } from "../calendar/sync";
 import { fetchBirthdays, listAddressBooks } from "./carddav";
 
 /**
@@ -68,6 +69,8 @@ export async function syncContacts(db: Tx, conn: Connection, now = new Date()) {
     const latest = await db.connection.findUnique({ where: { id: conn.id } });
     const last = latest && contactsConfig(latest);
     if (last) await db.connection.update({ where: { id: conn.id }, data: { config: withContacts(latest, { ...last, failedAt: now.toISOString(), failures: (last.failures ?? 0) + 1 }) } });
+    // Refused (wrong app password, too many requests): the calendars of this account hold off too (D60).
+    if (e instanceof DavRefused) await recordSyncFailure(db, conn.id, e, now);
     throw e;
   }
   await inTx(db, async (tx) => {
@@ -89,7 +92,7 @@ export async function dueContactConnections(db: Tx, now = new Date()) {
   const all = await db.connection.findMany({ where: { kind: "caldav" } });
   return all.filter((c) => {
     const cfg = contactsConfig(c);
-    if (!cfg?.books.length) return false;
+    if (!cfg?.books.length || !holdLifted(c, now)) return false;
     const interval = CONTACT_MINUTES * 60_000;
     if (cfg.failedAt && cfg.failures) return now.getTime() - new Date(cfg.failedAt).getTime() >= retryDelayMs(cfg.failures, interval);
     return !cfg.syncedAt || now.getTime() - new Date(cfg.syncedAt).getTime() >= interval;
