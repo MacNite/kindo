@@ -55,7 +55,7 @@ const de: Messages = {
     none: "Noch keine Geburtstage. Sie kommen aus Einstellungen → Personen, aus „Wichtiger Tag“ im Kalender oder aus den Nextcloud-Kontakten unter Einstellungen → Geburtstage.",
     turns: "wird {n}", turnsToday: "wird heute {n}", days: "{n} Tage", oneDay: "1 Tag", months: "{n} Monate", oneMonth: "1 Monat",
     sleeps: "Noch {n}× schlafen", oneSleep: "Noch 1× schlafen",
-    legend: "▲ heute. Der Bogen zeigt die Zeit bis zum gewählten Geburtstag.", wheel: "Geburtstage im Jahr",
+    wheel: "Geburtstage im Jahr",
   },
   providers: { caldav: "Nextcloud", google: "Google", ics: "Abo", local: "Lokal" },
   routines: {
