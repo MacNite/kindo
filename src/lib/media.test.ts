@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampVolume, resumeAt, shelfFor, speakerStateOf, startNeedsPin, toPcm16, totalOf, trackAt, withStarts } from "./media";
+import { clampVolume, playedToEnd, resumeAt, shelfFor, speakerStateOf, startNeedsPin, toPcm16, totalOf, trackAt, withStarts } from "./media";
 
 describe("the kids' shelf (§23)", () => {
   const shelf = [{ id: "a", memberIds: [] }, { id: "b", memberIds: ["mia"] }, { id: "c", memberIds: ["ben", "mia"] }];
@@ -51,6 +51,21 @@ describe("speakers", () => {
   });
   it("puts Home Assistant's states in Kindo's words", () => {
     expect(["playing", "buffering", "on", "standby", "unknown", undefined].map(speakerStateOf)).toEqual(["playing", "playing", "idle", "idle", "unavailable", "unavailable"]);
+  });
+  it("tells a file played to the end from a stop someone pressed (D68)", () => {
+    const at = 1_000_000;
+    // Last told 170 s in, 8 s before it stopped: 2 s short of 180 is the end.
+    expect(playedToEnd(170, at - 8_000, at, 180)).toBe(true);
+    expect(playedToEnd(180, at, at, 180)).toBe(true);
+    // Stopped halfway, however it was last told.
+    expect(playedToEnd(60, at - 30_000, at, 180)).toBe(false);
+    expect(playedToEnd(90, at, at, 180)).toBe(false);
+    // Without a place or a length, never.
+    expect(playedToEnd(undefined, at, at, 180)).toBe(false);
+    expect(playedToEnd(170, at, at, 0)).toBe(false);
+    // A short file: the slack is at most half of it.
+    expect(playedToEnd(3, at, at, 8)).toBe(false);
+    expect(playedToEnd(4, at, at, 8)).toBe(true);
   });
 });
 

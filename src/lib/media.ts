@@ -135,6 +135,22 @@ export function speakerStateOf(state: string | undefined): SpeakerState["state"]
 
 export const isMediaPlayer = (entityId: string) => entityId.startsWith("media_player.");
 
+/** A speaker that stops this close to the end of a file played it to the end. */
+export const END_SLACK_S = 10;
+
+/**
+ * Whether a speaker that stopped playing had reached the end of its file
+ * (D68), from the place it last reported while playing (`position` seconds
+ * at `reportedAt`) and when it stopped (`stoppedAt`, both ms). A speaker
+ * that doesn't say where it is, or a file without a length, never counts:
+ * a stop someone pressed must not turn into the next file.
+ */
+export function playedToEnd(position: number | undefined, reportedAt: number | undefined, stoppedAt: number, duration: number): boolean {
+  if (typeof position !== "number" || !Number.isFinite(position) || !(duration > 0)) return false;
+  const since = reportedAt !== undefined && Number.isFinite(reportedAt) ? Math.max(0, stoppedAt - reportedAt) / 1000 : 0;
+  return position + since >= duration - Math.min(END_SLACK_S, duration / 2);
+}
+
 // ── Talking to Home Assistant (§24) ─────────────────────────────────────────
 /** Home Assistant's speech-to-text takes 16 kHz, 16-bit mono PCM. */
 export const VOICE_SAMPLE_RATE = 16_000;

@@ -4,6 +4,7 @@ import type { Speaker } from "@/lib/media";
 import type { Tx } from "./db";
 import { decryptSecret } from "./crypto";
 import { ringFor } from "./doorbell";
+import { nextOnSpeaker } from "./media/media";
 import { frigateCameras } from "./frigate";
 import { UserError } from "./errors";
 import { fetchChecked } from "./http";
@@ -14,7 +15,8 @@ import { wakeJob } from "./jobs";
 /**
  * Home Assistant (§13, §19.8, §21, §22, §20 D39, D44, D48): presence wakes
  * the wall from the photo frame, a few switches and the solar flow show in
- * Home control, and a doorbell's visitor sensor rings on every screen. Kindo talks to Home Assistant with a long-lived token, on the
+ * Home control, a doorbell's visitor sensor rings on every screen, and a
+ * speaker that can't queue gets the next file of the kids' shelf (D68). Kindo talks to Home Assistant with a long-lived token, on the
  * server only: over the WebSocket API for changes, over REST for reads and
  * switching.
  */
@@ -28,9 +30,14 @@ export interface HaConfig {
   energy?: EnergySensors;
   /** Doorbell buttons (§22): binary sensors of the household's Frigate cameras. */
   visitors?: string[];
+  /** The kids' shelf's speakers (§23), followed for when they stop playing (D68). */
+  speakers?: string[];
 }
 /** States that mean "someone is here", for motion/occupancy sensors, person and device trackers. */
 const DEFAULT_PRESENT = ["on", "home", "detected", "occupied"];
+
+/** A media player's states once it has stopped playing (not paused). */
+const STOPPED = ["idle", "off", "on", "standby"];
 
 export const isPresent = (state: string, present = DEFAULT_PRESENT) => present.includes(state.toLowerCase());
 
@@ -91,6 +98,8 @@ interface WatchHandlers {
   onControls: () => void;
   /** A doorbell button was pressed: its visitor sensor went from off to on. */
   onVisitor?: (entityId: string) => void;
+  /** A speaker stopped playing: how it was while playing, and when it stopped (ms). */
+  onSpeakerStopped?: (from: HaState, stoppedAt: number) => void;
   onStatus: (ok: boolean, error?: string) => void;
 }
 
@@ -100,7 +109,7 @@ interface WatchHandlers {
  * changes, and `onStatus` as the connection comes and goes. Reconnects with
  * backoff. Returns the stop function.
  */
-export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, onStatus }: WatchHandlers): () => void {
+export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, onSpeakerStopped, onStatus }: WatchHandlers): () => void {
   let ws: WebSocket | undefined;
   let stopped = false;
   let retry = 0;
@@ -115,6 +124,7 @@ export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, on
   };
   const controlIds = cfg.controls.map((c) => c.entityId);
   const visitorIds = cfg.visitors ?? [];
+  const speakerIds = cfg.speakers ?? [];
 
   const connect = () => {
     if (stopped) return;
@@ -125,7 +135,7 @@ export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, on
       return schedule();
     }
     let id = 1;
-    const ids = { states: 0, presence: 0, controls: 0, visitors: 0 };
+    const ids = { states: 0, presence: 0, controls: 0, visitors: 0, speakers: 0 };
     // A broken message, a send on a closing socket or a failing handler costs that message, never the process.
     ws.onmessage = (ev) => {
       try {
@@ -135,7 +145,8 @@ export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, on
       }
     };
     const handle = (raw: string) => {
-      const msg = JSON.parse(raw) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { entity_id?: string; to_state?: { state: string } } } }; id?: number } | null;
+      type Changed = HaState & { last_changed?: string };
+      const msg = JSON.parse(raw) as { type: string; success?: boolean; result?: unknown; event?: { variables?: { trigger?: { entity_id?: string; from_state?: Changed | null; to_state?: Changed | null } } }; id?: number } | null;
       if (!msg || typeof msg !== "object") return;
       if (msg.type === "auth_required") ws!.send(JSON.stringify({ type: "auth", access_token: cfg.token }));
       else if (msg.type === "auth_invalid") {
@@ -161,12 +172,23 @@ export function watchHome(cfg: HaConfig, { onPresence, onControls, onVisitor, on
           ids.visitors = id++;
           ws!.send(JSON.stringify({ id: ids.visitors, type: "subscribe_trigger", trigger: { platform: "state", entity_id: visitorIds, from: "off", to: "on" } }));
         }
+        if (speakerIds.length && onSpeakerStopped) {
+          ids.speakers = id++;
+          ws!.send(JSON.stringify({ id: ids.speakers, type: "subscribe_trigger", trigger: { platform: "state", entity_id: speakerIds, from: "playing" } }));
+        }
       } else if (msg.type === "result" && ids.states && msg.id === ids.states && Array.isArray(msg.result)) {
         const s = (msg.result as { entity_id: string; state: string }[]).find((x) => x.entity_id === cfg.entityId);
         if (s) emit(s.state);
       } else if (msg.type === "event" && ids.visitors && msg.id === ids.visitors) {
         const entity = msg.event?.variables?.trigger?.entity_id;
         if (entity && visitorIds.includes(entity) && msg.event?.variables?.trigger?.to_state?.state === "on") onVisitor?.(entity);
+      } else if (msg.type === "event" && ids.speakers && msg.id === ids.speakers) {
+        // Done or stopped; a pause is neither.
+        const { from_state: from, to_state: to } = msg.event?.variables?.trigger ?? {};
+        if (from && to && speakerIds.includes(from.entity_id) && STOPPED.includes(to.state)) {
+          const at = to.last_changed ? Date.parse(to.last_changed) : NaN;
+          onSpeakerStopped?.(from, Number.isFinite(at) ? at : Date.now());
+        }
       } else if (msg.type === "event" && ids.controls && msg.id === ids.controls) {
         onControls();
       } else if (msg.type === "event" && ids.presence && msg.id === ids.presence) {
@@ -256,8 +278,9 @@ export async function syncPresenceWatchers(db: Tx) {
   const visitors = [...new Set(frigateCameras(frigate).flatMap((c) => (c.visitorEntity ? [c.visitorEntity] : [])))];
   const live = new Set<string>();
   for (const c of conns) {
-    const cfg = { ...haConfig(c), visitors };
-    const key = `${cfg.url}|${cfg.entityId}|${c.secret}|${cfg.presentStates.join(",")}|${cfg.controls.map((x) => x.entityId).join(",")}|${visitors.join(",")}`;
+    const speakers = ((c.config ?? {}) as HaStoredConfig).speakers?.map((s) => s.entityId) ?? [];
+    const cfg = { ...haConfig(c), visitors, speakers };
+    const key = `${cfg.url}|${cfg.entityId}|${c.secret}|${cfg.presentStates.join(",")}|${cfg.controls.map((x) => x.entityId).join(",")}|${visitors.join(",")}|${speakers.join(",")}`;
     live.add(c.id);
     const w = watchers.get(c.id);
     if (w?.key === key) continue;
@@ -266,11 +289,12 @@ export async function syncPresenceWatchers(db: Tx) {
       onPresence: (present) => void notify("presence", { present }),
       onControls: debounced(() => void notify("home"), 300),
       onVisitor: (entity) => void ringFor(db, entity).catch((e) => log.warn("doorbell ring failed", { entity, error: errorMessage(e) })),
+      onSpeakerStopped: (from, at) => void nextOnSpeaker(db, from, at).catch((e) => log.warn("next file on speaker failed", { speaker: from.entity_id, error: errorMessage(e) })),
       onStatus: (ok, error) => void db.connection.update({ where: { id: c.id }, data: { status: ok ? "ok" : "error", lastError: ok ? null : error?.slice(0, 500), lastSyncAt: new Date() } })
         .catch(() => {}),
     });
     watchers.set(c.id, { key, stop });
-    log.info("watching home assistant", { presence: cfg.entityId || undefined, controls: cfg.controls.length, doorbells: visitors.length || undefined });
+    log.info("watching home assistant", { presence: cfg.entityId || undefined, controls: cfg.controls.length, doorbells: visitors.length || undefined, speakers: speakers.length || undefined });
   }
   for (const [id, w] of watchers) {
     if (!live.has(id)) {
