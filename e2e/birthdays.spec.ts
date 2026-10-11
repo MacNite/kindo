@@ -59,7 +59,7 @@ test("the wall display shows the birthday wheel once it is switched on", async (
   // With every tile on, a strip only has room for the next birthday; the column beside the lanes shows the wheel too (D57).
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto("/wall");
-  await expect(page.getByText("Next up")).toBeVisible();
+  await expect(page.getByRole("complementary").getByText("Next up")).toBeVisible();
   await expect(page.getByRole("button", { name: /^Oma Ingrid,/ }).first()).toBeVisible();
   // Leave the wall as the other tests expect it.
   await page.goto("/settings?section=dashboard");
@@ -75,7 +75,7 @@ test("a tap on the wall's birthday tile opens the wheel full screen and closes i
   await expect(tile).toHaveAttribute("aria-checked", "true");
   await page.goto("/wall");
   // The tile itself is the way in, wherever it is tapped: there is no separate button any more.
-  await page.getByText("Next up").click({ force: true });
+  await page.getByRole("complementary").getByText("Next up").click({ force: true });
   const full = page.getByRole("dialog", { name: "Birthdays" });
   const wheel = full.getByRole("group", { name: "Birthdays in the year" });
   await expect(wheel.getByText("Oma Ingrid", { exact: true })).toBeVisible();
