@@ -71,7 +71,7 @@ const de: Messages = {
     stepDefault: "Wie die Routine", stepOwn: "Eigene Punkte",
     stepDefaultHint: "{name} bekommt {n} pro Schritt, solange Punkte für Routinen an sind.", stepOffHint: "Punkte für Routinen sind bei {name} aus. Der Schalter steht neben dem Namen.",
     routineRewards: "Punkte für Routinen", routineRewardsHint: "Hilft, solange sich ein Kind an eine Routine gewöhnt. Ausgeschaltet zählt die Routine wieder ohne Punkte.", perStep: "pro Schritt",
-    pickSteps: "Schritte", pickStepsHint: "Mehrere Bilder der Reihe nach antippen. Name und Punkte lassen sich danach bei jedem Schritt ändern.",
+    pickSteps: "Schritte", pickStepsHint: "Mehrere Bilder der Reihe nach antippen. Namen antippen, um ihn zu ändern; Punkte lassen sich danach bei jedem Schritt einstellen.", renameStep: "{name} umbenennen",
     joinsHint: "Gibt es für Tageszeit und Rhythmus schon eine Routine, kommen die Schritte dort dazu.", removeStep: "{name} entfernen",
     points: "Belohnung", needsApproval: "Ein Elternteil bestätigt, bevor es zählt",
     pictogram: "Bild", label: "Name", labelHint: "Optional. Erscheint klein unter dem Bild.",

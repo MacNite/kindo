@@ -75,7 +75,7 @@ const en = {
     stepDefault: "Like the routine", stepOwn: "Own points",
     stepDefaultHint: "{name} gets {n} for each step while routine points are on.", stepOffHint: "Routine points are off for {name}. Switch them on next to their name.",
     routineRewards: "Points for routines", routineRewardsHint: "Helps while a child gets used to a routine. Switched off, the routine counts without points again.", perStep: "per step",
-    pickSteps: "Steps", pickStepsHint: "Tap several pictures, in order. Name and points can be changed on each step afterwards.",
+    pickSteps: "Steps", pickStepsHint: "Tap several pictures, in order. Tap a name to change it; points can be set on each step afterwards.", renameStep: "Rename {name}",
     joinsHint: "Steps for a time of day and rhythm someone already has join that routine.", removeStep: "Remove {name}",
     points: "Reward", needsApproval: "A parent confirms before it counts",
     pictogram: "Picture", label: "Name", labelHint: "Optional. Shown small under the picture.",
