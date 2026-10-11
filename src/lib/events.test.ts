@@ -65,7 +65,7 @@ describe("daySegment (the week view)", () => {
   });
 });
 
-describe("eventAccess (D69)", () => {
+describe("eventAccess (D70)", () => {
   const rid = new Date("2026-10-28T15:30:00Z");
   const caldav = { provider: "caldav" as const, readOnly: false };
 

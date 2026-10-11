@@ -36,7 +36,7 @@ test("connect Nextcloud in Settings, then write an event to it (§19.5)", async 
   await expect(page.getByText("Swimming at Nextcloud").filter({ visible: true }).first()).toBeVisible();
 });
 
-test("change one occurrence of a Nextcloud series, and asked before deleting (D69)", async ({ page }) => {
+test("change one occurrence of a Nextcloud series, and asked before deleting (D70)", async ({ page }) => {
   const { assertNoErrors } = await prepare(page);
   // A daily series made in another app, in the calendar connected above.
   const auth = { Authorization: `Basic ${Buffer.from(`${process.env.CALDAV_TEST_USER ?? "anna"}:${process.env.CALDAV_TEST_PASSWORD ?? "app-password"}`).toString("base64")}` };
@@ -76,13 +76,16 @@ test("change one occurrence of a Nextcloud series, and asked before deleting (D6
     await page.getByRole("radio", { name: "All events" }).click();
     await expect(page.getByLabel("When")).toBeDisabled();
     await page.getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText(/Delete the whole series\?/)).toBeVisible();
-    await page.getByRole("button", { name: "Cancel" }).first().click();
+    const confirm = page.getByRole("alertdialog");
+    await expect(confirm.getByText(/The whole series is deleted: every event in it/)).toBeVisible();
+    await confirm.getByRole("button", { name: "Cancel" }).click();
+    await expect(confirm).toBeHidden();
     await page.getByRole("radio", { name: "This event" }).click();
     await page.getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText("Delete only this event? The rest of the series stays.")).toBeVisible();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await expect(confirm.getByText(/Only this event of the series is deleted/)).toBeVisible();
+    await confirm.getByRole("button", { name: "Delete event" }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 20_000 });
+    await expect(confirm).toBeHidden();
     await expect(pianos).toHaveCount(3);
     await expect(page.getByRole("button", { name: /Piano with Oma/ })).toHaveCount(1);
     assertNoErrors();

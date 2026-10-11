@@ -131,7 +131,7 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     // Kindo's own member assignment in the feed wins over the calendar's people.
     const football = source.events.find((e) => e.title === "Football practice")!;
     expect(football.memberIds).toEqual(["lena", "max"]);
-    // A feed's series is read only, whatever is asked of it (D69).
+    // A feed's series is read only, whatever is asked of it (D70).
     expect(football).toMatchObject({ recurring: true, recurrenceId: expect.any(Date) });
     for (const scope of ["occurrence", "following", "series"] as const) {
       await expect(deleteEvent(db, { id: football.id, scope })).rejects.toMatchObject({ code: "readOnly" });
@@ -179,7 +179,7 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     expect(await db.event.findUniqueOrThrow({ where: { id: moved } })).toMatchObject({ title: "Football final", memberIds: ["lena", "max"] });
     await deleteEvent(db, { id: moved });
     expect(google.log.some((l) => l.method === "DELETE")).toBe(true);
-    // A series is never deleted without saying how much of it, and Google has no "this and following" (D69).
+    // A series is never deleted without saying how much of it, and Google has no "this and following" (D70).
     const choir = await db.event.findFirstOrThrow({ where: { title: { equals: "Choir" } } });
     await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "invalid" });
     await expect(deleteEvent(db, { id: choir.id, scope: "following" })).rejects.toMatchObject({ code: "readOnly" });

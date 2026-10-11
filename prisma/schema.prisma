@@ -380,7 +380,7 @@ model Event {
   etag         String?
   /// One occurrence of a recurring series.
   recurring    Boolean        @default(false)
-  /// Which occurrence of its series: its original start (iCalendar RECURRENCE-ID), kept when it was moved (D69).
+  /// Which occurrence of its series: its original start (iCalendar RECURRENCE-ID), kept when it was moved (D70).
   recurrenceId DateTime?
   /// The series at its server when that isn't the object itself (Google's recurring event id).
   seriesId     String?

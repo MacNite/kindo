@@ -94,7 +94,7 @@ function googleSeriesMock(first: Date, weeks: number) {
   return { server, log, master, exceptions, changeElsewhere };
 }
 
-describe("seriesPatch: a whole Google series at a new time of day (D69)", () => {
+describe("seriesPatch: a whole Google series at a new time of day (D70)", () => {
   // A series at 16:30 Berlin time that began in summer, edited on a winter occurrence.
   const master = { start: { dateTime: "2026-10-07T16:30:00+02:00", timeZone: "Europe/Berlin" }, end: { dateTime: "2026-10-07T17:30:00+02:00", timeZone: "Europe/Berlin" } };
   const row = { title: "Swimming", start: new Date("2026-11-04T15:30:00Z"), end: new Date("2026-11-04T16:30:00Z"), allDay: false, location: null, memberIds: [] };
@@ -116,7 +116,7 @@ describe("seriesPatch: a whole Google series at a new time of day (D69)", () => 
   });
 });
 
-describe.skipIf(!TEST_DB)("Google Calendar series (D69)", () => {
+describe.skipIf(!TEST_DB)("Google Calendar series (D70)", () => {
   let db: PrismaClient;
   let sourceId = "";
   // Wednesdays at 16:30 from next week for 30 weeks: always across a change of daylight saving.

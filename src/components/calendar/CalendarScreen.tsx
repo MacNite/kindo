@@ -39,6 +39,12 @@ export function CalendarScreen() {
   const [selected, setSelected] = useState<CalendarEvent | null>(null);
   const [editing, setEditing] = useState<CalendarEvent | "new" | null>(null);
   const [addingDay, setAddingDay] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!notice) return;
+    const id = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(id);
+  }, [notice]);
   const { getMembers } = useStore();
   // Who is switched off, so someone added later shows from the start.
   const [hidden, setHidden] = useState(() => new Set<string>());
@@ -93,7 +99,11 @@ export function CalendarScreen() {
       </aside>
 
       <EventDialog event={selected} onClose={() => setSelected(null)} onEdit={(e) => { setSelected(null); setEditing(e); }} />
-      {editing && <EventEditor event={editing === "new" ? null : editing} day={cursor} onClose={() => setEditing(null)} />}
+      {editing && <EventEditor event={editing === "new" ? null : editing} day={cursor} onClose={() => setEditing(null)} onDeleted={(name) => setNotice(t("calendar.deleted", { title: name }))} />}
+      {/* Always in the page, so screen readers announce what is put into it. */}
+      <div role="status" className="pointer-events-none fixed bottom-24 left-1/2 z-[120] -translate-x-1/2 md:bottom-8">
+        {notice && <p className="animate-rise rounded-full bg-ink px-5 py-3 text-sm font-bold text-surface">{notice}</p>}
+      </div>
       {addingDay && <DateEditor date={null} title={t("calendar.importantDay")} onClose={() => setAddingDay(false)} />}
     </div>
   );
@@ -388,7 +398,7 @@ function EventDialog({ event, onClose, onEdit }: { event: CalendarEvent | null; 
   const S = getSource(event.sourceId);
   const I = S ? PROVIDER_ICON[S.provider] : Cloud;
   const ms = event.memberIds.flatMap((id) => getMember(id) ?? []);
-  // What its calendar lets Kindo do, said plainly when it's nothing (D69).
+  // What its calendar lets Kindo do, said plainly when it's nothing (D70).
   const access = eventAccess(S, event);
   const why = access.limit === "readOnly" ? t("calendar.readOnlyHint") : access.limit === "series" ? t("calendar.recurringHint") : null;
   return (
@@ -421,15 +431,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const SCOPE_LABEL = { occurrence: "calendar.scopeOccurrence", following: "calendar.scopeFollowing", series: "calendar.scopeSeries" } as const;
-const DELETE_QUESTION = { occurrence: "calendar.deleteOccurrence", following: "calendar.deleteFollowing", series: "calendar.deleteSeries" } as const;
+const DELETE_SCOPE = { occurrence: "calendar.deleteOccurrence", following: "calendar.deleteFollowing", series: "calendar.deleteSeries" } as const;
 
 /**
  * Creates or edits an event in a writable calendar (Kindo's own, Nextcloud,
  * Google). For an occurrence of a recurring series it first asks how much of
- * the series is meant, offering only what the calendar can do, and asks again
- * before deleting (D69).
+ * the series is meant, offering only what the calendar can do; deleting asks
+ * again and names that (D70).
  */
-function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day: Date; onClose: () => void }) {
+function EventEditor({ event, day, onClose, onDeleted }: { event: CalendarEvent | null; day: Date; onClose: () => void; onDeleted?: (title: string) => void }) {
   const { t, tx, fmt } = useI18n();
   const { getSources, getSource, getMembers, run } = useStore();
   const writable = getSources().filter((s) => !s.readOnly);
@@ -451,43 +461,31 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
   const [confirming, setConfirming] = useState(false);
   // Several occurrences keep their day: the calendar app moves a series to another one.
   const keepsDay = scopes.length > 0 && scope !== "occurrence";
+  const seriesScope = scopes.length ? scope : undefined;
 
   const pickScope = (next: EditScope) => {
     setScope(next);
-    setConfirming(false);
     setError(null);
     if (next !== "occurrence") setWhen((w) => moveStart({ ...w, allDay: initial.allDay }, { date: initial.date }));
   };
 
-  const submit = async (remove = false) => {
+  const submit = async () => {
     setBusy(true);
-    const s = scopes.length ? scope : undefined;
-    let r;
-    if (remove && event) r = await run(() => deleteEvent({ id: event.id, scope: s }));
-    else {
-      const { start: from, end: to } = eventTimes(when);
-      r = await run(() => saveEvent({ id: event?.id, sourceId, title, start: from, end: to, allDay, memberIds: [...who], location: location || undefined, scope: s }));
-    }
+    const { start: from, end: to } = eventTimes(when);
+    const r = await run(() => saveEvent({ id: event?.id, sourceId, title, start: from, end: to, allDay, memberIds: [...who], location: location || undefined, scope: seriesScope }));
     setBusy(false);
-    setConfirming(false);
     if (r.ok) onClose();
     else setError(r.error);
   };
 
-  const footer = confirming ? <>
-    <p className="mr-auto self-center text-sm font-bold">{t(DELETE_QUESTION[scope], { calendar: source ? tx(source.name) : "" })}</p>
-    <Button variant="ghost" disabled={busy} onClick={() => setConfirming(false)}>{t("common.cancel")}</Button>
-    <Button variant="primary" disabled={busy} onClick={() => submit(true)}><Trash2 size={16} />{t("common.delete")}</Button>
-  </> : <>
-    {/* A series is never deleted on one tap: say first what goes. */}
-    {event && <Button variant="ghost" className="mr-auto" disabled={busy} onClick={() => (scopes.length ? setConfirming(true) : submit(true))}><Trash2 size={16} />{t("common.delete")}</Button>}
-    <ErrorText code={error} className="self-center" />
-    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-    <Button variant="primary" disabled={busy || !title.trim() || !sourceId} onClick={() => submit()}>{t("common.save")}</Button>
-  </>;
-
-  return (
-    <Dialog open onClose={onClose} title={event ? t("calendar.editEvent") : t("calendar.newEvent")} footer={footer}>
+  return (<>
+    <Dialog open onClose={onClose} title={event ? t("calendar.editEvent") : t("calendar.newEvent")}
+      footer={<>
+        {event && <Button variant="ghost" className="mr-auto" disabled={busy} onClick={() => setConfirming(true)}><Trash2 size={16} />{t("common.delete")}</Button>}
+        <ErrorText code={error} className="self-center" />
+        <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="primary" disabled={busy || !title.trim() || !sourceId} onClick={() => submit()}>{t("common.save")}</Button>
+      </>}>
       <div className="flex flex-col gap-4">
         {scopes.length > 0 && (
           <Field label={<span className="inline-flex items-center gap-1.5"><Repeat size={14} />{t("calendar.scope")}</span>}
@@ -523,6 +521,60 @@ function EventEditor({ event, day, onClose }: { event: CalendarEvent | null; day
             {writable.map((s) => <option key={s.id} value={s.id}>{tx(s.name)} ({t(`providers.${s.provider}`)})</option>)}
           </select>
         </Field>
+      </div>
+    </Dialog>
+    {confirming && event && <DeleteEvent event={event} scope={seriesScope} onCancel={() => setConfirming(false)} onDeleted={() => { onClose(); onDeleted?.(tx(event.title)); }} />}
+  </>);
+}
+
+/**
+ * Asks before an event is deleted, naming it and what goes with it (a
+ * connected calendar loses it too). Deleting can't be undone: a connected
+ * calendar's copy is gone at its server, and re-creating one would give it a
+ * new id. Focus starts on the panel, Cancel sits where Delete was, and the
+ * backdrop, Escape and Cancel change nothing.
+ */
+function DeleteEvent({ event, scope, onCancel, onDeleted }: { event: CalendarEvent; scope?: EditScope; onCancel: () => void; onDeleted: () => void }) {
+  const { t, tx, fmt } = useI18n();
+  const { getSource, run } = useStore();
+  const S = getSource(event.sourceId);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // A second tap lands before React re-renders the button as disabled.
+  const pending = useRef(false);
+
+  const remove = async () => {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError(null);
+    // A single event's delete stays `{ id }`; a series names how much of it goes.
+    const r = await run(() => deleteEvent(scope ? { id: event.id, scope } : { id: event.id }));
+    pending.current = false;
+    setBusy(false);
+    if (r.ok) onDeleted();
+    else setError(r.error);
+  };
+  // Once sent, the delete can't be called back: wait for its answer.
+  const cancel = () => { if (!pending.current) onCancel(); };
+
+  const calendar = S ? `${tx(S.name)} (${t(`providers.${S.provider}`)})` : "";
+  return (
+    <Dialog open alert onClose={cancel} title={t("calendar.deleteTitle")}
+      footer={<>
+        <Button variant="ghost" className="mr-auto" disabled={busy} onClick={cancel}>{t("common.cancel")}</Button>
+        <ErrorText code={error} className="self-center" />
+        <Button variant="danger" disabled={busy} aria-busy={busy} onClick={remove}>
+          <Trash2 size={16} />{t("calendar.deleteConfirm")}
+        </Button>
+      </>}>
+      <div className="flex flex-col gap-3">
+        <p className="font-display text-lg font-bold">{tx(event.title)}</p>
+        <p className="text-sm text-soft">{fmt.dateLong(event.start)}{!event.allDay && `, ${fmt.time(event.start)}–${fmt.time(event.end)}`}</p>
+        {/* Part of a series: says how much of it goes, as picked in the editor (D70). */}
+        {scope ? <p>{t(DELETE_SCOPE[scope], { calendar })}</p>
+          : S && <p>{t(S.provider === "local" ? "calendar.deleteScopeLocal" : "calendar.deleteScopeRemote", { calendar })}</p>}
+        <p className="font-bold">{t("calendar.deleteFinal")}</p>
       </div>
     </Dialog>
   );

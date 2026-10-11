@@ -1,5 +1,5 @@
 -- Which occurrence of a recurring series an event is, so Kindo can change one occurrence,
--- this and following, or the whole series at its calendar (D69). Filled by the next sync.
+-- this and following, or the whole series at its calendar (D70). Filled by the next sync.
 ALTER TABLE "Event" ADD COLUMN "recurrenceId" TIMESTAMP(3),
 ADD COLUMN "seriesId" TEXT;
 

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Check, Maximize2 } from "lucide-react";
 import type { CalendarEvent, Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -18,8 +18,9 @@ import { cn } from "../ui/cn";
  * The heart of the product: one lane per person, answering
  * "what is happening today and what does each person need to do?"
  * A child's lane header opens their own view (on the wall the whole header, D60).
+ * `lead` opens the row above the lanes, before the whole family's events (the wall's Next up, D69).
  */
-export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" }) {
+export function FamilyLanes({ variant = "home", lead }: { variant?: "home" | "wall"; lead?: ReactNode }) {
   const today = useToday();
   const { getMembers, familyEvents } = useStore();
   const members = getMembers();
@@ -28,9 +29,10 @@ export function FamilyLanes({ variant = "home" }: { variant?: "home" | "wall" })
   const wall = variant === "wall";
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      {fam.length > 0 && (
+      {(fam.length > 0 || lead) && (
         <div className={cn("flex flex-wrap items-center gap-2", wall && "gap-3")}>
-          <span className={cn("font-bold text-soft", wall ? "text-lg" : "text-sm")}>{t("common.whole")}</span>
+          {lead}
+          {fam.length > 0 && <span className={cn("font-bold text-soft", wall ? "text-lg" : "text-sm")}>{t("common.whole")}</span>}
           {fam.map((e) => (
             <span key={e.id} className={cn("inline-flex items-center gap-2 rounded-full bg-surface font-bold", wall ? "h-12 px-5 text-lg" : "h-9 px-3.5 text-sm")}>
               {e.icon && <Pictogram id={e.icon} className={wall ? "h-6 w-6" : "h-4 w-4"} strokeWidth={2} />}

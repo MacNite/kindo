@@ -102,7 +102,7 @@ export const S = {
   event: z.object({
     id: id.optional(), sourceId: id, title: z.string().trim().min(1).max(200), start: z.coerce.date(), end: z.coerce.date(), allDay: z.boolean(),
     memberIds: z.array(id).max(20), location: z.string().trim().max(200).optional(),
-    /** For an occurrence of a recurring series: what the edit covers (D69). */
+    /** For an occurrence of a recurring series: what the edit covers (D70). */
     scope: editScope.optional(),
   }).refine((e) => e.end >= e.start, { message: "end before start", path: ["end"] }),
   eventDelete: z.object({ id, scope: editScope.optional() }),

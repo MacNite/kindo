@@ -113,7 +113,7 @@ describe("updateEventIcs", () => {
   });
 });
 
-describe("editing a recurring series (D69)", () => {
+describe("editing a recurring series (D70)", () => {
   // Football: Wednesdays 16:30–18:00 Berlin time from 7 Oct, COUNT=10, 21 Oct cancelled,
   // 14 Oct moved to 17:00 ("late"). Daylight saving ends on 25 Oct, between 14 and 28 Oct.
   const football = ics;

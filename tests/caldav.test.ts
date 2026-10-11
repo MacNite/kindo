@@ -77,12 +77,12 @@ describe.skipIf(!TEST_DB || !URL_)("Nextcloud / CalDAV (§19.5)", () => {
     expect(yoga).toHaveLength(4);
     expect(yoga.every((e) => e.recurring && e.memberIds.join() === "anna")).toBe(true);
     expect(yoga.map((e) => e.recurrenceId)).toEqual(yoga.map((e) => e.start));
-    // Never the whole series by default: Kindo must be told how much of it (D69).
+    // Never the whole series by default: Kindo must be told how much of it (D70).
     await expect(deleteEvent(db, { id: yoga[0].id })).rejects.toMatchObject({ code: "invalid" });
     expect((await db.connection.findUniqueOrThrow({ where: { id: connectionId } })).status).toBe("ok");
   });
 
-  describe("recurring series (D69)", () => {
+  describe("recurring series (D70)", () => {
     // Swimming: Wednesdays 16:30–17:30 Berlin time for 30 weeks from next Wednesday, so the
     // series always crosses a change of daylight saving. The third one is cancelled.
     const fixture = readFileSync(new URL("./fixtures/school.ics", import.meta.url), "utf8");

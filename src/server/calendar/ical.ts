@@ -264,7 +264,7 @@ function editComponent(v: ICAL.Component, e: EventToWrite, now: Date) {
 
 // ── Recurring series ────────────────────────────────────────────────────────
 /**
- * Changing part of a recurring series (§5, §20 D69), as calendar apps do it:
+ * Changing part of a recurring series (§5, §20 D70), as calendar apps do it:
  *
  * - one occurrence: an exception (a VEVENT with its RECURRENCE-ID) for an
  *   edit, an EXDATE for a cancellation;

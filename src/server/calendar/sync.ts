@@ -34,7 +34,7 @@ export interface CalendarProvider {
   create?(conn: Connection, source: SourceRow, e: EventToWrite): Promise<void>;
   update?(conn: Connection, source: SourceRow, row: EventRow, e: EventToWrite): Promise<void>;
   remove?(conn: Connection, source: SourceRow, row: EventRow): Promise<void>;
-  /** Changes (`e`) or cancels (null) part of a recurring series; which scopes a provider takes is `SERIES_SCOPES` (D69). */
+  /** Changes (`e`) or cancels (null) part of a recurring series; which scopes a provider takes is `SERIES_SCOPES` (D70). */
   changeSeries?(conn: Connection, source: SourceRow, row: EventRow, scope: EditScope, e: EventToWrite | null): Promise<void>;
 }
 
@@ -295,7 +295,7 @@ export async function deleteRemoteEvent(db: Tx, row: EventRow) {
 
 /**
  * Changes (`e`) or cancels (null) one occurrence, this and following, or the
- * whole series at the calendar's server, then pulls the calendar back (D69).
+ * whole series at the calendar's server, then pulls the calendar back (D70).
  * Returns the id of the edited occurrence afterwards, when it can be found.
  */
 export async function changeRemoteSeries(db: Tx, row: EventRow, scope: EditScope, e: EventInput | null) {

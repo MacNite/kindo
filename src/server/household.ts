@@ -393,7 +393,7 @@ export async function deleteImportantDate(db: Tx, input: In<"byId">) {
 // ── Calendar ────────────────────────────────────────────────────────────────
 /**
  * The stored event to change, checked against what its calendar allows
- * (`eventAccess`, D69). An occurrence of a series must say how much of the
+ * (`eventAccess`, D70). An occurrence of a series must say how much of the
  * series is meant: nothing ever changes or deletes a whole series by default.
  */
 async function changeableEvent(db: Tx, id: string, scope: EditScope | undefined) {
@@ -412,7 +412,7 @@ async function changeableEvent(db: Tx, id: string, scope: EditScope | undefined)
  * Saves an event: in Kindo's own calendar directly, in a connected one
  * (Nextcloud, Google) on its server first (§19.5). For an occurrence of a
  * recurring series, `scope` says whether the edit is for it alone, it and the
- * following ones, or the whole series (D69).
+ * following ones, or the whole series (D70).
  */
 export async function saveEvent(db: Tx, input: In<"event">) {
   const source = await db.calendarSource.findUnique({ where: { id: input.sourceId } });

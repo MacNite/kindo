@@ -69,7 +69,7 @@ export interface CalendarEvent {
   recurrenceId?: Date;
 }
 
-/** How much of a recurring series an edit or a delete covers (D69). */
+/** How much of a recurring series an edit or a delete covers (D70). */
 export type EditScope = "occurrence" | "following" | "series";
 
 // ── Recurrence ──────────────────────────────────────────────────────────────

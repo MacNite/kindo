@@ -23,7 +23,7 @@ export function hydrateEvent(e: CalendarEvent): CalendarEvent {
 
 // ── Recurring series ────────────────────────────────────────────────────────
 /**
- * What each kind of calendar lets Kindo change in a recurring series (D69),
+ * What each kind of calendar lets Kindo change in a recurring series (D70),
  * in the order the editor offers it. CalDAV (Nextcloud) holds the whole
  * series as iCalendar, so all three work. Google changes one occurrence and
  * the whole series through its API, but has no "this and following": that

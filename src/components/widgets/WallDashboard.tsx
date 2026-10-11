@@ -10,6 +10,7 @@ import { useWakeLock } from "@/lib/useWakeLock";
 import { useNight } from "@/lib/state/useNight";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
+import { NextUp } from "./NextUp";
 import { BigClock, WallWeather, DatesList } from "./Widgets";
 import { Screensaver } from "../photos/Screensaver";
 import { Avatar } from "../ui/Avatar";
@@ -22,7 +23,7 @@ import { useGreeting } from "./HomeScreen";
 /**
  * Always-on kitchen display. Readable from a few metres: one clock, one
  * column of household context (which tiles, and in which order, is set in
- * Settings → Dashboard), and a lane per person.
+ * Settings → Dashboard), the household's next commitment above a lane per person.
  * Idle → photo frame; touch → back. Home Assistant presence wakes it or brings the photos back.
  */
 export function WallDashboard() {
@@ -118,7 +119,8 @@ export function WallDashboard() {
       </aside>
 
       <main className="wall-main">
-        <FamilyLanes variant="wall" />
+        {/* What comes next for anyone in the household, in front of the whole family's events (D69). */}
+        <FamilyLanes variant="wall" lead={<NextUp />} />
       </main>
 
       {wheel && <BirthdaysFullscreen onClose={() => setWheel(false)} />}

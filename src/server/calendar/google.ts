@@ -134,7 +134,7 @@ function wallClock(d: Date, timeZone: string) {
 const localDateTime = (wall: number) => new Date(wall).toISOString().slice(0, 19);
 
 /**
- * An edit of the whole series, made on one occurrence (D69), as a PATCH of
+ * An edit of the whole series, made on one occurrence (D70), as a PATCH of
  * the series: the fields that changed, and a new time of day in the series'
  * own time zone (Google keeps it at that wall-clock time across daylight
  * saving). Moving the series to another day, or between all-day and timed,

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { forwardRef, type AnchorHTMLAttributes, type ButtonHTMLAttributes } from "react";
 import { cn } from "./cn";
 
-type Variant = "primary" | "quiet" | "ghost" | "outline";
+type Variant = "primary" | "quiet" | "ghost" | "outline" | "danger";
 type Size = "sm" | "md" | "lg";
 
 const V: Record<Variant, string> = {
@@ -10,6 +10,8 @@ const V: Record<Variant, string> = {
   quiet: "bg-sunken text-ink hover:bg-line",
   ghost: "text-ink hover:bg-sunken",
   outline: "border border-line text-ink hover:bg-sunken",
+  /** The one button that destroys something, in a dialog that asked first. */
+  danger: "bg-danger-solid text-white hover:bg-danger-solid/90",
 };
 const S: Record<Size, string> = {
   sm: "h-9 coarse:h-11 px-3 text-sm gap-1.5 rounded-full",

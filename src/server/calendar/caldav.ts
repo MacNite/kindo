@@ -121,7 +121,7 @@ export async function deleteEvent(a: CalDavAccount, href: string, etag: string |
 }
 
 /**
- * Changes or cancels part of a recurring series (D69): one occurrence, this
+ * Changes or cancels part of a recurring series (D70): one occurrence, this
  * and following, or the whole series (see `editSeriesIcs`). Works on the
  * object as Kindo last saw it: when it changed elsewhere since, nothing is
  * written ("conflict"). "This and following" writes the new series first and

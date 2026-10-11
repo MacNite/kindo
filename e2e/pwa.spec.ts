@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { prepare } from "./helpers";
+import { householdTime, prepare } from "./helpers";
 
 test("Kindo is installable: manifest, icons, service worker (§19.7)", async ({ page, request }) => {
   const manifest = await (await request.get("/manifest.webmanifest")).json();
@@ -55,17 +55,6 @@ test("the wall display keeps the screen on (§2)", async ({ page }) => {
   await page.goto("/wall");
   await expect.poll(() => page.evaluate(() => (window as unknown as { wakeLocks: number }).wakeLocks)).toBeGreaterThan(0);
 });
-
-/** Today at hh:mm on the household's clock; the demo seed takes its time zone from TZ. */
-function householdTime(h: number, m: number): Date {
-  const timeZone = process.env.TZ || "Europe/Berlin";
-  const now = new Date();
-  const guess = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m);
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
-    .formatToParts(guess).map((x) => [x.type, Number(x.value)]));
-  const shown = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
-  return new Date(guess - (shown - guess));
-}
 
 test("the night rest lets the wall's screen go dark and holds it again in the morning (§13, D59)", async ({ page }) => {
   await page.addInitScript(() => {
