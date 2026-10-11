@@ -49,6 +49,10 @@ const de: Messages = {
     today: "Heute", previous: "Zurück", next: "Weiter", more: "+{n} weitere", source: "Kalender",
     birthdays: "Geburtstage", importantDay: "Wichtiger Tag",
     endDate: "Enddatum", lastDay: "Letzter Tag", endsLater: "Endet am {date}",
+    deleteTitle: "Diesen Termin löschen?", deleteConfirm: "Termin löschen", deleteFinal: "Das lässt sich nicht rückgängig machen.",
+    deleteScopeLocal: "Nur dieser Termin wird gelöscht, aus {calendar}.",
+    deleteScopeRemote: "Nur dieser Termin wird gelöscht. Er verschwindet auch in {calendar} auf dem Server, für alle, die diesen Kalender nutzen.",
+    deleted: "„{title}“ gelöscht.",
   },
   birthdays: {
     title: "Geburtstage", soon: "Bald", later: "Später im Jahr", next: "Als Nächstes", family: "Familie",

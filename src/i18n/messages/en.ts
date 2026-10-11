@@ -53,6 +53,10 @@ const en = {
     today: "Today", previous: "Previous", next: "Next", more: "+{n} more", source: "Calendar",
     birthdays: "Birthdays", importantDay: "Important day",
     endDate: "End date", lastDay: "Last day", endsLater: "Ends {date}",
+    deleteTitle: "Delete this event?", deleteConfirm: "Delete event", deleteFinal: "This can't be undone.",
+    deleteScopeLocal: "Only this event is deleted, from {calendar}.",
+    deleteScopeRemote: "Only this event is deleted. It is also removed from {calendar} at its server, for everyone who uses that calendar.",
+    deleted: "“{title}” deleted.",
   },
   birthdays: {
     title: "Birthdays", soon: "Soon", later: "Later this year", next: "Next up", family: "Family",
