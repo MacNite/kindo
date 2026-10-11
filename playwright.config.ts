@@ -20,6 +20,11 @@ function e2eDatabaseUrl(base = process.env.DATABASE_URL): string {
   return u.toString();
 }
 
+// The household's clock, as compose runs it (TZ in docker-compose.yml): the demo seed places
+// its events on the server's local time, the wall and night rest read the household's zone,
+// and the browser shows both, so all three must agree whatever zone the host is in.
+const TZ = (process.env.TZ ||= "Europe/Berlin");
+
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${PORT}`;
 const OIDC_MOCK_PORT = Number(process.env.OIDC_MOCK_PORT ?? 3199);
@@ -48,6 +53,7 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     locale: "en-GB",
+    timezoneId: TZ,
     // A fake microphone, so talking through the doorbell can be tested (§22).
     launchOptions: { executablePath: providedChromium(), args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] },
   },
@@ -104,7 +110,7 @@ export default defineConfig({
           reuseExistingServer: !process.env.CI,
           timeout: 180_000,
           env: {
-            PORT: String(PORT), HOSTNAME: "127.0.0.1", DATABASE_URL: e2eDatabaseUrl(), APP_URL: baseURL,
+            PORT: String(PORT), HOSTNAME: "127.0.0.1", TZ, DATABASE_URL: e2eDatabaseUrl(), APP_URL: baseURL,
             KINDO_SECRET_KEY: "e2e-only-secret-key-0123456789abcdefghijklmnop",
             OIDC_ISSUER: `http://127.0.0.1:${OIDC_MOCK_PORT}`, OIDC_CLIENT_ID: "kindo-e2e", OIDC_CLIENT_SECRET: "e2e-client-secret", OIDC_NAME: "authentik",
           },

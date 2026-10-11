@@ -63,6 +63,7 @@ test("Next up shows events at the same time together and cuts a long title to it
     await page.getByText(title).filter({ visible: true }).first().click();
     await page.getByRole("dialog").getByRole("button", { name: "Edit" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Delete event" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
   }
 });
@@ -83,9 +84,11 @@ test("Next up says so when the wall has lost the server for a minute, and not be
   await page.route("**/api/stream", (route) => route.abort());
   await page.goto("/wall");
   await expect(line(page)).toContainText("Haircut");
-  await expect(line(page).getByText("Offline")).toHaveCount(0);
+  // The mark, not its word: on a narrow line (other events beside it) only the icon shows.
+  const offline = line(page).getByTitle("No connection: showing what this screen last knew.");
+  await expect(offline).toHaveCount(0);
   await page.clock.fastForward("01:05");
-  await expect(line(page).getByText("Offline")).toBeVisible();
+  await expect(offline).toBeVisible();
   // What it last knew stays, marked as such.
   await expect(line(page)).toContainText("Haircut");
   await expect(line(page)).toHaveAttribute("aria-label", /showing what this screen last knew/);
