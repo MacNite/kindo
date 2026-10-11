@@ -5,7 +5,8 @@
  * never switch, solar, house, feed-in and grid draw power sensors
  * (`POST /__power`), and a doorbell's visitor sensor (`POST /__ring`
  * presses it: on, then off again). A speaker (`media_player.kitchen_speaker`)
- * that plays, pauses, stops, queues and turns up, and Assist (§24): any
+ * that plays, pauses, stops, queues and turns up, and says what it plays and
+ * where (`POST /__finish` plays its file to the end), and Assist (§24): any
  * spoken command turns the kitchen light on and answers "Licht ist an".
  */
 import { createServer } from "node:http";
@@ -39,11 +40,13 @@ export function startHaMock(port = 0) {
   /** Every service call, for the tests to check. */
   const calls = [];
   const subscribers = new Set();
-  const set = (id, state) => {
-    const old = states[id]?.state;
-    states[id] = { ...states[id], state };
-    for (const s of subscribers) s(id, state, old);
+  const set = (id, state, attributes) => {
+    const before = states[id];
+    states[id] = { ...before, state, attributes: { ...before?.attributes, ...attributes } };
+    const from = before && { entity_id: id, ...before, attributes: { ...before.attributes } };
+    for (const s of subscribers) s(id, state, before?.state, from);
   };
+  const now = () => new Date().toISOString();
   const body = (req) => new Promise((resolve) => {
     let b = "";
     req.on("data", (c) => (b += c));
@@ -69,6 +72,13 @@ export function startHaMock(port = 0) {
     if (url.pathname === "/__ring" && req.method === "POST") {
       set(VISITOR, "on");
       setTimeout(() => set(VISITOR, "off"), 200);
+      return res.writeHead(200).end();
+    }
+    if (url.pathname === "/__finish" && req.method === "POST") {
+      // The speaker played its file to the end: it last said so while playing, then went idle.
+      const { position } = await body(req);
+      states[SPEAKER].attributes = { ...states[SPEAKER].attributes, media_position: position, media_position_updated_at: now() };
+      set(SPEAKER, "idle");
       return res.writeHead(200).end();
     }
     if (url.pathname === "/__reset" && req.method === "POST") {
@@ -98,7 +108,7 @@ export function startHaMock(port = 0) {
         if (service[1] === "media_player") {
           const a = states[id].attributes;
           if (service[2] === "play_media") {
-            if (data.enqueue !== "add") a.media_title = data.media_content_id;
+            if (data.enqueue !== "add") Object.assign(a, { media_title: data.media_content_id, media_content_id: data.media_content_id, media_position: 0, media_position_updated_at: now() });
             set(id, "playing");
           }
           if (service[2] === "media_play") set(id, "playing");
@@ -152,7 +162,10 @@ export function startHaMock(port = 0) {
       if (msg.type === "subscribe_trigger") {
         const watched = [msg.trigger.entity_id].flat();
         const { from, to } = msg.trigger;
-        const send = (id, state, old) => watched.includes(id) && (!to || to === state) && (!from || from === old) && ws.send(JSON.stringify({ id: msg.id, type: "event", event: { variables: { trigger: { entity_id: id, to_state: { state } } } } }));
+        const send = (id, state, old, fromState) => watched.includes(id) && (!to || to === state) && (!from || from === old) && ws.send(JSON.stringify({
+          id: msg.id, type: "event",
+          event: { variables: { trigger: { entity_id: id, from_state: fromState ?? null, to_state: { entity_id: id, state, attributes: states[id].attributes, last_changed: now() } } } },
+        }));
         subscribers.add(send);
         mine.push(send);
       }

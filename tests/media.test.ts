@@ -170,6 +170,37 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
     await expect(M.speakerCommand(db, { speaker: "media_player.other", command: "play" })).rejects.toMatchObject({ code: "notFound" });
   });
 
+  it("hands a speaker that can't queue the next file when it played one to the end, never after a stop (D68)", async () => {
+    const speaker = ha.states[SPEAKER].attributes;
+    const queues = speaker.supported_features;
+    speaker.supported_features = 2 | 4 | 512; // a Google Cast speaker: no queue
+    await syncPresenceWatchers(db);
+    const bibi = M.shelfOf(await db.connection.findUniqueOrThrow({ where: { id: jf } })).find((s) => s.name === "Bibi")!;
+    const plays = () => ha.calls.filter((c) => c.service === "play_media").map((c) => M.readCast(c.media_content_id!.split("/").pop()!)?.index);
+    const finish = (position: number) => fetch(`${ha.url}/__finish`, { method: "POST", body: JSON.stringify({ position }) });
+    try {
+      ha.calls.length = 0;
+      expect(await M.castToSpeaker(db, { itemId: bibi.id, speaker: SPEAKER }, "http://kindo.lan:3000/")).toEqual({ queued: 1 });
+      expect(ha.calls.find((c) => c.service === "play_media")?.enqueue).toBeUndefined();
+      // Stopped halfway: it stays stopped.
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "stop" });
+      await new Promise((r) => setTimeout(r, 300));
+      expect(plays()).toEqual([0]);
+
+      // Played to the end: the next file, at the address the speaker used.
+      await M.castToSpeaker(db, { itemId: bibi.id, speaker: SPEAKER }, "http://kindo.lan:3000/");
+      await finish(3);
+      await expect.poll(plays).toEqual([0, 0, 1]);
+      expect(ha.calls.at(-1)).toMatchObject({ service: "play_media", media_content_id: expect.stringMatching(/^http:\/\/kindo\.lan:3000\/api\/media\/cast\//) });
+      // The last file ends the item.
+      await finish(2);
+      await new Promise((r) => setTimeout(r, 300));
+      expect(plays()).toEqual([0, 0, 1]);
+    } finally {
+      speaker.supported_features = queues;
+    }
+  });
+
   it("asks a locked wall for the PIN to start, as the household chose, and never to pause or stop (D64)", async () => {
     const wall = { kind: "device" as const, deviceId: "d", name: "Kitchen", elevated: false };
     const unlocked = { ...wall, elevated: true };

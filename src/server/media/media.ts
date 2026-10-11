@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Connection, Prisma } from "@prisma/client";
 import {
-  MAX_SHELF, MAX_SPEAKERS, clampVolume, isMediaPlayer, resumeAt, speakerStateOf, startNeedsPin, totalOf, trackAt, withStarts,
+  MAX_SHELF, MAX_SPEAKERS, clampVolume, isMediaPlayer, playedToEnd, resumeAt, speakerStateOf, startNeedsPin, totalOf, trackAt, withStarts,
   type MediaChoice, type MediaSetup, type MediaSource, type Queue, type ShelfItem, type Speaker, type SpeakerState,
 } from "@/lib/media";
 import type { Tx } from "../db";
@@ -10,7 +10,7 @@ import { can, type Actor } from "../actor";
 import { decryptSecret, encryptSecret, sign, verify } from "../crypto";
 import { UserError, notFound } from "../errors";
 import { id } from "../validation";
-import { callService, haConfig, listStates, readState, type HaStoredConfig } from "../homeassistant";
+import { callService, haConfig, listStates, readState, refreshPresenceWatchers, type HaState, type HaStoredConfig } from "../homeassistant";
 import { errorMessage, log } from "../log";
 import * as JF from "./jellyfin";
 import * as ABS from "./audiobookshelf";
@@ -23,7 +23,8 @@ import { openUpstream } from "./upstream";
  * ever name a shelf item by Kindo's id; which server, which files and which
  * account that means is decided here, and only shelf items play. Sound
  * reaches a screen through Kindo (`/api/media/…`), and a speaker through a
- * signed address that works for one file for a few hours.
+ * signed address that works for one file for a few hours. A speaker that
+ * can't queue gets the next file when it played one to the end (D68).
  */
 const httpUrl = z.string().trim().url().max(2000).refine((u) => /^https?:\/\//i.test(u), "http(s) only");
 const shelfId = z.string().regex(/^[a-z0-9]{6,24}$/);
@@ -411,6 +412,8 @@ export async function saveSpeakers(db: Tx, input: In<"speakers">) {
   const ha = await db.connection.findUnique({ where: { id: input.id } });
   if (!ha || ha.kind !== "homeassistant") throw notFound("connection");
   await db.connection.update({ where: { id: ha.id }, data: { config: json({ ...(ha.config as HaStoredConfig), speakers: input.speakers } satisfies HaStoredConfig) } });
+  // The speakers are followed for when a file ends (D68).
+  await refreshPresenceWatchers();
 }
 
 /**
@@ -472,6 +475,38 @@ export async function castToSpeaker(db: Tx, input: In<"cast">, base: string) {
       .catch((e) => log.warn("speaker seek failed", { error: errorMessage(e) })), 2_000).unref?.();
   }
   return { queued: queues ? q.tracks.length - index : 1 };
+}
+
+/** One of Kindo's signed speaker addresses, split into Kindo's address and the token. */
+const CAST_ADDRESS = /^(https?:\/\/.+?)\/api\/media\/cast\/([A-Za-z0-9_.-]{10,300})$/;
+
+/**
+ * A speaker that can't queue stopped playing (D68). When it played one of
+ * Kindo's files to the end, and the shelf item has another file after it,
+ * Kindo hands it the next one, at the address it used for the last. A stop
+ * someone pressed, a speaker that can queue, or one that doesn't say what it
+ * played or where it was, stays as it is. Returns the file started, if any.
+ */
+export async function nextOnSpeaker(db: Tx, from: HaState, stoppedAt: number): Promise<number | null> {
+  const ha = await db.connection.findFirst({ where: { kind: "homeassistant" }, orderBy: { createdAt: "desc" } });
+  if (!ha || !speakersOf(ha).some((s) => s.entityId === from.entity_id)) return null;
+  const a = from.attributes as HaState["attributes"] & { supported_features?: number; media_content_id?: string; media_position?: number; media_position_updated_at?: string; media_duration?: number };
+  if (((a.supported_features ?? 0) & MEDIA_ENQUEUE) !== 0) return null;
+  const address = CAST_ADDRESS.exec(a.media_content_id ?? "");
+  const cast = address && readCast(address[2]);
+  if (!address || !cast) return null;
+  const { conn, item } = await itemOf(db, cast.itemId);
+  const tracks = withStarts(await remoteTracks(conn, item));
+  const next = cast.index + 1;
+  if (next >= tracks.length) return null;
+  const reportedAt = a.media_position_updated_at ? Date.parse(a.media_position_updated_at) : undefined;
+  if (!playedToEnd(a.media_position, reportedAt, stoppedAt, tracks[cast.index].duration || a.media_duration || 0)) return null;
+  const cfg = haConfig(ha);
+  await callService(cfg.url, cfg.token, "media_player", "play_media", {
+    entity_id: from.entity_id, media_content_id: `${address[1]}${castPath(cast.itemId, next)}`, media_content_type: "music",
+  });
+  log.info("speaker plays the next file", { speaker: from.entity_id, file: next });
+  return next;
 }
 
 /** Play, pause, stop and volume on one of the admin's speakers; nothing else. */
