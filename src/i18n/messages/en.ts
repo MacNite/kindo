@@ -194,6 +194,7 @@ const en = {
     position: "Position", part: "Part {n} of {total}", tapToPlay: "Tap play once more to start the sound.", unavailable: "This can't be played right now.",
     speakerUnavailable: "The speaker isn't reachable.", speakerPlaying: "Playing: {title}", speaker_playing: "Playing", speaker_paused: "Paused",
     speaker_idle: "Ready", speaker_off: "Off", speaker_unavailable: "Not reachable", playOn: "Play {name} on {speaker}", needsPin: "Needs the settings PIN", volume: "Volume",
+    source_jellyfin: "Music", source_audiobookshelf: "Audiobook",
   },
   voice: {
     subtitle: "Hold the button, say what Home Assistant should do, and let go.", hold: "Hold to talk", listening: "Listening…", thinking: "Thinking…",
