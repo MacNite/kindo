@@ -133,6 +133,13 @@ const FoldedClothes: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _
     <path d="M10 4l2 2 2-2" />
   </svg>
 );
+const TidyUp: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
+  <svg {...base} strokeWidth={strokeWidth} {...p}>
+    <path d="M4 12h16v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+    <path d="M10 15.5h4" />
+    <path d="M12 3v6.5M9 6.5l3 3 3-3" />
+  </svg>
+);
 const Teddy: Icon = ({ strokeWidth = 2, size: _s, absoluteStrokeWidth: _a, ...p }) => (
   <svg {...base} strokeWidth={strokeWidth} {...p}>
     <path d="M8.7 5.2a1.6 1.6 0 1 1 2.3-1.6M13 3.6a1.6 1.6 0 1 1 2.3 1.6" />
@@ -188,6 +195,7 @@ export const PICTOGRAMS: Pictogram[] = [
   P("vacuum", Vacuum, "household", "Vacuum", "Staubsaugen"),
   P("trash", Trash2, "household", "Take out trash", "Müll rausbringen"),
   P("recycling", Recycle, "household", "Recycling", "Gelber Sack"),
+  P("tidy", TidyUp, "household", "Tidy up", "Aufräumen"),
   P("toys", ToyBrick, "household", "Tidy toys", "Spielzeug aufräumen"),
   P("room", Sparkles, "household", "Clean room", "Zimmer aufräumen"),
   P("cook", CookingPot, "household", "Help cook", "Beim Kochen helfen"),

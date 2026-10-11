@@ -1,7 +1,7 @@
 "use client";
 import { useState, type CSSProperties } from "react";
-import { Maximize2, Moon, Plus, Sun, Sunrise, ShieldCheck, Trash2, X } from "lucide-react";
-import type { ActionResult, Member, Period, Recurrence, Routine, TaskItem, TaskValue } from "@/lib/types";
+import { Maximize2, Moon, Pencil, Plus, Sun, Sunrise, ShieldCheck, Trash2, X } from "lucide-react";
+import type { ActionResult, Member, Period, Recurrence, Routine, TaskItem, TaskValue, Text } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { addRoutineSteps, deleteChore, deleteRoutineStep, saveChore, saveRoutineStep } from "@/lib/services/actions";
@@ -220,18 +220,21 @@ function PeoplePicker({ people, selected, onPick, disabled }: {
  * join the routine a person already has for that period and rhythm (D50).
  */
 function NewRoutine({ onClose }: { onClose: () => void }) {
-  const { t, tx } = useI18n();
+  const { t, tx, language } = useI18n();
   const { getMembers, getMember, run, periodAt } = useStore();
   const kids = getMembers().filter((m) => m.role === "child");
   const [who, setWho] = useState<string[]>(kids.length === 1 ? [kids[0].id] : []);
   const [period, setPeriod] = useState<Period>(() => periodAt());
   const [recurrence, setRecurrence] = useState<Recurrence>({ kind: "daily" });
   const [steps, setSteps] = useState<string[]>([]);
+  /** Names typed for picked steps; the rest keep their picture's name. */
+  const [names, setNames] = useState<Record<string, Text>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const member = getMember(who[0]);
   const toggle = (id: string) => setSteps((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-  const labelOf = (id: string) => getPictogram(id)?.label ?? "";
+  const labelOf = (id: string): Text => names[id] ?? getPictogram(id)?.label ?? "";
+  const rename = (id: string, value: string) => setNames((n) => ({ ...n, [id]: editText(labelOf(id), language, value) }));
 
   const save = async () => {
     setBusy(true);
@@ -260,14 +263,16 @@ function NewRoutine({ onClose }: { onClose: () => void }) {
         <Field label={t("routines.pickSteps")} hint={t("routines.pickStepsHint")}>
           <div className="flex flex-col gap-3">
             {steps.length > 0 && (
-              <ol className="flex flex-wrap gap-2">
+              <ol className="flex flex-wrap gap-3">
                 {steps.map((id) => (
-                  <li key={id}>
+                  <li key={id} className="flex w-20 flex-col items-center gap-1">
                     <button type="button" onClick={() => toggle(id)} aria-label={t("routines.removeStep", { name: tx(labelOf(id)) || id })}
                       className="tint m-text relative grid h-16 w-16 place-items-center rounded-tile">
                       <Pictogram id={id} className="h-7 w-7" />
                       <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-ink text-surface"><X size={12} /></span>
                     </button>
+                    <StepName value={tx(labelOf(id))} onChange={(v) => rename(id, v)}
+                      label={t("routines.renameStep", { name: tx(labelOf(id)) || id })} />
                   </li>
                 ))}
               </ol>
@@ -277,6 +282,25 @@ function NewRoutine({ onClose }: { onClose: () => void }) {
         </Field>
       </div>
     </Dialog>
+  );
+}
+
+/** A picked step's name: shown under its picture, typed over after tapping it or the pencil. */
+function StepName({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <input autoFocus aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setEditing(false)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") e.currentTarget.blur(); }}
+        className="h-9 w-full rounded-md border border-line bg-surface px-2 text-center text-xs font-bold text-ink focus:border-ink/40 focus:outline-none" />
+    );
+  }
+  return (
+    <button type="button" onClick={() => setEditing(true)} aria-label={label}
+      className="flex min-h-9 w-full items-center justify-center gap-1 rounded-md px-1 text-xs font-bold leading-tight text-soft hover:text-ink">
+      <span className="line-clamp-2 break-words text-center">{value}</span>
+      <Pencil size={12} className="shrink-0" aria-hidden />
+    </button>
   );
 }
 

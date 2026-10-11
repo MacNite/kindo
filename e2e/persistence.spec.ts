@@ -73,7 +73,7 @@ test("a new chore can go to several people at once", async ({ page }) => {
   await expect(page.getByRole("button", { name: label })).toHaveCount(2);
 });
 
-test("a new routine adds several steps to the block that is already there (D50)", async ({ page }) => {
+test("a new routine adds several steps to the block that is already there (D50), named in the dialog", async ({ page }) => {
   await prepare(page);
   await page.goto("/routines");
   await page.getByRole("button", { name: "New routine" }).click();
@@ -82,6 +82,10 @@ test("a new routine adds several steps to the block that is already there (D50)"
   await dialog.getByRole("radio", { name: "Afternoon" }).click();
   await dialog.getByRole("button", { name: "Make bed" }).click();
   await dialog.getByRole("button", { name: "Shoes on" }).click();
+  // A picked step keeps its picture's name unless it is renamed here.
+  await dialog.getByRole("button", { name: "Rename Shoes on" }).click();
+  await dialog.getByRole("textbox", { name: "Rename Shoes on" }).fill("Trainers on");
+  await dialog.getByRole("textbox", { name: "Rename Trainers on" }).press("Enter");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
   await page.reload();
@@ -89,8 +93,9 @@ test("a new routine adds several steps to the block that is already there (D50)"
   // Still one afternoon block for Paul, now with the two new steps in it.
   await expect(paul.getByText("Afternoon", { exact: true })).toHaveCount(1);
   await expect(paul.getByRole("button", { name: "Make bed" })).toBeVisible();
-  // Paul's morning already had shoes; now his afternoon has them too.
-  await expect(paul.getByRole("button", { name: "Shoes on" })).toHaveCount(2);
+  await expect(paul.getByRole("button", { name: "Trainers on" })).toBeVisible();
+  // Paul's morning keeps its own shoes step.
+  await expect(paul.getByRole("button", { name: "Shoes on" })).toHaveCount(1);
 });
 
 test("routine points are switched on and off per child (D49)", async ({ page }) => {
