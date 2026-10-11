@@ -9,3 +9,14 @@ export async function prepare(page: Page, prefs: { language?: "en" | "de"; theme
   page.on("pageerror", (e) => errors.push(e.message));
   return { assertNoErrors: () => expect(errors, errors.join("\n")).toEqual([]) };
 }
+
+/** Today at hh:mm on the household's clock; the demo seed takes its time zone from TZ. */
+export function householdTime(h: number, m: number): Date {
+  const timeZone = process.env.TZ || "Europe/Berlin";
+  const now = new Date();
+  const guess = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m);
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(guess).map((x) => [x.type, Number(x.value)]));
+  const shown = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute);
+  return new Date(guess - (shown - guess));
+}

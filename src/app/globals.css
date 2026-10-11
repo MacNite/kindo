@@ -248,6 +248,56 @@ body {
 @media (min-width: 1024px) and (orientation: landscape) { .wall-lanes { --lane-min: 13rem; } }
 @media (min-width: 768px) and (max-height: 700px) { .wall-lanes { --lane-gap: 0.75rem; } }
 
+/* Next up (D69): one line above the lanes, in front of the whole family's events. Time and title in
+   ink and large enough for across the kitchen, whose it is by colour and name. It is its own
+   container: where the line is narrow, names become initials and "+1 more at the same time" a "+1";
+   on a phone it wraps instead of cutting the title short. */
+.wall-next { display: flex; flex: 1 1 34rem; min-width: 0; align-items: stretch; gap: 0.875rem; min-height: 3.5rem; padding: 0.5rem 1.25rem 0.5rem 0.75rem; container: next / inline-size; }
+.wall-next:active { background: rgb(var(--sunken)); }
+.wall-next-rail { width: 0.375rem; }
+.wall-next-body { display: flex; flex: 1 1 0; min-width: 0; align-items: center; column-gap: 1rem; row-gap: 0.25rem; }
+.wall-next-label { flex-shrink: 0; color: rgb(var(--soft)); font-size: 1.125rem; font-weight: 700; line-height: 1.5rem; }
+.wall-next-when { display: inline-flex; flex-shrink: 0; align-items: baseline; gap: 0.5rem; }
+.wall-next-day { font-size: 1.25rem; font-weight: 700; line-height: 1.75rem; }
+.wall-next-time { font-size: 2rem; font-weight: 700; line-height: 2.5rem; letter-spacing: -0.01em; }
+.wall-next-now { font-size: 1.25rem; line-height: 1.75rem; }
+.wall-next-title { flex: 1 1 8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.625rem; font-weight: 700; line-height: 2.25rem; }
+.wall-next-icon { display: inline-block; height: 1.625rem; width: 1.625rem; margin-right: 0.5rem; vertical-align: -0.25rem; }
+.wall-next-who { display: inline-flex; flex-shrink: 0; align-items: center; gap: 0.875rem; }
+.wall-next-owner { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.25rem; font-weight: 700; line-height: 1.75rem; white-space: nowrap; }
+.wall-next-family { height: 2rem; width: 2rem; color: rgb(var(--soft)); }
+.wall-next-short, .wall-next-more-short { display: none; }
+.wall-next-more { display: inline-flex; flex-shrink: 0; align-items: center; gap: 0.5rem; color: rgb(var(--soft)); font-size: 1.125rem; font-weight: 700; line-height: 1.5rem; white-space: nowrap; }
+.wall-next-none { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(var(--soft)); font-size: 1.375rem; font-weight: 700; line-height: 2rem; }
+.wall-next-offline { display: inline-flex; flex-shrink: 0; align-items: center; gap: 0.375rem; margin-left: auto; border-radius: 999px; background: rgb(var(--sunken)); padding: 0.25rem 0.75rem; font-size: 1rem; font-weight: 700; line-height: 1.5rem; }
+@container next (max-width: 52rem) {
+  .wall-next-more-long { display: none; }
+  .wall-next-more-short { display: inline; }
+}
+@container next (max-width: 44rem) {
+  .wall-next-name { display: none; }
+  .wall-next-short { display: inline; }
+  .wall-next-offline-text { display: none; }
+}
+@container next (max-width: 36rem) { .wall-next-label { display: none; } }
+/* A phone: the line wraps, the title gets a line of its own. */
+@container next (max-width: 26rem) {
+  .wall-next-body { flex-wrap: wrap; }
+  .wall-next-label { display: inline; }
+  .wall-next-title { flex-basis: 100%; order: 1; white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+  .wall-next-who, .wall-next-more { order: 2; }
+  .wall-next-who { flex-wrap: wrap; flex-shrink: 1; row-gap: 0.25rem; }
+  .wall-next-name { display: inline; }
+  .wall-next-short { display: none; }
+  .wall-next-none { white-space: normal; }
+}
+/* Short screens (1024×600): a slimmer line, so the lanes keep their height. */
+@media (min-width: 768px) and (max-height: 700px) {
+  .wall-next { min-height: 3rem; padding-top: 0.375rem; padding-bottom: 0.375rem; }
+  .wall-next-time { font-size: 1.75rem; line-height: 2.25rem; }
+  .wall-next-title { font-size: 1.5rem; line-height: 2rem; }
+}
+
 /* A shelf cover (§23): square by its padding and filled by top/left/width/height,
    since old wall tablets' browsers know neither aspect-ratio nor inset and drew no
    picture at all. The badge in its corner says music (note) or audiobook (book). */
