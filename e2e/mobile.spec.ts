@@ -36,3 +36,27 @@ test("the wall goes fullscreen on the first touch and the app leaves it (D56)", 
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(fullscreen).toBe(false);
 });
+
+test("tapping Delete twice on a phone lands on Cancel, not on deleting the event", async ({ page }) => {
+  await prepare(page);
+  await page.goto("/calendar");
+  const title = `Swim kit ${Date.now()}`;
+  await page.getByRole("button", { name: "New event" }).tap();
+  await page.getByLabel("Title").fill(title);
+  await page.getByRole("button", { name: "Save" }).tap();
+  await expect(page.getByRole("dialog")).toBeHidden();
+  await page.getByRole("radio", { name: "Agenda" }).tap();
+  await page.getByText(title).filter({ visible: true }).first().tap();
+  await page.getByRole("dialog", { name: title }).getByRole("button", { name: "Edit" }).tap();
+  const remove = page.getByRole("dialog", { name: "Edit event" }).getByRole("button", { name: "Delete" });
+  const box = (await remove.boundingBox())!;
+  await remove.tap();
+  const confirm = page.getByRole("alertdialog", { name: "Delete this event?" });
+  await expect(confirm).toBeVisible();
+  // The bottom sheet puts Cancel where Delete was.
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(confirm).toBeHidden();
+  await page.reload();
+  await page.getByRole("radio", { name: "Agenda" }).tap();
+  await expect(page.getByText(title).filter({ visible: true }).first()).toBeVisible();
+});
