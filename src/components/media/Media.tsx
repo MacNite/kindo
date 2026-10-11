@@ -3,10 +3,10 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, type CSSProperties } from "react";
 import {
-  AudioLines, BookHeadphones, ChevronRight, Disc3, ListMusic, Lock, MonitorSmartphone, Pause, Play, SkipBack, SkipForward, Speaker, Square, Volume2,
+  AudioLines, BookHeadphones, BookOpen, ChevronRight, Disc3, ListMusic, Lock, MonitorSmartphone, Music, Pause, Play, SkipBack, SkipForward, Speaker, Square, Volume2,
 } from "lucide-react";
 import type { Member } from "@/lib/types";
-import { shelfFor, startNeedsPin, type ShelfEntry, type ShelfKind } from "@/lib/media";
+import { shelfFor, startNeedsPin, type MediaSource, type ShelfEntry, type ShelfKind } from "@/lib/media";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { coverUrl, player, playerState, usePlayer } from "@/lib/state/player";
@@ -19,6 +19,8 @@ import { ErrorText } from "../ui/ErrorText";
 import { cn } from "../ui/cn";
 
 const KIND_ICON: Record<ShelfKind, typeof Disc3> = { album: Disc3, playlist: ListMusic, book: BookHeadphones };
+/** Where an item comes from, as a picture: a note for music (Jellyfin), a book for audiobooks (Audiobookshelf). */
+const SOURCE_ICON: Record<MediaSource, typeof Disc3> = { jellyfin: Music, audiobookshelf: BookOpen };
 
 /** m:ss or h:mm:ss. */
 function clock(seconds: number) {
@@ -29,16 +31,25 @@ function clock(seconds: number) {
   return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
-/** A shelf item's cover, or its kind's picture when it has none. */
-function Cover({ item, className, iconSize = 40 }: { item: ShelfEntry; className?: string; iconSize?: number }) {
+/**
+ * A shelf item's cover, or its kind's picture when it has none, with a small
+ * note or book in the corner so children tell music from audiobooks. Square
+ * through `.cover` (globals.css), which old wall tablets' browsers draw too.
+ */
+function Cover({ item, className, iconSize = 40, badge = true }: { item: ShelfEntry; className?: string; iconSize?: number; badge?: boolean }) {
+  const { t } = useI18n();
   const [failed, setFailed] = useState(false);
   const I = KIND_ICON[item.kind];
+  const S = SOURCE_ICON[item.source];
   return (
-    <span className={cn("relative grid aspect-square place-items-center overflow-hidden rounded-card bg-sunken text-soft", className)}>
-      {!failed && (
-        <img src={coverUrl(item.id)} alt="" loading="lazy" onError={() => setFailed(true)} className="absolute inset-0 h-full w-full object-cover" />
+    <span className={cn("cover rounded-card bg-sunken text-soft", className)}>
+      {failed ? <span className="cover-fill"><I size={iconSize} aria-hidden /></span> : <img src={coverUrl(item.id)} alt="" loading="lazy" onError={() => setFailed(true)} />}
+      {badge && S && (
+        <span role="img" aria-label={t(`media.source_${item.source}`)} title={t(`media.source_${item.source}`)}
+          className="cover-badge rounded-full bg-surface text-ink shadow-sm">
+          <S strokeWidth={2.5} aria-hidden />
+        </span>
       )}
-      {failed && <I size={iconSize} aria-hidden />}
     </span>
   );
 }
@@ -301,7 +312,7 @@ export function MiniPlayer({ kiosk }: { kiosk?: boolean }) {
       <div data-testid="mini-player" className={cn("fixed z-40 flex items-center gap-3 rounded-full bg-surface p-2 pr-3 shadow-lg ring-1 ring-line",
         kiosk ? "bottom-4 right-4 max-w-[min(26rem,calc(100vw-2rem))]" : "inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-6 md:right-6 md:max-w-md")}>
         <button type="button" onClick={() => setOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={t("media.open", { name: p.item.name })}>
-          <Cover item={p.item} className="h-12 w-12 shrink-0 !rounded-full" iconSize={20} />
+          <Cover item={p.item} className="h-12 w-12 shrink-0 !rounded-full" iconSize={20} badge={false} />
           <span className="min-w-0">
             <span className="block truncate font-bold">{p.item.name}</span>
             {track && <span className="block truncate text-sm text-soft">{track}</span>}

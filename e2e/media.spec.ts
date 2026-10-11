@@ -111,6 +111,12 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   await page.getByRole("link", { name: "Listen" }).click();
   await expect(page).toHaveURL(/\/kids\/.+\/listen/);
   await expect(page.getByTestId("shelf-cover")).toHaveCount(2);
+  // On a small wall tablet too: square covers, each marked music or audiobook (§23).
+  await page.setViewportSize({ width: 1024, height: 600 });
+  const first = page.getByTestId("shelf-cover").first();
+  expect((await first.locator(".cover").boundingBox())!.height).toBeGreaterThan(100);
+  await expect(first.locator('[aria-label="Music"]')).toBeVisible();
+  await page.screenshot({ path: "test-results/kids-listen-1024x600.png" });
 
   // Talking: hold, speak (Chromium's fake microphone), let go.
   await page.goto("/home-control");

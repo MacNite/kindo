@@ -190,6 +190,7 @@ const de: Messages = {
     position: "Position", part: "Teil {n} von {total}", tapToPlay: "Tippe noch einmal auf Abspielen, um den Ton zu starten.", unavailable: "Das lässt sich gerade nicht abspielen.",
     speakerUnavailable: "Der Lautsprecher ist nicht erreichbar.", speakerPlaying: "Läuft: {title}", speaker_playing: "Spielt", speaker_paused: "Pausiert",
     speaker_idle: "Bereit", speaker_off: "Aus", speaker_unavailable: "Nicht erreichbar", playOn: "{name} auf {speaker} abspielen", needsPin: "Braucht die Einstellungs-PIN", volume: "Lautstärke",
+    source_jellyfin: "Musik", source_audiobookshelf: "Hörbuch",
   },
   voice: {
     subtitle: "Taste halten, sagen, was Home Assistant tun soll, und loslassen.", hold: "Zum Sprechen halten", listening: "Ich höre zu…", thinking: "Einen Moment…",
