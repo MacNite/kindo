@@ -73,7 +73,7 @@ export const saveImportantDate = act(S.importantDate, H.saveImportantDate);
 export const deleteImportantDate = act(S.byId, H.deleteImportantDate);
 
 export const saveEvent = act(S.event, H.saveEvent, { topic: "events" });
-export const deleteEvent = act(S.byId, H.deleteEvent, { topic: "events" });
+export const deleteEvent = act(S.eventDelete, H.deleteEvent, { topic: "events" });
 
 export async function getPhotoPlaylist() {
   if (!(await getActor())) return [];

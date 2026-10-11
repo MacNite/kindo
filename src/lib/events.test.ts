@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daySegment, endsNextDay, eventForm, eventTimes, moveStart } from "./events";
+import { daySegment, endsNextDay, eventAccess, eventForm, eventTimes, moveStart } from "./events";
 
 const d = (day: number, h = 0, m = 0) => new Date(2026, 9, day, h, m);
 
@@ -62,5 +62,33 @@ describe("daySegment (the week view)", () => {
     const e = { start: d(10, 18), end: d(11) };
     expect(daySegment(e, d(10), 7, 22)).toMatchObject({ bottom: 1320, toNext: false });
     expect(daySegment(e, d(11), 7, 22)).toBeNull();
+  });
+});
+
+describe("eventAccess (D69)", () => {
+  const rid = new Date("2026-10-28T15:30:00Z");
+  const caldav = { provider: "caldav" as const, readOnly: false };
+
+  it("single events in a writable calendar are simply editable", () => {
+    expect(eventAccess(caldav, {})).toEqual({ editable: true, scopes: [] });
+    expect(eventAccess({ provider: "local", readOnly: false }, {})).toEqual({ editable: true, scopes: [] });
+  });
+
+  it("offers all three for Nextcloud, and only what Google can do for Google", () => {
+    expect(eventAccess(caldav, { recurring: true, recurrenceId: rid })).toEqual({ editable: true, scopes: ["occurrence", "following", "series"] });
+    expect(eventAccess({ provider: "google", readOnly: false }, { recurring: true, recurrenceId: rid }))
+      .toEqual({ editable: true, scopes: ["occurrence", "series"], limit: "following" });
+  });
+
+  it("read-only calendars and subscriptions change nothing, series or not", () => {
+    expect(eventAccess({ provider: "caldav", readOnly: true }, { recurring: true, recurrenceId: rid })).toEqual({ editable: false, scopes: [], limit: "readOnly" });
+    expect(eventAccess({ provider: "ics", readOnly: true }, {})).toMatchObject({ editable: false, limit: "readOnly" });
+    expect(eventAccess(undefined, {})).toMatchObject({ editable: false, limit: "readOnly" });
+  });
+
+  it("leaves a series alone when Kindo can't tell which occurrence it is", () => {
+    // An exception whose series lives elsewhere, or a row from before the next sync.
+    expect(eventAccess(caldav, { recurring: true })).toEqual({ editable: false, scopes: [], limit: "series" });
+    expect(eventAccess({ provider: "ics", readOnly: false }, { recurring: true, recurrenceId: rid })).toMatchObject({ editable: false, limit: "series" });
   });
 });

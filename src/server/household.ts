@@ -1,15 +1,16 @@
 import { Prisma } from "@prisma/client";
 import type { z } from "zod";
-import type { Recurrence, RewardMode, TaskValue, Text } from "@/lib/types";
+import type { EditScope, Recurrence, RewardMode, TaskValue, Text } from "@/lib/types";
 import { guessCategory } from "@/lib/shopping";
 import { isBlankText } from "@/lib/text";
 import { completionOutcome, routineStepValue } from "@/lib/ledger";
 import { householdDayKeyIn, normalizeRecurrence, sameRecurrence } from "@/lib/recurrence";
 import { addDays, dateKey } from "@/lib/dates";
+import { eventAccess } from "@/lib/events";
 import { inTx, type Tx } from "./db";
 import { UserError, notFound } from "./errors";
 import { toStoredEvent } from "./events";
-import { createRemoteEvent, deleteRemoteEvent, updateRemoteEvent } from "./calendar/sync";
+import { changeRemoteSeries, createRemoteEvent, deleteRemoteEvent, updateRemoteEvent } from "./calendar/sync";
 import type { S } from "./validation";
 import { assertAnotherAdminLogin, createLogin } from "./accounts";
 
@@ -391,20 +392,39 @@ export async function deleteImportantDate(db: Tx, input: In<"byId">) {
 
 // ── Calendar ────────────────────────────────────────────────────────────────
 /**
+ * The stored event to change, checked against what its calendar allows
+ * (`eventAccess`, D69). An occurrence of a series must say how much of the
+ * series is meant: nothing ever changes or deletes a whole series by default.
+ */
+async function changeableEvent(db: Tx, id: string, scope: EditScope | undefined) {
+  const existing = await db.event.findUnique({ where: { id }, include: { source: true } });
+  if (!existing) return null;
+  const access = eventAccess(existing.source, { recurring: existing.recurring, recurrenceId: existing.recurrenceId ?? undefined });
+  if (!access.editable) throw new UserError("readOnly");
+  if (existing.recurring) {
+    if (!scope) throw new UserError("invalid", "say which events of the series are meant");
+    if (!access.scopes.includes(scope)) throw new UserError("readOnly", `${existing.source.provider} can't change ${scope} of a series`);
+  }
+  return existing;
+}
+
+/**
  * Saves an event: in Kindo's own calendar directly, in a connected one
- * (Nextcloud) on its server first (§19.5). Recurring series are edited in the
- * calendar app that owns them.
+ * (Nextcloud, Google) on its server first (§19.5). For an occurrence of a
+ * recurring series, `scope` says whether the edit is for it alone, it and the
+ * following ones, or the whole series (D69).
  */
 export async function saveEvent(db: Tx, input: In<"event">) {
   const source = await db.calendarSource.findUnique({ where: { id: input.sourceId } });
   if (!source) throw notFound("calendar");
   if (source.readOnly) throw new UserError("readOnly");
-  const e = { ...input, location: input.location || undefined };
+  const { scope, ...rest } = input;
+  const e = { ...rest, location: input.location || undefined };
   if (input.id) {
-    const existing = await db.event.findUnique({ where: { id: input.id }, include: { source: true } });
+    const existing = await changeableEvent(db, input.id, scope);
     if (!existing) throw notFound("event");
-    if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
     if (existing.sourceId !== input.sourceId) throw new UserError("invalid", "events don't move between calendars");
+    if (existing.recurring) return changeRemoteSeries(db, existing, scope!, e);
     if (existing.source.connectionId) {
       // Its id follows its start: a moved event comes back under a new one.
       return updateRemoteEvent(db, existing, e);
@@ -416,10 +436,10 @@ export async function saveEvent(db: Tx, input: In<"event">) {
   return (await db.event.create({ data: toStoredEvent(e) })).id;
 }
 
-export async function deleteEvent(db: Tx, input: In<"byId">) {
-  const existing = await db.event.findUnique({ where: { id: input.id }, include: { source: true } });
+export async function deleteEvent(db: Tx, input: In<"eventDelete">) {
+  const existing = await changeableEvent(db, input.id, input.scope);
   if (!existing) return;
-  if (existing.source.readOnly || existing.recurring) throw new UserError("readOnly");
+  if (existing.recurring) return void (await changeRemoteSeries(db, existing, input.scope!, null));
   if (existing.source.connectionId) return deleteRemoteEvent(db, existing);
   await db.event.delete({ where: { id: input.id } });
 }

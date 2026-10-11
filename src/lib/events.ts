@@ -1,4 +1,4 @@
-import type { CalendarEvent } from "./types";
+import type { CalendarEvent, CalendarProvider, CalendarSource, EditScope } from "./types";
 import { addDays, dateKey } from "./dates";
 
 /**
@@ -19,6 +19,46 @@ export function allDayForStorage(e: Pick<CalendarEvent, "start" | "end" | "allDa
 /** The reverse, applied on the device to everything the server sends. */
 export function hydrateEvent(e: CalendarEvent): CalendarEvent {
   return e.allDay ? { ...e, start: utcToLocalDay(e.start), end: utcToLocalDay(e.end) } : e;
+}
+
+// ── Recurring series ────────────────────────────────────────────────────────
+/**
+ * What each kind of calendar lets Kindo change in a recurring series (D69),
+ * in the order the editor offers it. CalDAV (Nextcloud) holds the whole
+ * series as iCalendar, so all three work. Google changes one occurrence and
+ * the whole series through its API, but has no "this and following": that
+ * is a split Google Calendar's own app makes. Kindo's own calendar has no
+ * series, and subscriptions are read only.
+ */
+export const SERIES_SCOPES: Record<CalendarProvider, EditScope[]> = {
+  caldav: ["occurrence", "following", "series"],
+  google: ["occurrence", "series"],
+  ics: [],
+  local: [],
+};
+
+/** Why Kindo can't change (part of) an event: the calendar is read only, the series can't be changed here, or not from this one on. */
+export type EventLimit = "readOnly" | "series" | "following";
+
+export interface EventAccess {
+  /** Kindo can change or delete it (at least this occurrence). */
+  editable: boolean;
+  /** For an occurrence of a series: what an edit can cover. Empty for single events. */
+  scopes: EditScope[];
+  /** What to tell the family about what isn't possible. */
+  limit?: EventLimit;
+}
+
+/**
+ * Whether and how an event can be changed from Kindo. The server checks the
+ * same before it writes, so a screen showing old data can't get further.
+ */
+export function eventAccess(source: Pick<CalendarSource, "provider" | "readOnly"> | undefined, e: Pick<CalendarEvent, "recurring" | "recurrenceId">): EventAccess {
+  if (!source || source.readOnly) return { editable: false, scopes: [], limit: "readOnly" };
+  if (!e.recurring) return { editable: true, scopes: [] };
+  const scopes = e.recurrenceId ? SERIES_SCOPES[source.provider] : [];
+  if (!scopes.length) return { editable: false, scopes, limit: "series" };
+  return { editable: true, scopes, ...(scopes.includes("following") ? {} : { limit: "following" as const }) };
 }
 
 // ── The event editor ────────────────────────────────────────────────────────

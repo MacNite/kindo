@@ -361,25 +361,29 @@ model CalendarSource {
 }
 
 model Event {
-  id         String         @id @default(cuid())
-  sourceId   String
-  source     CalendarSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  title      Json
-  start      DateTime
-  end        DateTime
+  id           String         @id @default(cuid())
+  sourceId     String
+  source       CalendarSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  title        Json
+  start        DateTime
+  end          DateTime
   /// All-day events store the date at UTC midnight.
-  allDay     Boolean        @default(false)
+  allDay       Boolean        @default(false)
   /// Empty = whole family.
-  memberIds  String[]
-  location   String?
-  icon       String?
-  background Boolean        @default(false)
+  memberIds    String[]
+  location     String?
+  icon         String?
+  background   Boolean        @default(false)
   /// The iCalendar UID, and the object's address and version at its server.
-  uid        String?
-  href       String?
-  etag       String?
-  /// One occurrence of a recurring series: shown, but edited at the source.
-  recurring  Boolean        @default(false)
+  uid          String?
+  href         String?
+  etag         String?
+  /// One occurrence of a recurring series.
+  recurring    Boolean        @default(false)
+  /// Which occurrence of its series: its original start (iCalendar RECURRENCE-ID), kept when it was moved (D69).
+  recurrenceId DateTime?
+  /// The series at its server when that isn't the object itself (Google's recurring event id).
+  seriesId     String?
 
   @@index([start])
   @@index([sourceId])

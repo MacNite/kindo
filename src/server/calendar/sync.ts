@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { CalendarSource as SourceRow, Connection, Event as EventRow, Prisma } from "@prisma/client";
 import { addDays } from "@/lib/dates";
 import { allDayForStorage } from "@/lib/events";
-import type { Text } from "@/lib/types";
+import type { EditScope, Text } from "@/lib/types";
 import { inTx, type Tx } from "../db";
 import { decryptSecret, sha256 } from "../crypto";
 import { env } from "../env";
@@ -34,6 +34,8 @@ export interface CalendarProvider {
   create?(conn: Connection, source: SourceRow, e: EventToWrite): Promise<void>;
   update?(conn: Connection, source: SourceRow, row: EventRow, e: EventToWrite): Promise<void>;
   remove?(conn: Connection, source: SourceRow, row: EventRow): Promise<void>;
+  /** Changes (`e`) or cancels (null) part of a recurring series; which scopes a provider takes is `SERIES_SCOPES` (D69). */
+  changeSeries?(conn: Connection, source: SourceRow, row: EventRow, scope: EditScope, e: EventToWrite | null): Promise<void>;
 }
 
 export const caldavAccount = (c: Connection): caldav.CalDavAccount => ({ url: c.url ?? "", username: c.username ?? "", password: c.secret ? decryptSecret(c.secret) : "" });
@@ -45,12 +47,20 @@ const providers: Partial<Record<Connection["kind"], CalendarProvider>> = {
     create: (c, s, e) => caldav.createEvent(caldavAccount(c), s.remoteId!, e),
     update: (c, s, row, e) => caldav.updateEvent(caldavAccount(c), s.remoteId!, row.href!, row.etag ?? undefined, e),
     remove: (c, _s, row) => caldav.deleteEvent(caldavAccount(c), row.href!, row.etag ?? undefined),
+    changeSeries: (c, s, row, scope, e) => caldav.changeSeries(caldavAccount(c), s.remoteId!, row.href!, row.etag ?? undefined,
+      { uid: row.uid!, recurrenceId: row.recurrenceId!, shown: shownAs(row) }, scope, e, `${randomUUID()}@kindo`),
   },
   ics: icsProvider,
   google: googleProvider,
 };
 
 export const providerFor = (kind: Connection["kind"]) => providers[kind];
+
+/** An event as Kindo stores (and showed) it, in the shape a write takes. */
+function shownAs(row: EventRow): EventToWrite {
+  const title = typeof row.title === "string" ? row.title : JSON.stringify(row.title);
+  return { uid: row.uid ?? "", title, start: row.start, end: row.end, allDay: row.allDay, location: row.location ?? undefined, memberIds: row.memberIds };
+}
 
 /** Same occurrence, same id, sync after sync: screens keep their selection. */
 const eventId = (sourceId: string, uid: string, start: Date) => `ev_${sha256(`${sourceId}|${uid}|${start.toISOString()}`).slice(0, 24)}`;
@@ -68,6 +78,7 @@ function toRows(source: SourceRow, events: RemoteEvent[], memberIds: Set<string>
       id, sourceId: source.id, title: e.summary || "", start: e.start, end: e.end, allDay: e.allDay,
       memberIds: own?.length ? own : source.defaultMemberIds, location: e.location ?? null, icon: e.icon ?? null,
       background: source.background, uid: e.uid || null, href: e.href || null, etag: e.etag ?? null, recurring: e.recurring,
+      recurrenceId: e.recurrenceId ?? null, seriesId: e.seriesId ?? null,
     });
   }
   return rows;
@@ -244,15 +255,31 @@ async function syncedId(db: Tx, sourceId: string, uid: string, start: Date) {
 }
 
 /**
- * Single events only: a recurring series is changed in the calendar app that
- * owns it. Returns the event's id afterwards, which changes when it moved.
+ * When the calendar says the event changed elsewhere since the last sync,
+ * Kindo writes nothing, pulls the calendar so the screen shows the newer
+ * version, and asks the family to look again ("changedElsewhere").
+ */
+async function atServer<T>(db: Tx, conn: Connection, source: SourceRow, write: () => Promise<T>): Promise<T> {
+  try {
+    return await write();
+  } catch (e) {
+    if (!(e instanceof UserError && e.code === "conflict")) throw e;
+    await syncSource(db, conn, source, { force: true }).catch((err) => log.warn("calendar sync after a conflict failed", { source: source.id, error: errorMessage(err) }));
+    throw new UserError("changedElsewhere", e.message);
+  }
+}
+
+/**
+ * Single events only; parts of a recurring series go through
+ * `changeRemoteSeries`. Returns the event's id afterwards, which changes when
+ * it moved.
  */
 export async function updateRemoteEvent(db: Tx, row: EventRow, e: EventInput) {
   const source = await sourceWithConnection(db, row.sourceId);
   const conn = source.connection!;
   const p = providerFor(conn.kind);
   if (!p?.update || row.recurring || !row.href) throw new UserError("readOnly");
-  await p.update(conn, source, row, toWrite(row.uid ?? `${randomUUID()}@kindo`, e));
+  await atServer(db, conn, source, () => p.update!(conn, source, row, toWrite(row.uid ?? `${randomUUID()}@kindo`, e)));
   await syncSource(db, conn, source, { force: true });
   return row.uid ? syncedId(db, source.id, row.uid, allDayForStorage(e).start) : eventId(source.id, row.href, allDayForStorage(e).start);
 }
@@ -262,6 +289,25 @@ export async function deleteRemoteEvent(db: Tx, row: EventRow) {
   const conn = source.connection!;
   const p = providerFor(conn.kind);
   if (!p?.remove || row.recurring || !row.href) throw new UserError("readOnly");
-  await p.remove(conn, source, row);
+  await atServer(db, conn, source, () => p.remove!(conn, source, row));
   await syncSource(db, conn, source, { force: true });
+}
+
+/**
+ * Changes (`e`) or cancels (null) one occurrence, this and following, or the
+ * whole series at the calendar's server, then pulls the calendar back (D69).
+ * Returns the id of the edited occurrence afterwards, when it can be found.
+ */
+export async function changeRemoteSeries(db: Tx, row: EventRow, scope: EditScope, e: EventInput | null) {
+  const source = await sourceWithConnection(db, row.sourceId);
+  const conn = source.connection!;
+  const p = providerFor(conn.kind);
+  if (!p?.changeSeries || !row.recurring || !row.recurrenceId || !row.href) throw new UserError("readOnly");
+  await atServer(db, conn, source, () => p.changeSeries!(conn, source, row, scope, e && toWrite(row.uid ?? "", e)));
+  await syncSource(db, conn, source, { force: true });
+  if (!e) return row.id;
+  // The same series where it still is one; "this and following" carries on under a new uid.
+  const at = await db.event.findMany({ where: { sourceId: source.id, start: allDayForStorage(e).start, recurring: true }, select: { id: true, uid: true, seriesId: true } });
+  const same = at.find((r) => (row.uid && r.uid === row.uid) || (row.seriesId && r.seriesId === row.seriesId)) ?? at.find((r) => r.uid?.endsWith("@kindo"));
+  return same?.id ?? row.id;
 }

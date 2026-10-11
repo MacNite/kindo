@@ -129,7 +129,13 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     const autumn = source.events.find((e) => e.title === "Herbstferien");
     expect(autumn).toMatchObject({ memberIds: ["lena"], background: true, allDay: true });
     // Kindo's own member assignment in the feed wins over the calendar's people.
-    expect(source.events.find((e) => e.title === "Football practice")?.memberIds).toEqual(["lena", "max"]);
+    const football = source.events.find((e) => e.title === "Football practice")!;
+    expect(football.memberIds).toEqual(["lena", "max"]);
+    // A feed's series is read only, whatever is asked of it (D69).
+    expect(football).toMatchObject({ recurring: true, recurrenceId: expect.any(Date) });
+    for (const scope of ["occurrence", "following", "series"] as const) {
+      await expect(deleteEvent(db, { id: football.id, scope })).rejects.toMatchObject({ code: "readOnly" });
+    }
     // The same feed again: nothing is rewritten. A change of the calendar's people is.
     expect(await syncConnection(db, conn, { force: true })).toBe(false);
     await C.updateSource(db, { id: source.id, name: "School", defaultMemberIds: ["max"], readOnly: true, background: true });
@@ -173,8 +179,11 @@ describe.skipIf(!TEST_DB)("ICS subscriptions and Google Calendar (§19.8)", () =
     expect(await db.event.findUniqueOrThrow({ where: { id: moved } })).toMatchObject({ title: "Football final", memberIds: ["lena", "max"] });
     await deleteEvent(db, { id: moved });
     expect(google.log.some((l) => l.method === "DELETE")).toBe(true);
+    // A series is never deleted without saying how much of it, and Google has no "this and following" (D69).
     const choir = await db.event.findFirstOrThrow({ where: { title: { equals: "Choir" } } });
-    await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "readOnly" });
+    await expect(deleteEvent(db, { id: choir.id })).rejects.toMatchObject({ code: "invalid" });
+    await expect(deleteEvent(db, { id: choir.id, scope: "following" })).rejects.toMatchObject({ code: "readOnly" });
+    expect(google.log.filter((l) => l.path.includes("g2")).length).toBe(0);
   });
 
   it("tells Google's rate limit apart from missing write access", async () => {
