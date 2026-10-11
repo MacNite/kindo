@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PrismaClient } from "@prisma/client";
 import * as C from "@/server/connections";
@@ -63,7 +64,7 @@ describe.skipIf(!TEST_DB || !URL_)("Nextcloud / CalDAV (§19.5)", () => {
     expect(await db.event.count({ where: { id } })).toBe(0);
   });
 
-  it("reads events made elsewhere: the calendar's people by default, recurring series read-only", async () => {
+  it("reads events made elsewhere: the calendar's people by default, which occurrence of a series each is", async () => {
     const d = new Date(Date.now() + 86_400_000);
     const ymd = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
     const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//test//EN", "BEGIN:VEVENT", "UID:yoga@elsewhere", `DTSTAMP:${ymd}T000000Z`,
@@ -75,8 +76,129 @@ describe.skipIf(!TEST_DB || !URL_)("Nextcloud / CalDAV (§19.5)", () => {
     const yoga = await db.event.findMany({ where: { sourceId, title: { equals: "Yoga" } }, orderBy: { start: "asc" } });
     expect(yoga).toHaveLength(4);
     expect(yoga.every((e) => e.recurring && e.memberIds.join() === "anna")).toBe(true);
-    await expect(deleteEvent(db, { id: yoga[0].id })).rejects.toMatchObject({ code: "readOnly" });
+    expect(yoga.map((e) => e.recurrenceId)).toEqual(yoga.map((e) => e.start));
+    // Never the whole series by default: Kindo must be told how much of it (D70).
+    await expect(deleteEvent(db, { id: yoga[0].id })).rejects.toMatchObject({ code: "invalid" });
     expect((await db.connection.findUniqueOrThrow({ where: { id: connectionId } })).status).toBe("ok");
+  });
+
+  describe("recurring series (D70)", () => {
+    // Swimming: Wednesdays 16:30–17:30 Berlin time for 30 weeks from next Wednesday, so the
+    // series always crosses a change of daylight saving. The third one is cancelled.
+    const fixture = readFileSync(new URL("./fixtures/school.ics", import.meta.url), "utf8");
+    const vtimezone = fixture.slice(fixture.indexOf("BEGIN:VTIMEZONE"), fixture.indexOf("END:VTIMEZONE") + "END:VTIMEZONE".length);
+    const first = new Date();
+    first.setDate(first.getDate() + ((3 - first.getDay() + 7) % 7 || 7));
+    first.setHours(16, 30, 0, 0);
+    const weeks = (n: number) => new Date(first.getFullYear(), first.getMonth(), first.getDate() + 7 * n, 16, 30);
+    const local = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}00`;
+    const objectUrl = (href: string) => (href.startsWith("http") ? href : new URL(href, URL_).toString());
+    const read = async (href: string) => (await fetch(objectUrl(href), { headers: auth })).text();
+    const put = (name: string, lines: string[]) => fetch(`${calendarUrl.replace(/\/$/, "")}/${name}`, {
+      method: "PUT", headers: { ...auth, "Content-Type": "text/calendar" },
+      body: ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//test//EN", vtimezone, "BEGIN:VEVENT", "UID:swim@elsewhere", "DTSTAMP:20260101T000000Z",
+        `DTSTART;TZID=Europe/Berlin:${local(weeks(0))}`, "DURATION:PT1H", "RRULE:FREQ=WEEKLY;COUNT=30", `EXDATE;TZID=Europe/Berlin:${local(weeks(2))}`,
+        "DESCRIPTION:Bring towels", ...lines, "END:VEVENT", "END:VCALENDAR", ""].join("\r\n"),
+    });
+    const swims = async () => (await db.event.findMany({ where: { sourceId }, orderBy: { start: "asc" } })).filter((e) => String(e.title).startsWith("Swim"));
+    const as = (e: Awaited<ReturnType<typeof swims>>[number], patch: Partial<{ title: string; start: Date; end: Date; memberIds: string[] }> = {}) =>
+      ({ id: e.id, sourceId, title: e.title as string, start: e.start, end: e.end, allDay: false, memberIds: e.memberIds, ...patch });
+    const sync = async () => syncConnection(db, await db.connection.findUniqueOrThrow({ where: { id: connectionId } }), { force: true });
+    /** Removes the swimming objects from the server, so another run starts clean. */
+    const clear = async () => {
+      await sync();
+      for (const href of new Set((await swims()).map((e) => e.href!))) await fetch(objectUrl(href), { method: "DELETE", headers: auth });
+      await sync();
+    };
+    afterAll(() => clear());
+
+    it("changes one occurrence at the server: the rest of the series, its cancellation and details stay", async () => {
+      await clear();
+      expect((await put("swim.ics", ["SUMMARY:Swimming"])).ok).toBe(true);
+      await sync();
+      const before = await swims();
+      expect(before).toHaveLength(29);
+      const id = await saveEvent(db, { ...as(before[4], { title: "Swimming (Max only)", memberIds: ["max"] }), scope: "occurrence" });
+      const after = await swims();
+      expect(after).toHaveLength(29);
+      expect(after.find((e) => e.id === id)).toMatchObject({ title: "Swimming (Max only)", memberIds: ["max"], recurrenceId: before[4].start });
+      expect(after.filter((e) => e.title === "Swimming")).toHaveLength(28);
+      const ics = await read(after[0].href!);
+      expect(ics).toContain(`RECURRENCE-ID;TZID=Europe/Berlin:${local(weeks(5))}`);
+      expect(ics).toContain(`EXDATE;TZID=Europe/Berlin:${local(weeks(2))}`);
+      expect(ics.match(/DESCRIPTION:Bring towels/g)).toHaveLength(2);
+    });
+
+    it("cancels one occurrence with an EXDATE, the series stays", async () => {
+      const before = await swims();
+      await deleteEvent(db, { id: before[5].id, scope: "occurrence" });
+      const after = await swims();
+      expect(after).toHaveLength(28);
+      expect(after.some((e) => e.start.getTime() === before[5].start.getTime())).toBe(false);
+      expect(await read(after[0].href!)).toContain(`EXDATE;TZID=Europe/Berlin:${local(weeks(6))}`);
+    });
+
+    it("moves the whole series to a new time of day on both sides of a daylight-saving change", async () => {
+      const before = await swims();
+      // Edited on an occurrence in the other half of the year than the first.
+      const other = before.find((e) => e.start.getTimezoneOffset() !== before[0].start.getTimezoneOffset())!;
+      expect(other).toBeDefined();
+      const start = new Date(other.start); start.setHours(17, 0);
+      const end = new Date(other.start); end.setHours(18, 0);
+      await saveEvent(db, { ...as(other, { start, end }), scope: "series" });
+      const after = await swims();
+      expect(after).toHaveLength(28);
+      expect(after.every((e) => e.start.getHours() === 17 && e.start.getMinutes() === 0)).toBe(true);
+      // The exception keeps its own name and people; the cancellations stay cancelled.
+      expect(after.find((e) => e.title === "Swimming (Max only)")).toMatchObject({ memberIds: ["max"] });
+      const ics = await read(after[0].href!);
+      expect(ics).toContain(`EXDATE;TZID=Europe/Berlin:${local(weeks(2)).replace("T1630", "T1700")}`);
+      expect(ics).toContain(`RECURRENCE-ID;TZID=Europe/Berlin:${local(weeks(5)).replace("T1630", "T1700")}`);
+    });
+
+    it("splits at this and following into a second series: nothing doubled, nothing lost", async () => {
+      const before = await swims();
+      await saveEvent(db, { ...as(before[10], { title: "Swimming (new pool)" }), scope: "following" });
+      const after = await swims();
+      expect(after).toHaveLength(28);
+      expect(after.slice(0, 10).every((e) => !String(e.title).includes("new pool"))).toBe(true);
+      expect(after.slice(10).every((e) => e.title === "Swimming (new pool)")).toBe(true);
+      expect(new Set(after.map((e) => e.href)).size).toBe(2);
+      expect(after[10].uid).toMatch(/@kindo$/);
+      // Cancelling the rest of the new series from its fourth on ends it there.
+      await deleteEvent(db, { id: after[13].id, scope: "following" });
+      expect(await swims()).toHaveLength(13);
+    });
+
+    it("writes nothing when the series changed elsewhere since the last sync, and shows the newer version", async () => {
+      // Another app renames the series; Kindo hasn't synced since.
+      const renameElsewhere = async (href: string, from: string, to: string) => {
+        const text = await read(href);
+        expect(text).toContain(`SUMMARY:${from}\r\n`);
+        const r = await fetch(objectUrl(href), { method: "PUT", headers: { ...auth, "Content-Type": "text/calendar" }, body: text.replace(`SUMMARY:${from}\r\n`, `SUMMARY:${to}\r\n`) });
+        expect(r.ok).toBe(true);
+      };
+      const [original] = await swims();
+      await renameElsewhere(original.href!, "Swimming", "Swimming (changed elsewhere)");
+      await expect(saveEvent(db, { ...as(original, { title: "Swimming (Kindo)" }), scope: "following" })).rejects.toMatchObject({ code: "changedElsewhere" });
+      let after = await swims();
+      expect(after).toHaveLength(13);
+      expect(after[0].title).toBe("Swimming (changed elsewhere)");
+      expect(after.some((e) => e.title === "Swimming (Kindo)")).toBe(false);
+      // No new series was left behind.
+      expect(new Set(after.map((e) => e.href)).size).toBe(2);
+
+      // Deleting is refused the same way, and deletes nothing.
+      await renameElsewhere(original.href!, "Swimming (changed elsewhere)", "Swimming (changed again)");
+      await expect(deleteEvent(db, { id: after[0].id, scope: "series" })).rejects.toMatchObject({ code: "changedElsewhere" });
+      after = await swims();
+      expect(after).toHaveLength(13);
+      expect(after[0].title).toBe("Swimming (changed again)");
+
+      // With the newer version in view, deleting the whole series works and leaves the split-off one.
+      await deleteEvent(db, { id: after[0].id, scope: "series" });
+      expect((await swims()).every((e) => e.title === "Swimming (new pool)")).toBe(true);
+    });
   });
 
   it("two syncs of the same calendar at once don't trip over each other", async () => {

@@ -1,15 +1,15 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import { CalendarHeart, ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Rss, Smartphone, Trash2, TreePalm } from "lucide-react";
-import type { CalendarEvent, CalendarProvider, Member } from "@/lib/types";
+import { CalendarHeart, ChevronLeft, ChevronRight, Cloud, Globe, Lock, MapPin, Pencil, Plus, Repeat, Rss, Smartphone, Trash2, TreePalm } from "lucide-react";
+import type { CalendarEvent, CalendarProvider, EditScope, Member } from "@/lib/types";
 import { useI18n } from "@/i18n";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
 import { useStore } from "@/lib/state/store";
 import { deleteEvent, saveEvent } from "@/lib/services/actions";
 import { addDays, at, dateKey, monthGrid, sameDay, startOfWeek, startOfDay } from "@/lib/dates";
-import { daySegment, endsNextDay, eventForm, eventTimes, moveStart, type EventForm } from "@/lib/events";
+import { daySegment, endsNextDay, eventAccess, eventForm, eventTimes, moveStart, type EventForm } from "@/lib/events";
 import { ErrorText } from "../ui/ErrorText";
 import { Button, IconButton } from "../ui/Button";
 import { Segmented, Field, inputCls } from "../ui/Segmented";
@@ -398,13 +398,18 @@ function EventDialog({ event, onClose, onEdit }: { event: CalendarEvent | null; 
   const S = getSource(event.sourceId);
   const I = S ? PROVIDER_ICON[S.provider] : Cloud;
   const ms = event.memberIds.flatMap((id) => getMember(id) ?? []);
-  const writable = S && !S.readOnly && !event.recurring;
+  // What its calendar lets Kindo do, said plainly when it's nothing (D70).
+  const access = eventAccess(S, event);
+  const why = access.limit === "readOnly" ? t("calendar.readOnlyHint") : access.limit === "series" ? t("calendar.recurringHint") : null;
   return (
     <Dialog open onClose={onClose} title={tx(event.title)}
-      footer={writable ? <Button variant="outline" onClick={() => onEdit(event)}><Pencil size={16} />{t("common.edit")}</Button>
-        : event.recurring && S && !S.readOnly ? <span className="text-sm text-soft">{t("calendar.recurringHint")}</span> : undefined}>
+      footer={access.editable ? <Button variant="outline" onClick={() => onEdit(event)}><Pencil size={16} />{t("common.edit")}</Button>
+        : why ? <span className="text-sm text-soft">{why}</span> : undefined}>
       <dl className="flex flex-col gap-4">
-        <Row label={t("calendar.when")}>{fmt.dateLong(event.start)}{!event.allDay && `, ${fmt.time(event.start)}–${fmt.time(event.end)}`}</Row>
+        <Row label={t("calendar.when")}>
+          {fmt.dateLong(event.start)}{!event.allDay && `, ${fmt.time(event.start)}–${fmt.time(event.end)}`}
+          {event.recurring && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-sunken px-2 py-0.5 text-xs font-bold"><Repeat size={12} />{t("calendar.repeats")}</span>}
+        </Row>
         {event.location && <Row label={t("calendar.where")}><span className="inline-flex items-center gap-1.5"><MapPin size={16} />{event.location}</span></Row>}
         <Row label={t("calendar.who")}>
           {ms.length ? <span className="flex flex-wrap gap-2">{ms.map((m) => <span key={m.id} className="inline-flex items-center gap-1.5 font-bold"><Avatar member={m} size="xs" />{m.name}</span>)}</span> : t("common.whole")}
@@ -425,27 +430,49 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return <div className="grid grid-cols-[96px_1fr] gap-3"><dt className="text-sm font-bold text-soft">{label}</dt><dd>{children}</dd></div>;
 }
 
-/** Creates or edits an event in a writable calendar (Kindo's own, or a writable Nextcloud one). */
+const SCOPE_LABEL = { occurrence: "calendar.scopeOccurrence", following: "calendar.scopeFollowing", series: "calendar.scopeSeries" } as const;
+const DELETE_SCOPE = { occurrence: "calendar.deleteOccurrence", following: "calendar.deleteFollowing", series: "calendar.deleteSeries" } as const;
+
+/**
+ * Creates or edits an event in a writable calendar (Kindo's own, Nextcloud,
+ * Google). For an occurrence of a recurring series it first asks how much of
+ * the series is meant, offering only what the calendar can do; deleting asks
+ * again and names that (D70).
+ */
 function EventEditor({ event, day, onClose, onDeleted }: { event: CalendarEvent | null; day: Date; onClose: () => void; onDeleted?: (title: string) => void }) {
   const { t, tx, fmt } = useI18n();
-  const { getSources, getMembers, run } = useStore();
+  const { getSources, getSource, getMembers, run } = useStore();
   const writable = getSources().filter((s) => !s.readOnly);
   const start = at(day, 15);
   const [title, setTitle] = useState(event ? tx(event.title) : "");
   const [who, setWho] = useState(new Set<string>(event?.memberIds ?? []));
   // An existing event keeps its length; a new one is an hour in the afternoon.
-  const [when, setWhen] = useState<EventForm>(() => eventForm(event ?? { allDay: false, start, end: new Date(start.getTime() + 3_600_000) }));
+  const [initial] = useState(() => eventForm(event ?? { allDay: false, start, end: new Date(start.getTime() + 3_600_000) }));
+  const [when, setWhen] = useState<EventForm>(initial);
   const { allDay } = when;
   const [location, setLocation] = useState(event?.location ?? "");
   const [sourceId, setSourceId] = useState(event?.sourceId ?? writable.find((s) => s.provider === "local")?.id ?? writable[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const source = getSource(sourceId);
+  const access = event ? eventAccess(source, event) : null;
+  const scopes = access?.scopes ?? [];
+  const [scope, setScope] = useState<EditScope>("occurrence");
   const [confirming, setConfirming] = useState(false);
+  // Several occurrences keep their day: the calendar app moves a series to another one.
+  const keepsDay = scopes.length > 0 && scope !== "occurrence";
+  const seriesScope = scopes.length ? scope : undefined;
+
+  const pickScope = (next: EditScope) => {
+    setScope(next);
+    setError(null);
+    if (next !== "occurrence") setWhen((w) => moveStart({ ...w, allDay: initial.allDay }, { date: initial.date }));
+  };
 
   const submit = async () => {
     setBusy(true);
-    const { start: s, end: e } = eventTimes(when);
-    const r = await run(() => saveEvent({ id: event?.id, sourceId, title, start: s, end: e, allDay, memberIds: [...who], location: location || undefined }));
+    const { start: from, end: to } = eventTimes(when);
+    const r = await run(() => saveEvent({ id: event?.id, sourceId, title, start: from, end: to, allDay, memberIds: [...who], location: location || undefined, scope: seriesScope }));
     setBusy(false);
     if (r.ok) onClose();
     else setError(r.error);
@@ -460,14 +487,22 @@ function EventEditor({ event, day, onClose, onDeleted }: { event: CalendarEvent 
         <Button variant="primary" disabled={busy || !title.trim() || !sourceId} onClick={() => submit()}>{t("common.save")}</Button>
       </>}>
       <div className="flex flex-col gap-4">
+        {scopes.length > 0 && (
+          <Field label={<span className="inline-flex items-center gap-1.5"><Repeat size={14} />{t("calendar.scope")}</span>}
+            hint={access?.limit === "following" && source ? t("calendar.followingLimit", { provider: t(`providers.${source.provider}`) }) : undefined}>
+            <Segmented size="sm" className="flex-wrap" value={scope} onChange={pickScope} label={t("calendar.scope")}
+              options={scopes.map((v) => ({ value: v, label: t(SCOPE_LABEL[v]) }))} />
+          </Field>
+        )}
         <Field label={t("calendar.eventTitle")}><input className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("calendar.titlePlaceholder")} /></Field>
         <Field label={t("calendar.who")}>
           <MemberFilter size="sm" members={getMembers()} selected={who} onToggle={(id) => setWho((s) => toggled(s, id))} />
         </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("calendar.when")}><input type="date" className={inputCls} value={when.date} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { date: e.target.value }))} /></Field>
-          <label className="flex items-end gap-2 pb-3 font-bold"><input type="checkbox" checked={allDay} onChange={(e) => setWhen((w) => ({ ...w, allDay: e.target.checked }))} className="h-5 w-5" />{t("common.allDay")}</label>
+          <Field label={t("calendar.when")}><input type="date" className={inputCls} value={when.date} disabled={keepsDay} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { date: e.target.value }))} /></Field>
+          <label className="flex items-end gap-2 pb-3 font-bold"><input type="checkbox" checked={allDay} disabled={keepsDay} onChange={(e) => setWhen((w) => ({ ...w, allDay: e.target.checked }))} className="h-5 w-5" />{t("common.allDay")}</label>
         </div>
+        {keepsDay && <p className="-mt-2 text-sm text-soft">{t("calendar.seriesKeepsDay")}</p>}
         {!allDay && (
           <div className="grid grid-cols-2 gap-3">
             <Field label={t("calendar.startTime")}><input type="time" className={inputCls} value={when.from} onChange={(e) => e.target.value && setWhen((w) => moveStart(w, { from: e.target.value }))} /></Field>
@@ -488,7 +523,7 @@ function EventEditor({ event, day, onClose, onDeleted }: { event: CalendarEvent 
         </Field>
       </div>
     </Dialog>
-    {confirming && event && <DeleteEvent event={event} onCancel={() => setConfirming(false)} onDeleted={() => { onClose(); onDeleted?.(tx(event.title)); }} />}
+    {confirming && event && <DeleteEvent event={event} scope={seriesScope} onCancel={() => setConfirming(false)} onDeleted={() => { onClose(); onDeleted?.(tx(event.title)); }} />}
   </>);
 }
 
@@ -499,7 +534,7 @@ function EventEditor({ event, day, onClose, onDeleted }: { event: CalendarEvent 
  * new id. Focus starts on the panel, Cancel sits where Delete was, and the
  * backdrop, Escape and Cancel change nothing.
  */
-function DeleteEvent({ event, onCancel, onDeleted }: { event: CalendarEvent; onCancel: () => void; onDeleted: () => void }) {
+function DeleteEvent({ event, scope, onCancel, onDeleted }: { event: CalendarEvent; scope?: EditScope; onCancel: () => void; onDeleted: () => void }) {
   const { t, tx, fmt } = useI18n();
   const { getSource, run } = useStore();
   const S = getSource(event.sourceId);
@@ -513,7 +548,8 @@ function DeleteEvent({ event, onCancel, onDeleted }: { event: CalendarEvent; onC
     pending.current = true;
     setBusy(true);
     setError(null);
-    const r = await run(() => deleteEvent({ id: event.id }));
+    // A single event's delete stays `{ id }`; a series names how much of it goes.
+    const r = await run(() => deleteEvent(scope ? { id: event.id, scope } : { id: event.id }));
     pending.current = false;
     setBusy(false);
     if (r.ok) onDeleted();
@@ -535,7 +571,9 @@ function DeleteEvent({ event, onCancel, onDeleted }: { event: CalendarEvent; onC
       <div className="flex flex-col gap-3">
         <p className="font-display text-lg font-bold">{tx(event.title)}</p>
         <p className="text-sm text-soft">{fmt.dateLong(event.start)}{!event.allDay && `, ${fmt.time(event.start)}–${fmt.time(event.end)}`}</p>
-        {S && <p>{t(S.provider === "local" ? "calendar.deleteScopeLocal" : "calendar.deleteScopeRemote", { calendar })}</p>}
+        {/* Part of a series: says how much of it goes, as picked in the editor (D70). */}
+        {scope ? <p>{t(DELETE_SCOPE[scope], { calendar })}</p>
+          : S && <p>{t(S.provider === "local" ? "calendar.deleteScopeLocal" : "calendar.deleteScopeRemote", { calendar })}</p>}
         <p className="font-bold">{t("calendar.deleteFinal")}</p>
       </div>
     </Dialog>

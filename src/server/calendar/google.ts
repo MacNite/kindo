@@ -3,6 +3,7 @@ import { decryptSecret } from "../crypto";
 import { env } from "../env";
 import { UserError } from "../errors";
 import { fetchChecked, readJson } from "../http";
+import type { EditScope } from "@/lib/types";
 import type { RemoteCalendar, RemoteEvent } from "./caldav";
 import type { EventToWrite } from "./ical";
 import type { CalendarProvider } from "./sync";
@@ -84,10 +85,10 @@ async function errorReasons(res: Response): Promise<string[]> {
   }
 }
 
-type GDate = { date?: string; dateTime?: string };
+type GDate = { date?: string; dateTime?: string; timeZone?: string };
 interface GEvent {
   id: string; etag?: string; status?: string; summary?: string; location?: string; start: GDate; end: GDate;
-  recurringEventId?: string; extendedProperties?: { private?: Record<string, string> };
+  recurringEventId?: string; originalStartTime?: GDate; extendedProperties?: { private?: Record<string, string> };
 }
 const toDate = (d: GDate) => (d.date ? new Date(`${d.date}T00:00:00Z`) : new Date(d.dateTime!));
 
@@ -108,12 +109,12 @@ function body(e: EventToWrite) {
  * Google keeps what other apps set (description, reminders, attendees,
  * colour, other private properties). Null clears a field.
  */
-export function patchBody(row: Pick<EventRow, "title" | "start" | "end" | "allDay" | "location" | "memberIds">, e: EventToWrite) {
+export function patchBody(row: Pick<EventRow, "title" | "start" | "end" | "allDay" | "location" | "memberIds">, e: EventToWrite, { times = true } = {}) {
   const out: Record<string, unknown> = {};
   const title = typeof row.title === "string" ? row.title : JSON.stringify(row.title);
   if (title !== e.title) out.summary = e.title;
   if ((row.location ?? "") !== (e.location ?? "")) out.location = e.location || null;
-  if (row.allDay !== e.allDay || row.start.getTime() !== e.start.getTime() || row.end.getTime() !== e.end.getTime()) {
+  if (times && (row.allDay !== e.allDay || row.start.getTime() !== e.start.getTime() || row.end.getTime() !== e.end.getTime())) {
     // Both kinds named, so a timed event can become a whole day and back.
     const when = (d: Date) => (e.allDay ? { date: ymd(d), dateTime: null } : { dateTime: d.toISOString(), date: null });
     out.start = when(e.start);
@@ -122,6 +123,48 @@ export function patchBody(row: Pick<EventRow, "title" | "start" | "end" | "allDa
   if (row.memberIds.join(" ") !== e.memberIds.join(" ")) out.extendedProperties = { private: { kindoMembers: e.memberIds.join(" ") } };
   return out;
 }
+
+/** A time's wall clock in a time zone, as milliseconds of a UTC date with the same fields. */
+function wallClock(d: Date, timeZone: string) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(d).map((x) => [x.type, x.value]));
+  return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second));
+}
+const localDateTime = (wall: number) => new Date(wall).toISOString().slice(0, 19);
+
+/**
+ * An edit of the whole series, made on one occurrence (D70), as a PATCH of
+ * the series: the fields that changed, and a new time of day in the series'
+ * own time zone (Google keeps it at that wall-clock time across daylight
+ * saving). Moving the series to another day, or between all-day and timed,
+ * is left to Google Calendar.
+ */
+export function seriesPatch(master: Pick<GEvent, "start" | "end">, row: Pick<EventRow, "title" | "start" | "end" | "allDay" | "location" | "memberIds">, e: EventToWrite) {
+  const out = patchBody(row, e, { times: false });
+  if (row.allDay !== e.allDay) throw new UserError("invalid", "Google: a series stays all-day or timed");
+  const zone = master.start.timeZone ?? "UTC";
+  const day = (d: Date) => new Date(wallClock(d, zone)).toISOString().slice(0, 10);
+  if (day(row.start) !== day(e.start)) throw new UserError("invalid", "Google: several occurrences move only within their day");
+  const length = e.end.getTime() - e.start.getTime();
+  const retimed = !e.allDay && wallClock(e.start, zone) !== wallClock(row.start, zone);
+  if (retimed || length !== row.end.getTime() - row.start.getTime()) {
+    if (e.allDay) {
+      const end = new Date(toDate(master.start).getTime() + length);
+      out.end = { date: ymd(end) };
+    } else {
+      const start = wallClock(toDate(master.start), zone);
+      const time = (w: number) => w - Math.floor(w / 86_400_000) * 86_400_000;
+      const newStart = retimed ? start - time(start) + time(wallClock(e.start, zone)) : start;
+      out.start = { dateTime: localDateTime(newStart), timeZone: zone };
+      out.end = { dateTime: localDateTime(newStart + length), timeZone: master.end.timeZone ?? zone };
+    }
+  }
+  return out;
+}
+
+const eventPath = (s: CalendarSource, id: string) => `/calendars/${encodeURIComponent(s.remoteId!)}/events/${encodeURIComponent(id)}`;
+const ifMatch = (etag?: string | null): Record<string, string> => (etag ? { "If-Match": etag } : {});
 
 export const googleProvider: CalendarProvider = {
   async listCalendars(c): Promise<RemoteCalendar[]> {
@@ -152,6 +195,8 @@ export const googleProvider: CalendarProvider = {
           // Kindo's own events keep the uid Kindo gave them, so they sync back under the same id.
           uid: e.extendedProperties?.private?.kindoUid ?? e.id, summary: e.summary ?? "", location: e.location, start: toDate(e.start), end: toDate(e.end), allDay: Boolean(e.start.date),
           recurring: Boolean(e.recurringEventId), memberIds: members ? members.split(/\s+/).filter(Boolean) : undefined, href: e.id, etag: e.etag,
+          // An occurrence is its own event at Google, with the series' id and its original start.
+          ...(e.recurringEventId ? { seriesId: e.recurringEventId, recurrenceId: toDate(e.originalStartTime ?? e.start) } : {}),
         });
       }
       page = r.nextPageToken;
@@ -170,5 +215,27 @@ export const googleProvider: CalendarProvider = {
   },
   async remove(c, s, row: EventRow) {
     await api(c, `/calendars/${encodeURIComponent(s.remoteId!)}/events/${encodeURIComponent(row.href!)}`, { method: "DELETE" });
+  },
+  /**
+   * Google keeps each occurrence as an event of its own: changing or
+   * cancelling one is a PATCH or DELETE of it, and Google records the
+   * exception. The whole series is the recurring event itself. Both carry
+   * the version Kindo saw, so a change made elsewhere meanwhile wins.
+   */
+  async changeSeries(c, s, row: EventRow, scope: EditScope, e) {
+    if (scope === "following") throw new UserError("readOnly", "Google: this and following only in Google Calendar");
+    if (scope === "occurrence") {
+      if (e) return googleProvider.update!(c, s, row, e);
+      return void (await api(c, eventPath(s, row.href!), { method: "DELETE", headers: ifMatch(row.etag) }));
+    }
+    if (!row.seriesId) throw new UserError("readOnly");
+    // The occurrence first: if it changed or went since the last sync, the series isn't touched.
+    const occurrence = await api<GEvent>(c, eventPath(s, row.href!));
+    if (occurrence.status === "cancelled" || (row.etag && occurrence.etag !== row.etag)) throw new UserError("conflict", "Google: changed elsewhere");
+    const master = await api<GEvent>(c, eventPath(s, row.seriesId));
+    if (!e) return void (await api(c, eventPath(s, row.seriesId), { method: "DELETE", headers: ifMatch(master.etag) }));
+    const patch = seriesPatch(master, row, e);
+    if (!Object.keys(patch).length) return;
+    await api(c, eventPath(s, row.seriesId), { method: "PATCH", body: JSON.stringify(patch), headers: ifMatch(master.etag) });
   },
 };

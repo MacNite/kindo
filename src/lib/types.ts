@@ -60,9 +60,17 @@ export interface CalendarEvent {
   icon?: string; // pictogram id
   /** Daily attendance like school or Kita: shown quietly, left out of "coming up". */
   background?: boolean;
-  /** One occurrence of a recurring series: edited in the calendar app that owns it. */
+  /** One occurrence of a recurring series. */
   recurring?: boolean;
+  /**
+   * Which occurrence of its series (its original start). Without it Kindo
+   * can't tell its calendar which one is meant, and leaves the series alone.
+   */
+  recurrenceId?: Date;
 }
+
+/** How much of a recurring series an edit or a delete covers (D70). */
+export type EditScope = "occurrence" | "following" | "series";
 
 // ── Recurrence ──────────────────────────────────────────────────────────────
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday (JS convention)

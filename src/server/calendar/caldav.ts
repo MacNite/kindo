@@ -2,7 +2,7 @@ import type { DAVCalendar, DAVClient, DAVResponse } from "tsdav";
 import { UserError } from "../errors";
 import { errorMessage } from "../log";
 import { withDav, type DavAccount } from "../dav";
-import { parseCalendar, buildEventIcs, updateEventIcs, type EventToWrite, type ParsedEvent } from "./ical";
+import { parseCalendar, buildEventIcs, updateEventIcs, editSeriesIcs, SeriesChanged, SeriesEditRefused, type EventToWrite, type ParsedEvent, type SeriesScope, type SeriesTarget } from "./ical";
 
 /**
  * Nextcloud and any other CalDAV server (§5, §19.5). Credentials are an app
@@ -11,7 +11,12 @@ import { parseCalendar, buildEventIcs, updateEventIcs, type EventToWrite, type P
  */
 export type CalDavAccount = DavAccount;
 export interface RemoteCalendar { remoteId: string; name: string; color?: string; ctag?: string; readOnly: boolean }
-export interface RemoteEvent extends ParsedEvent { href: string; etag?: string }
+export interface RemoteEvent extends ParsedEvent {
+  href: string;
+  etag?: string;
+  /** The series' own id at its server, where an occurrence has one of its own (Google). */
+  seriesId?: string;
+}
 
 const caldav = <T>(a: CalDavAccount, work: (c: DAVClient) => Promise<T>) => withDav(a, "caldav", work);
 
@@ -113,4 +118,43 @@ export async function updateEvent(a: CalDavAccount, remoteId: string, href: stri
 
 export async function deleteEvent(a: CalDavAccount, href: string, etag: string | undefined) {
   await caldav(a, async (c) => check(await c.deleteCalendarObject({ calendarObject: { url: href, etag } }), "delete"));
+}
+
+/**
+ * Changes or cancels part of a recurring series (D70): one occurrence, this
+ * and following, or the whole series (see `editSeriesIcs`). Works on the
+ * object as Kindo last saw it: when it changed elsewhere since, nothing is
+ * written ("conflict"). "This and following" writes the new series first and
+ * only then ends the old one, and takes the new one back when that fails, so
+ * no occurrence is lost or doubled.
+ */
+export async function changeSeries(a: CalDavAccount, remoteId: string, href: string, etag: string | undefined, target: SeriesTarget, scope: SeriesScope, e: EventToWrite | null, newUid: string) {
+  await caldav(a, async (c) => {
+    const [current] = await c.fetchCalendarObjects({ calendar: asCalendar(remoteId), objectUrls: [href], urlFilter: () => true });
+    if (typeof current?.data !== "string" || !current.data.includes("BEGIN:VEVENT")) throw new UserError("conflict", "series: the event is gone from the server");
+    if (etag && current.etag && etag !== current.etag) throw new UserError("conflict", "series: changed on the server since the last sync");
+    let result;
+    try {
+      result = editSeriesIcs(current.data, target, scope, e, { newUid });
+    } catch (err) {
+      if (err instanceof SeriesChanged) throw new UserError("conflict", `series: ${err.message}`);
+      if (err instanceof SeriesEditRefused) throw new UserError("invalid", `series: ${err.message}`);
+      throw new UserError("remote", `series: ${errorMessage(err)}`);
+    }
+    const version = etag ?? current.etag;
+    if (result.text === null) return check(await c.deleteCalendarObject({ calendarObject: { url: href, etag: version } }), "delete series");
+    let created: string | undefined;
+    if (result.created) {
+      const filename = `${result.created.uid}.ics`;
+      await check(await c.createCalendarObject({ calendar: asCalendar(remoteId), filename, iCalString: result.created.text }), "create following");
+      created = new URL(filename, remoteId.endsWith("/") ? remoteId : `${remoteId}/`).href;
+    }
+    try {
+      await check(await c.updateCalendarObject({ calendarObject: { url: href, etag: version, data: result.text } }), "update series");
+    } catch (err) {
+      // The old series is as it was: without the new one, nothing shows twice.
+      if (created) await c.deleteCalendarObject({ calendarObject: { url: created } }).catch(() => undefined);
+      throw err;
+    }
+  });
 }

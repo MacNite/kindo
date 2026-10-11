@@ -14,7 +14,9 @@ export type ErrorCode =
   /** Not a picture Kindo takes (D61). */
   | "photo"
   /** Jellyfin's Quick Connect is off, or its code ran out (D66). */
-  | "quickConnectOff" | "expired";
+  | "quickConnectOff" | "expired"
+  /** A calendar event was changed at its server since the last sync; Kindo pulled the newer version (D70). */
+  | "changedElsewhere";
 
 export class UserError extends Error {
   constructor(public code: ErrorCode, message?: string) {
