@@ -201,6 +201,44 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
     }
   });
 
+  it("lists an item's tracks, and skips on and back on a speaker at the address it used", async () => {
+    const speaker = ha.states[SPEAKER].attributes;
+    const queues = speaker.supported_features;
+    speaker.supported_features = 2 | 4 | 512; // a Google Cast speaker: no queue
+    const bibi = M.shelfOf(await db.connection.findUniqueOrThrow({ where: { id: jf } })).find((s) => s.name === "Bibi")!;
+    const tracks = await M.tracksOf(db, { itemId: bibi.id });
+    expect(tracks.map((t) => t.title)).toHaveLength(2);
+    const plays = () => ha.calls.filter((c) => c.service === "play_media").map((c) => M.readCast(c.media_content_id!.split("/").pop()!)?.index);
+    try {
+      ha.calls.length = 0;
+      // A track picked from the list starts there.
+      await M.castToSpeaker(db, { itemId: bibi.id, speaker: SPEAKER, index: 1 }, "http://kindo.lan:3000/");
+      expect(plays()).toEqual([1]);
+      expect((await M.readSpeakers(db))[0]).toMatchObject({ itemId: bibi.id, track: 1 });
+      // Next on the last track does nothing; Back just after it began goes to the one before.
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "next" });
+      expect(plays()).toEqual([1]);
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "previous" });
+      expect(plays()).toEqual([1, 0]);
+      expect(ha.calls.at(-1)).toMatchObject({ media_content_id: expect.stringMatching(/^http:\/\/kindo\.lan:3000\/api\/media\/cast\//) });
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "next" });
+      expect(plays()).toEqual([1, 0, 1]);
+      // Well into a track, Back starts it again.
+      ha.states[SPEAKER].attributes.media_position = 30; // the mock replaces its attributes on every change
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "previous" });
+      expect(plays()).toEqual([1, 0, 1, 1]);
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "track", index: 0 });
+      expect(plays()).toEqual([1, 0, 1, 1, 0]);
+      await expect(M.speakerCommand(db, { speaker: SPEAKER, command: "track" })).rejects.toMatchObject({ code: "invalid" });
+      // Skipping a paused speaker starts it again, which the action guards (D64).
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "pause" });
+      await expect(M.speakerCommand(db, { speaker: SPEAKER, command: "next" }, async () => { throw new Error("pin"); })).rejects.toThrow("pin");
+      await M.speakerCommand(db, { speaker: SPEAKER, command: "stop" });
+    } finally {
+      ha.states[SPEAKER].attributes.supported_features = queues;
+    }
+  });
+
   it("asks a locked wall for the PIN to start, as the household chose, and never to pause or stop (D64)", async () => {
     const wall = { kind: "device" as const, deviceId: "d", name: "Kitchen", elevated: false };
     const unlocked = { ...wall, elevated: true };

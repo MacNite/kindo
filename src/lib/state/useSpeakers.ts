@@ -38,8 +38,10 @@ export function useSpeakers(active = true) {
   return {
     speakers: speakers ?? (data.media?.speakers ?? []).map((s): SpeakerState => ({ ...s, state: "unavailable", maxVolume: 100 })),
     loaded: speakers !== null,
-    play: (speaker: string, itemId: string, memberId?: string) => after(() => playOnSpeaker({ speaker, itemId, memberId })),
-    command: (speaker: string, command: "play" | "pause" | "stop") => after(() => speakerCommand({ speaker, command })),
+    play: (speaker: string, itemId: string, memberId?: string, index?: number) => after(() => playOnSpeaker({ speaker, itemId, memberId, index })),
+    command: (speaker: string, command: "play" | "pause" | "stop" | "next" | "previous") => after(() => speakerCommand({ speaker, command })),
+    /** A track from the list, of the item the speaker plays. */
+    track: (speaker: string, index: number) => after(() => speakerCommand({ speaker, command: "track", index })),
     volume: (speaker: string, volume: number) => after(() => speakerCommand({ speaker, command: "volume", volume })),
   };
 }

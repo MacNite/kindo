@@ -102,12 +102,13 @@ function mediaSession() {
 export const player = {
   /**
    * Starts a shelf item on this screen; an audiobook where this child
-   * stopped. Returns the error code when it couldn't start ("pin": a locked
+   * stopped, or at the start of the file `index` (a track picked from the
+   * list). Returns the error code when it couldn't start ("pin": a locked
    * wall, when the household asked for the PIN, D64); what played before
    * then carries on.
    */
-  async play(item: ShelfEntry, memberId?: string): Promise<string | undefined> {
-    if (state.item?.id === item.id && state.memberId === memberId && state.queue) return void (await player.resume());
+  async play(item: ShelfEntry, memberId?: string, index?: number): Promise<string | undefined> {
+    if (state.item?.id === item.id && state.memberId === memberId && state.queue) return void (await (index === undefined ? player.resume() : player.jump(index)));
     const mine = ++ticket;
     const r = await mediaQueue({ itemId: item.id, memberId }).catch(() => ({ ok: false as const, error: "network" }));
     if (mine !== ticket) return undefined;
@@ -119,9 +120,9 @@ export const player = {
       set({ loading: false, error: r.error });
       return r.error;
     }
-    const { index, offset } = trackAt(r.data.tracks, r.data.position);
+    const at = index !== undefined && index < r.data.tracks.length ? { index, offset: 0 } : trackAt(r.data.tracks, r.data.position);
     set({ queue: r.data, duration: totalOf(r.data.tracks) });
-    await loadTrack(index, offset, true);
+    await loadTrack(at.index, at.offset, true);
     return undefined;
   },
   async resume() {
@@ -147,6 +148,10 @@ export const player = {
       return;
     }
     await loadTrack(state.index - 1, 0, true);
+  },
+  /** Plays the file `index` from its start: a track picked from the list. */
+  async jump(index: number) {
+    if (state.queue && index >= 0 && index < state.queue.tracks.length) await loadTrack(index, 0, true);
   },
   async seek(position: number) {
     if (!state.queue) return;

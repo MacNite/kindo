@@ -80,12 +80,25 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   await dialog.getByRole("button", { name: "Play Bibi & Tina Songs" }).click();
   await expect(dialog.getByRole("button", { name: "Pause" })).toBeVisible({ timeout: 15_000 });
   await expect.poll(async () => (await (await request.get(`${MEDIA}/__requests`)).json()).map((r: { path: string }) => r.path).join(" ")).toContain("/Audio/t1/universal");
+  // An album lists its tracks; a tap plays one from its start.
+  await dialog.getByRole("button", { name: "Tracks (2)" }).click();
+  const tracks = dialog.getByTestId("track-list");
+  await expect(tracks.getByRole("button", { name: /^Play track 1:/ })).toHaveAttribute("aria-current", "true");
+  await tracks.getByRole("button", { name: /^Play track 2:/ }).click();
+  await expect(tracks.getByRole("button", { name: /^Play track 2:/ })).toHaveAttribute("aria-current", "true");
+  await expect(dialog.getByRole("button", { name: "Pause" })).toBeVisible({ timeout: 15_000 });
   await dialog.getByRole("button", { name: "Pause" }).click();
 
   // …and on the speaker: Home Assistant gets Kindo's signed addresses, queued.
   await dialog.getByRole("radio", { name: "Kitchen speaker" }).click();
   await dialog.getByRole("button", { name: "Play Bibi & Tina Songs on Kitchen speaker" }).click();
   await expect(dialog.getByRole("status")).toHaveText("Playing: Bibi & Tina Songs", { timeout: 15_000 });
+  // It skips on and back, and the track list follows the speaker.
+  await dialog.getByRole("button", { name: "Next" }).click();
+  await dialog.getByRole("button", { name: "Tracks (2)" }).click();
+  await expect(dialog.getByTestId("track-list").getByRole("button", { name: /^Play track 2:/ })).toHaveAttribute("aria-current", "true", { timeout: 15_000 });
+  await dialog.getByTestId("track-list").getByRole("button", { name: /^Play track 1:/ }).click();
+  await expect(dialog.getByTestId("track-list").getByRole("button", { name: /^Play track 1:/ })).toHaveAttribute("aria-current", "true", { timeout: 15_000 });
   // The speaker fetches each address without a login (D61).
   const { calls } = await (await request.get(`${HA}/__calls`)).json() as { calls: { service: string; media_content_id?: string }[] };
   const addresses = calls.filter((c) => c.service === "play_media").map((c) => c.media_content_id!);

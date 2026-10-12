@@ -2,15 +2,15 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Connection, Prisma } from "@prisma/client";
 import {
-  MAX_SHELF, MAX_SPEAKERS, clampVolume, isMediaPlayer, playedToEnd, resumeAt, speakerStateOf, startNeedsPin, totalOf, trackAt, withStarts,
-  type MediaChoice, type MediaSetup, type MediaSource, type Queue, type ShelfItem, type Speaker, type SpeakerState,
+  MAX_SHELF, MAX_SPEAKERS, clampVolume, isMediaPlayer, playedToEnd, positionNow, resumeAt, skipTarget, speakerStateOf, startNeedsPin, totalOf, trackAt, withStarts,
+  type MediaChoice, type MediaSetup, type MediaSource, type Queue, type ShelfItem, type Speaker, type SpeakerState, type Track,
 } from "@/lib/media";
 import type { Tx } from "../db";
 import { can, type Actor } from "../actor";
 import { decryptSecret, encryptSecret, sign, verify } from "../crypto";
 import { UserError, notFound } from "../errors";
 import { id } from "../validation";
-import { callService, haConfig, listStates, readState, refreshPresenceWatchers, type HaState, type HaStoredConfig } from "../homeassistant";
+import { callService, haConfig, listStates, type HaConfig, readState, refreshPresenceWatchers, type HaState, type HaStoredConfig } from "../homeassistant";
 import { errorMessage, log } from "../log";
 import * as JF from "./jellyfin";
 import * as ABS from "./audiobookshelf";
@@ -46,14 +46,18 @@ export const M = {
   account: z.object({ id, memberId: id, apiKey: z.string().trim().max(2000) }),
   byId: z.object({ id }),
   queue: z.object({ itemId: shelfId, memberId: id.optional() }),
+  tracks: z.object({ itemId: shelfId }),
   progress: z.object({ itemId: shelfId, memberId: id.optional(), position: z.number().min(0).max(1_000_000) }),
   speakers: z.object({
     id,
     speakers: z.array(z.object({ entityId: speakerId, name: z.string().trim().min(1).max(40), maxVolume: z.number().int().min(0).max(100) })).max(MAX_SPEAKERS)
       .refine((s) => new Set(s.map((x) => x.entityId)).size === s.length, "each speaker once"),
   }),
-  cast: z.object({ itemId: shelfId, memberId: id.optional(), speaker: speakerId }),
-  speaker: z.object({ speaker: speakerId, command: z.enum(["play", "pause", "stop", "volume"]), volume: z.number().min(0).max(100).optional() }),
+  cast: z.object({ itemId: shelfId, memberId: id.optional(), speaker: speakerId, index: z.number().int().min(0).max(9999).optional() }),
+  speaker: z.object({
+    speaker: speakerId, command: z.enum(["play", "pause", "stop", "volume", "next", "previous", "track"]),
+    volume: z.number().min(0).max(100).optional(), index: z.number().int().min(0).max(9999).optional(),
+  }),
   mediaPin: z.object({ mode: z.enum(["off", "speakers", "all"]) }),
   mediaScreen: z.object({ on: z.boolean() }),
   none: z.object({}).optional(),
@@ -332,6 +336,12 @@ export async function queue(db: Tx, input: In<"queue">): Promise<Queue> {
   return { itemId: item.id, tracks, position, resumable };
 }
 
+/** A shelf item's files, for its track list: titles and lengths only. */
+export async function tracksOf(db: Tx, input: In<"tracks">): Promise<Track[]> {
+  const { conn, item } = await itemOf(db, input.itemId);
+  return withStarts(await remoteTracks(conn, item));
+}
+
 /** Saves the child's place in an audiobook (their account, or the connection's). */
 export async function saveProgress(db: Tx, input: In<"progress">) {
   const { conn, item } = await itemOf(db, input.itemId);
@@ -374,10 +384,18 @@ export async function openCover(db: Tx, itemId: string, signal?: AbortSignal) {
 /** How long a speaker may fetch the file it was given: long enough for the longest audiobook chapter. */
 const CAST_TTL_MS = 12 * 60 * 60_000;
 /** Home Assistant's feature bits for media players. */
-const SEEK = 2, MEDIA_ENQUEUE = 2_097_152;
+const SEEK = 2, PREVIOUS_TRACK = 16, NEXT_TRACK = 32, MEDIA_ENQUEUE = 2_097_152;
+type SpeakerAttributes = HaState["attributes"] & {
+  supported_features?: number; volume_level?: number; media_title?: string; media_content_id?: string;
+  media_position?: number; media_position_updated_at?: string; media_duration?: number;
+};
+const speakerState = async (cfg: HaConfig, entityId: string) => await readState(cfg.url, cfg.token, entityId) as HaState & { attributes: SpeakerAttributes };
 
 /** The signed address a speaker fetches one file at. */
 export const castPath = (itemId: string, index: number) => `/api/media/cast/${sign(`${itemId}-${index}`, CAST_TTL_MS)}`;
+
+/** One of Kindo's signed speaker addresses, split into Kindo's address and the token. */
+const CAST_ADDRESS = /^(https?:\/\/.+?)\/api\/media\/cast\/([A-Za-z0-9_.-]{10,300})$/;
 
 /** What a signed speaker address stands for, or null when it is forged or ran out. */
 export function readCast(token: string): { itemId: string; index: number } | null {
@@ -445,9 +463,15 @@ export async function readSpeakers(db: Tx): Promise<SpeakerState[]> {
   const cfg = haConfig(ha);
   return Promise.all(speakers.map(async (s): Promise<SpeakerState> => {
     try {
-      const st = await readState(cfg.url, cfg.token, s.entityId) as Awaited<ReturnType<typeof readState>> & { attributes: { media_title?: string; volume_level?: number } };
+      const st = await speakerState(cfg, s.entityId);
       const v = st.attributes.volume_level;
-      return { entityId: s.entityId, name: s.name, maxVolume: s.maxVolume, state: speakerStateOf(st.state), title: await titleOf(db, st.attributes.media_title), volume: typeof v === "number" ? Math.round(v * 100) : undefined };
+      // Which of Kindo's files it plays, for the player's track list and skipping.
+      const address = CAST_ADDRESS.exec(st.attributes.media_content_id ?? "");
+      const cast = address ? readCast(address[2]) : null;
+      return {
+        entityId: s.entityId, name: s.name, maxVolume: s.maxVolume, state: speakerStateOf(st.state), title: await titleOf(db, st.attributes.media_title),
+        ...(cast ? { itemId: cast.itemId, track: cast.index } : {}), volume: typeof v === "number" ? Math.round(v * 100) : undefined,
+      };
     } catch {
       return { entityId: s.entityId, name: s.name, maxVolume: s.maxVolume, state: "unavailable" };
     }
@@ -464,30 +488,68 @@ export async function readSpeakers(db: Tx): Promise<SpeakerState[]> {
 export async function castToSpeaker(db: Tx, input: In<"cast">, base: string) {
   const { cfg, speaker } = await speakerOf(db, input.speaker);
   const q = await queue(db, { itemId: input.itemId, memberId: input.memberId });
-  const st = await readState(cfg.url, cfg.token, speaker.entityId) as Awaited<ReturnType<typeof readState>> & { attributes: { supported_features?: number; volume_level?: number } };
+  if (input.index !== undefined && input.index >= q.tracks.length) throw notFound("track");
+  const st = await speakerState(cfg, speaker.entityId);
   const features = st.attributes.supported_features ?? 0;
   const vol = st.attributes.volume_level;
   if (typeof vol === "number" && vol * 100 > speaker.maxVolume) {
     await callService(cfg.url, cfg.token, "media_player", "volume_set", { entity_id: speaker.entityId, volume_level: speaker.maxVolume / 100 });
   }
-  const { index, offset } = trackAt(q.tracks, q.position);
-  const url = (i: number) => `${base.replace(/\/+$/, "")}${castPath(q.itemId, i)}`;
-  const play = (i: number, enqueue?: "replace" | "add") => callService(cfg.url, cfg.token, "media_player", "play_media", {
-    entity_id: speaker.entityId, media_content_id: url(i), media_content_type: "music", ...(enqueue ? { enqueue } : {}),
-  });
-  const queues = (features & MEDIA_ENQUEUE) !== 0;
-  await play(index, queues ? "replace" : undefined);
-  if (queues) for (let i = index + 1; i < q.tracks.length; i++) await play(i, "add");
+  // A track picked from the list starts at its beginning; otherwise where the child stopped.
+  const { index, offset } = input.index !== undefined ? { index: input.index, offset: 0 } : trackAt(q.tracks, q.position);
+  const queued = await playFiles(cfg, speaker.entityId, features, base, q.itemId, index, q.tracks.length);
   if (offset > 5 && (features & SEEK) !== 0) {
     // The speaker needs a moment to start before it can seek.
     setTimeout(() => void callService(cfg.url, cfg.token, "media_player", "media_seek", { entity_id: speaker.entityId, seek_position: Math.floor(offset) })
       .catch((e) => log.warn("speaker seek failed", { error: errorMessage(e) })), 2_000).unref?.();
   }
-  return { queued: queues ? q.tracks.length - index : 1 };
+  return { queued };
 }
 
-/** One of Kindo's signed speaker addresses, split into Kindo's address and the token. */
-const CAST_ADDRESS = /^(https?:\/\/.+?)\/api\/media\/cast\/([A-Za-z0-9_.-]{10,300})$/;
+/**
+ * Hands a speaker the files of a shelf item from `from` on: all of them where
+ * it can queue, else that one (the next follows when it ends, D68). Returns
+ * how many it got.
+ */
+async function playFiles(cfg: HaConfig, entityId: string, features: number, base: string, itemId: string, from: number, count: number) {
+  const url = (i: number) => `${base.replace(/\/+$/, "")}${castPath(itemId, i)}`;
+  const play = (i: number, enqueue?: "replace" | "add") => callService(cfg.url, cfg.token, "media_player", "play_media", {
+    entity_id: entityId, media_content_id: url(i), media_content_type: "music", ...(enqueue ? { enqueue } : {}),
+  });
+  const queues = (features & MEDIA_ENQUEUE) !== 0;
+  await play(from, queues ? "replace" : undefined);
+  if (queues) for (let i = from + 1; i < count; i++) await play(i, "add");
+  return queues ? count - from : 1;
+}
+
+/**
+ * Next, Back or a track from the list on a speaker that plays one of Kindo's
+ * files: the file it leads to, at the address the speaker used (Back restarts
+ * a file that has played a while). A speaker that queued the item skips in
+ * its own queue where it can. Something else playing only skips with the
+ * speaker's own Next and Back.
+ */
+async function skipOnSpeaker(db: Tx, cfg: HaConfig, entityId: string, skip: "next" | "previous" | number, mayStart: () => Promise<void>) {
+  const st = await speakerState(cfg, entityId);
+  const a = st.attributes;
+  const playing = speakerStateOf(st.state) === "playing";
+  // Skipping on a paused or stopped speaker starts it, which may need the PIN (D64).
+  if (!playing) await mayStart();
+  const features = a.supported_features ?? 0;
+  const own = skip === "next" ? NEXT_TRACK : PREVIOUS_TRACK;
+  const address = CAST_ADDRESS.exec(a.media_content_id ?? "");
+  const cast = address ? readCast(address[2]) : null;
+  if (typeof skip !== "number" && (features & own) !== 0 && (!cast || (features & MEDIA_ENQUEUE) !== 0)) {
+    return callService(cfg.url, cfg.token, "media_player", skip === "next" ? "media_next_track" : "media_previous_track", { entity_id: entityId });
+  }
+  if (!address || !cast) throw new UserError("invalid", "the speaker plays nothing from the shelf");
+  const { conn, item } = await itemOf(db, cast.itemId);
+  const count = (await remoteTracks(conn, item)).length;
+  const reportedAt = a.media_position_updated_at ? Date.parse(a.media_position_updated_at) : undefined;
+  const to = skipTarget(skip, cast.index, count, positionNow(a.media_position, reportedAt, Date.now(), playing));
+  if (to === null) return;
+  await playFiles(cfg, entityId, features, address[1], cast.itemId, to, count);
+}
 
 /**
  * A speaker that can't queue stopped playing (D68). When it played one of
@@ -499,7 +561,7 @@ const CAST_ADDRESS = /^(https?:\/\/.+?)\/api\/media\/cast\/([A-Za-z0-9_.-]{10,30
 export async function nextOnSpeaker(db: Tx, from: HaState, stoppedAt: number): Promise<number | null> {
   const ha = await db.connection.findFirst({ where: { kind: "homeassistant" }, orderBy: { createdAt: "desc" } });
   if (!ha || !speakersOf(ha).some((s) => s.entityId === from.entity_id)) return null;
-  const a = from.attributes as HaState["attributes"] & { supported_features?: number; media_content_id?: string; media_position?: number; media_position_updated_at?: string; media_duration?: number };
+  const a = from.attributes as SpeakerAttributes;
   if (((a.supported_features ?? 0) & MEDIA_ENQUEUE) !== 0) return null;
   const address = CAST_ADDRESS.exec(a.media_content_id ?? "");
   const cast = address && readCast(address[2]);
@@ -518,14 +580,23 @@ export async function nextOnSpeaker(db: Tx, from: HaState, stoppedAt: number): P
   return next;
 }
 
-/** Play, pause, stop and volume on one of the admin's speakers; nothing else. */
-export async function speakerCommand(db: Tx, input: In<"speaker">) {
+/**
+ * Play, pause, stop, skipping and volume on one of the admin's speakers;
+ * nothing else. `mayStart` guards a skip that starts a speaker which isn't
+ * playing (D64).
+ */
+export async function speakerCommand(db: Tx, input: In<"speaker">, mayStart: () => Promise<void> = async () => {}) {
   const { cfg, speaker } = await speakerOf(db, input.speaker);
   const target = { entity_id: speaker.entityId };
+  if (input.command === "next" || input.command === "previous") return skipOnSpeaker(db, cfg, speaker.entityId, input.command, mayStart);
+  if (input.command === "track") {
+    if (input.index === undefined) throw new UserError("invalid", "a track");
+    return skipOnSpeaker(db, cfg, speaker.entityId, input.index, mayStart);
+  }
   if (input.command === "volume") {
     if (input.volume === undefined) throw new UserError("invalid", "a volume");
     return callService(cfg.url, cfg.token, "media_player", "volume_set", { ...target, volume_level: clampVolume(input.volume, speaker.maxVolume) / 100 });
   }
-  const service = { play: "media_play", pause: "media_pause", stop: "media_stop" }[input.command];
+  const service = { play: "media_play", pause: "media_pause", stop: "media_stop" }[input.command as "play" | "pause" | "stop"];
   await callService(cfg.url, cfg.token, "media_player", service, target);
 }

@@ -16,6 +16,7 @@ export const mediaQueue = act(M.M.queue, async (db, input, actor) => {
   await M.mayStart(db, actor, "screen");
   return M.queue(db, input);
 }, { level: "view", topic: null });
+export const mediaTracks = act(M.M.tracks, async (db, input) => M.tracksOf(db, input), { level: "view", topic: null });
 export const saveMediaProgress = act(M.M.progress, async (db, input) => M.saveProgress(db, input), { level: "view", topic: null });
 export const readSpeakers = act(M.M.none, async (db) => M.readSpeakers(db), { level: "view", topic: null });
 export const playOnSpeaker = act(M.M.cast, async (db, input, actor) => {
@@ -23,9 +24,10 @@ export const playOnSpeaker = act(M.M.cast, async (db, input, actor) => {
   return M.castToSpeaker(db, input, await publicBase());
 }, { level: "tick", topic: null });
 export const speakerCommand = act(M.M.speaker, async (db, input, actor) => {
-  // Playing again starts sound; pausing, stopping and the volume never need the PIN.
+  // Playing again starts sound, and so does skipping on a speaker that isn't playing; pausing, stopping,
+  // skipping while it plays and the volume never need the PIN.
   if (input.command === "play") await M.mayStart(db, actor, "speaker");
-  return M.speakerCommand(db, input);
+  return M.speakerCommand(db, input, () => M.mayStart(db, actor, "speaker"));
 }, { level: "tick", topic: null });
 
 export const browseMedia = act(M.M.browse, async (db, input) => M.browse(db, input), { level: "admin", topic: null });
