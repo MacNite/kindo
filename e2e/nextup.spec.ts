@@ -69,8 +69,9 @@ test("Next up shows events at the same time together and cuts a long title to it
 });
 
 test("Next up looks ahead to tomorrow in the evening", async ({ page }) => {
-  // After Max's call nothing timed is left today; Paul's dentist is tomorrow at ten, if nothing is earlier.
-  await page.clock.install({ time: householdTime(18, 15) });
+  // Late in the evening nothing timed is left today, whatever the weekday (Yoga on Mondays ends at 20:45,
+  // Handball on Thursdays at 21:30); Paul's dentist is tomorrow at ten, if nothing is earlier.
+  await page.clock.install({ time: householdTime(21, 45) });
   await prepare(page);
   await page.goto("/wall");
   await expect(line(page)).toContainText("Tomorrow");
