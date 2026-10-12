@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { SpeakerState } from "../media";
 import { playOnSpeaker, readSpeakers, speakerCommand } from "../services/media";
 import { useStore } from "./store";
+import { speakerWatch } from "./speakerWatch";
 
 /** How often an open player reads the speakers. */
 const SPEAKER_POLL_MS = 5_000;
@@ -33,6 +34,7 @@ export function useSpeakers(active = true) {
   const after = useCallback(async <T,>(call: () => ReturnType<typeof speakerCommand> | Promise<T>) => {
     await run(call as never);
     setTimeout(() => void load(), 800);
+    speakerWatch.refresh();
   }, [run, load]);
 
   return {

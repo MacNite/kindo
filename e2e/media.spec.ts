@@ -108,6 +108,14 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   await speaker.dispose();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
+  // What a speaker plays from the shelf shows as a pill of its own, with pause and stop (D73).
+  const onSpeaker = page.getByTestId("speaker-mini-player");
+  await expect(onSpeaker).toContainText("Kitchen speaker");
+  await onSpeaker.getByRole("button", { name: "Pause" }).click();
+  await expect(onSpeaker.getByRole("button", { name: "Play" })).toBeVisible();
+  await onSpeaker.getByRole("button", { name: "Stop" }).click();
+  await expect(onSpeaker).toHaveCount(0);
+  await expect.poll(async () => ((await (await request.get(`${HA}/__calls`)).json()) as { calls: { service: string }[] }).calls.map((c) => c.service)).toContain("media_stop");
 
   // What plays here follows the family from page to page.
   await page.getByRole("button", { name: "Open Sleepy songs" }).click();
@@ -123,14 +131,21 @@ test("the kids' shelf: Jellyfin set up behind the cog, played here and on a spea
   // Stop ends it from any page.
   await mini.getByRole("button", { name: "Stop" }).click();
   await expect(mini).toHaveCount(0);
-  // A full page load ends the sound; the mini player shows only while something plays here.
+  // A full page load stops the sound, but it comes back paused, one tap from carrying on (D73).
   await page.getByRole("link", { name: "Listen" }).first().click();
   await page.getByRole("button", { name: "Open Sleepy songs" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Play Sleepy songs" }).click();
   await expect(page.getByRole("dialog").getByRole("button", { name: "Pause" })).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press("Escape");
   await page.goto("/calendar");
+  await expect(mini.getByRole("button", { name: "Play" })).toBeVisible();
+  await expect(mini).toContainText("Sleepy songs");
+  await mini.getByRole("button", { name: "Play" }).click();
+  await expect(mini.getByRole("button", { name: "Pause" })).toBeVisible({ timeout: 15_000 });
+  // Stop forgets it: the device keeps nothing to bring back.
+  await mini.getByRole("button", { name: "Stop" }).click();
   await expect(mini).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("kindo.player"))).toBeNull();
 
   // Over the photo frame a pill pauses and stops without waking the wall.
   await page.goto("/settings?section=dashboard");
