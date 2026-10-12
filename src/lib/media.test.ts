@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampVolume, playedToEnd, resumeAt, shelfFor, speakerStateOf, startNeedsPin, toPcm16, totalOf, trackAt, withStarts } from "./media";
+import { clampVolume, playedToEnd, positionNow, resumeAt, skipTarget, shelfFor, speakerStateOf, startNeedsPin, toPcm16, totalOf, trackAt, withStarts } from "./media";
 
 describe("the kids' shelf (§23)", () => {
   const shelf = [{ id: "a", memberIds: [] }, { id: "b", memberIds: ["mia"] }, { id: "c", memberIds: ["ben", "mia"] }];
@@ -66,6 +66,28 @@ describe("speakers", () => {
     // A short file: the slack is at most half of it.
     expect(playedToEnd(3, at, at, 8)).toBe(false);
     expect(playedToEnd(4, at, at, 8)).toBe(true);
+  });
+});
+
+describe("skipping", () => {
+  it("goes to the next file, never past the last", () => {
+    expect(skipTarget("next", 0, 3, 100)).toBe(1);
+    expect(skipTarget("next", 2, 3, 0)).toBeNull();
+  });
+  it("goes back to the start of a file that has played a while, else to the one before", () => {
+    expect(skipTarget("previous", 2, 3, 30)).toBe(2);
+    expect(skipTarget("previous", 2, 3, 2)).toBe(1);
+    expect(skipTarget("previous", 0, 3, 1)).toBe(0);
+  });
+  it("jumps to a track in the list, only one that is there", () => {
+    expect(skipTarget(2, 0, 3, 0)).toBe(2);
+    expect(skipTarget(3, 0, 3, 0)).toBeNull();
+    expect(skipTarget(-1, 0, 3, 0)).toBeNull();
+  });
+  it("carries a speaker's reported place on while it plays", () => {
+    expect(positionNow(10, 1_000, 4_000, true)).toBe(13);
+    expect(positionNow(10, 1_000, 4_000, false)).toBe(10);
+    expect(positionNow(undefined, 1_000, 4_000, true)).toBe(0);
   });
 });
 

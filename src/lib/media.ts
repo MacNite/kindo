@@ -61,6 +61,9 @@ export interface SpeakerState {
   name: string;
   state: "playing" | "paused" | "idle" | "off" | "unavailable";
   title?: string;
+  /** The shelf item and its file the speaker plays, when it is one of Kindo's. */
+  itemId?: string;
+  track?: number;
   volume?: number;
   maxVolume: number;
 }
@@ -134,6 +137,28 @@ export function speakerStateOf(state: string | undefined): SpeakerState["state"]
 }
 
 export const isMediaPlayer = (entityId: string) => entityId.startsWith("media_player.");
+
+/** Back goes to the start of the file once this far in, else to the file before. */
+export const RESTART_AFTER_S = 5;
+
+/**
+ * The file Back, Next or a tap in the track list goes to, from the file
+ * playing (`index` of `count`) and how far into it (seconds). Back restarts a
+ * file that has played a while, and the first one always; null where there
+ * is nothing to go to (Next on the last file, a track that isn't there).
+ */
+export function skipTarget(skip: "next" | "previous" | number, index: number, count: number, position: number): number | null {
+  if (typeof skip === "number") return Number.isInteger(skip) && skip >= 0 && skip < count ? skip : null;
+  if (skip === "next") return index + 1 < count ? index + 1 : null;
+  return position > RESTART_AFTER_S || index <= 0 ? Math.max(0, index) : index - 1;
+}
+
+/** Where a speaker is now, from the place it last reported (`position` s at `reportedAt` ms), carried on while it plays. */
+export function positionNow(position: number | undefined, reportedAt: number | undefined, now: number, playing: boolean): number {
+  if (typeof position !== "number" || !Number.isFinite(position)) return 0;
+  if (!playing || reportedAt === undefined || !Number.isFinite(reportedAt)) return position;
+  return position + Math.max(0, now - reportedAt) / 1000;
+}
 
 /** A speaker that stops this close to the end of a file played it to the end. */
 export const END_SLACK_S = 10;

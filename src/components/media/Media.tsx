@@ -1,12 +1,13 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   AudioLines, BookHeadphones, BookOpen, ChevronRight, Disc3, ListMusic, Lock, MonitorSmartphone, Music, Pause, Play, SkipBack, SkipForward, Speaker, Square, Volume2,
 } from "lucide-react";
 import type { Member } from "@/lib/types";
-import { shelfFor, startNeedsPin, type MediaSource, type ShelfEntry, type ShelfKind } from "@/lib/media";
+import { shelfFor, startNeedsPin, type MediaSource, type ShelfEntry, type ShelfKind, type Track } from "@/lib/media";
+import { mediaTracks } from "@/lib/services/media";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { coverUrl, player, playerState, usePlayer } from "@/lib/state/player";
@@ -158,8 +159,9 @@ export function KidsListen({ memberId }: { memberId: string }) {
 
 /**
  * One shelf item: a big cover, a big play button, and where it plays (this
- * screen or one of the admin's speakers). On this screen it also skips and
- * seeks; on a speaker it pauses, stops and turns the volume up to the
+ * screen or one of the admin's speakers). It skips back and on, and an album
+ * or playlist lists its tracks to pick one from; on this screen it also
+ * seeks, on a speaker it pauses, stops and turns the volume up to the
  * admin's limit. Where the household turned the screen's own playback off,
  * walls and children only see the speakers (D71).
  */
@@ -226,6 +228,7 @@ function ScreenControls({ item, memberId }: { item: ShelfEntry; memberId?: strin
   const mine = p.item?.id === item.id && p.memberId === memberId;
   const q = mine ? p.queue : null;
   const many = (q?.tracks.length ?? 0) > 1;
+  const listed = useTracks(item, q?.tracks);
   return (
     <div className="flex w-full flex-col items-center gap-4">
       <div className="flex items-center gap-4">
@@ -251,42 +254,61 @@ function ScreenControls({ item, memberId }: { item: ShelfEntry; memberId?: strin
       {mine && <Button variant="ghost" onClick={() => void player.stop()}><Square size={16} />{t("media.stop")}</Button>}
       {mine && p.error && <p role="alert" className="text-sm font-bold">{t(p.error === "tapToPlay" ? "media.tapToPlay" : "media.unavailable")}</p>}
       <ErrorText code={guard.refused} />
+      {listed && <TrackList tracks={listed} current={mine ? p.index : undefined}
+        onPick={(i) => (mine ? void player.jump(i) : void guard.start(() => player.play(item, memberId, i)))} />}
     </div>
   );
 }
 
 function SpeakerControls({ speaker, item, memberId }: { speaker: string; item: ShelfEntry; memberId?: string }) {
   const { t } = useI18n();
-  const { speakers, play, command, volume } = useSpeakers();
+  const { speakers, play, command, track, volume } = useSpeakers();
   const { locked } = useGuardedStart("speaker");
   const s = speakers.find((x) => x.entityId === speaker);
   const [busy, setBusy] = useState(false);
   const [vol, setVol] = useState<number | null>(null);
+  const listed = useTracks(item);
   if (!s) return null;
   const playing = s.state === "playing";
-  const start = async () => {
+  const unreachable = s.state === "unavailable";
+  // This item plays or is paused on the speaker: the big button pauses and goes on, and it skips.
+  const here = s.itemId === item.id && (playing || s.state === "paused");
+  const count = listed?.length;
+  const start = async (index?: number) => {
     setBusy(true);
     // The screen stops its own sound: one place plays at a time.
     if (playerState().playing) player.pause();
-    await play(speaker, item.id, memberId);
+    await play(speaker, item.id, memberId, index);
     setBusy(false);
   };
   return (
     <div className="flex w-full flex-col items-center gap-4">
       <p className="text-center text-sm text-soft" role="status">
-        {s.state === "unavailable" ? t("media.speakerUnavailable") : s.title ? t("media.speakerPlaying", { title: s.title }) : t(`media.speaker_${s.state}`)}
+        {unreachable ? t("media.speakerUnavailable") : s.title ? t("media.speakerPlaying", { title: s.title }) : t(`media.speaker_${s.state}`)}
       </p>
       <div className="flex items-center gap-4">
-        {/* A locked wall is asked for the PIN by the store, which then plays (D64). */}
-        <button type="button" className={cn(BIG, "relative")} disabled={busy || s.state === "unavailable"} aria-label={t("media.playOn", { name: item.name, speaker: s.name })} onClick={start}>
-          <Play size={36} className="translate-x-0.5" />
-          {locked && <PinBadge />}
-        </button>
-        <IconButton size="lg" label={playing ? t("media.pause") : t("media.resume")} disabled={s.state === "unavailable" || s.state === "off"} onClick={() => command(speaker, playing ? "pause" : "play")}>
-          {playing ? <Pause size={28} /> : <Play size={28} />}
-        </IconButton>
-        <IconButton size="lg" label={t("media.stop")} disabled={s.state === "unavailable"} onClick={() => command(speaker, "stop")}><Square size={24} /></IconButton>
+        {here && <IconButton size="lg" label={t("media.previous")} onClick={() => command(speaker, "previous")}><SkipBack size={28} /></IconButton>}
+        {here ? (
+          <button type="button" className={cn(BIG, "relative")} aria-label={playing ? t("media.pause") : t("media.resume")} onClick={() => command(speaker, playing ? "pause" : "play")}>
+            {playing ? <Pause size={36} /> : <Play size={36} className="translate-x-0.5" />}
+            {!playing && locked && <PinBadge />}
+          </button>
+        ) : (
+          // A locked wall is asked for the PIN by the store, which then plays (D64).
+          <button type="button" className={cn(BIG, "relative")} disabled={busy || unreachable} aria-label={t("media.playOn", { name: item.name, speaker: s.name })} onClick={() => void start()}>
+            <Play size={36} className="translate-x-0.5" />
+            {locked && <PinBadge />}
+          </button>
+        )}
+        {here && <IconButton size="lg" label={t("media.next")} disabled={count !== undefined && (s.track ?? 0) >= count - 1} onClick={() => command(speaker, "next")}><SkipForward size={28} /></IconButton>}
+        {!here && (
+          <IconButton size="lg" label={playing ? t("media.pause") : t("media.resume")} disabled={unreachable || s.state === "off"} onClick={() => command(speaker, playing ? "pause" : "play")}>
+            {playing ? <Pause size={28} /> : <Play size={28} />}
+          </IconButton>
+        )}
+        <IconButton size="lg" label={t("media.stop")} disabled={unreachable} onClick={() => command(speaker, "stop")}><Square size={24} /></IconButton>
       </div>
+      {here && count !== undefined && count > 1 && s.track !== undefined && <p className="text-sm text-soft">{t("media.part", { n: s.track + 1, total: count })}</p>}
       {s.volume !== undefined && (
         <label className="flex w-full items-center gap-3">
           <Volume2 size={20} aria-hidden />
@@ -294,6 +316,58 @@ function SpeakerControls({ speaker, item, memberId }: { speaker: string; item: S
             onChange={(e) => setVol(Number(e.target.value))} onPointerUp={() => vol !== null && void volume(speaker, vol).then(() => setVol(null))}
             onKeyUp={() => vol !== null && void volume(speaker, vol).then(() => setVol(null))} />
         </label>
+      )}
+      {listed && <TrackList tracks={listed} current={here ? s.track : undefined}
+        onPick={(i) => void (here ? track(speaker, i) : start(i))} disabled={busy || unreachable} />}
+    </div>
+  );
+}
+
+/**
+ * The tracks of an album or playlist (§23), read when its player opens;
+ * `known` when the screen already has them. Audiobooks have none: their
+ * files are parts, not songs.
+ */
+function useTracks(item: ShelfEntry, known?: Track[]): Track[] | null {
+  const music = item.kind !== "book";
+  const [read, setRead] = useState<{ id: string; tracks: Track[] } | null>(null);
+  const have = !!known?.length;
+  useEffect(() => {
+    if (!music || have) return;
+    let live = true;
+    void mediaTracks({ itemId: item.id }).then((r) => live && r.ok && setRead({ id: item.id, tracks: r.data })).catch(() => {});
+    return () => { live = false; };
+  }, [item.id, music, have]);
+  if (!music) return null;
+  const tracks = have ? known! : read?.id === item.id ? read.tracks : null;
+  return tracks && tracks.length > 1 ? tracks : null;
+}
+
+/** The track list: folded away until opened, then a row per track, the one playing marked. A tap plays it from its start. */
+function TrackList({ tracks, current, onPick, disabled }: { tracks: Track[]; current?: number; onPick: (index: number) => void; disabled?: boolean }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="w-full">
+      <Button variant="ghost" className="w-full justify-center" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <ListMusic size={18} aria-hidden />{t("media.tracks", { n: tracks.length })}<ChevronRight size={16} aria-hidden className={cn("transition-transform", open && "rotate-90")} />
+      </Button>
+      {open && (
+        <ol data-testid="track-list" aria-label={t("media.trackList")} className="mt-2 flex flex-col">
+          {tracks.map((tr, i) => {
+            const on = i === current;
+            return (
+              <li key={i}>
+                <button type="button" disabled={disabled} aria-current={on ? "true" : undefined} aria-label={t("media.playTrack", { n: i + 1, title: tr.title || String(i + 1) })} onClick={() => onPick(i)}
+                  className={cn("flex min-h-12 w-full items-center gap-3 rounded-card px-3 py-2 text-left transition-colors hover:bg-sunken disabled:opacity-40", on && "bg-sunken font-bold")}>
+                  <span className="num grid w-6 shrink-0 place-items-center text-sm text-soft">{on ? <AudioLines size={18} aria-hidden className="text-ink" /> : i + 1}</span>
+                  <span className="min-w-0 flex-1 truncate">{tr.title || t("media.part", { n: i + 1, total: tracks.length })}</span>
+                  {tr.duration > 0 && <span className="num shrink-0 text-sm text-soft">{clock(tr.duration)}</span>}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
       )}
     </div>
   );
