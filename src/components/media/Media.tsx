@@ -66,7 +66,8 @@ function ShelfGrid({ items, onOpen, large }: { items: ShelfEntry[]; onOpen: (ite
           <li key={item.id}>
             <button type="button" data-testid="shelf-cover" onClick={() => onOpen(item)} aria-label={t("media.open", { name: item.name })}
               className={cn("flex w-full flex-col gap-2 rounded-panel p-2 text-left transition-colors hover:bg-sunken", on && "bg-surface ring-2 ring-star")}>
-              <span className="relative">
+              {/* Full width of its own: old wall tablets' browsers don't stretch a button's flex items, and the square collapsed to nothing. */}
+              <span className="relative block w-full">
                 <Cover item={item} className="w-full shadow-sm" iconSize={large ? 56 : 40} />
                 {on && <span className="absolute bottom-2 right-2 grid h-10 w-10 place-items-center rounded-full bg-star text-ink"><AudioLines size={20} aria-hidden /></span>}
               </span>
