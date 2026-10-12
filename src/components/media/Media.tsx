@@ -6,12 +6,13 @@ import {
   AudioLines, BookHeadphones, BookOpen, ChevronRight, Disc3, ListMusic, Lock, MonitorSmartphone, Music, Pause, Play, SkipBack, SkipForward, Speaker, Square, Volume2,
 } from "lucide-react";
 import type { Member } from "@/lib/types";
-import { shelfFor, startNeedsPin, type MediaSource, type ShelfEntry, type ShelfKind, type Track } from "@/lib/media";
-import { mediaTracks } from "@/lib/services/media";
+import { shelfFor, startNeedsPin, type MediaSource, type ShelfEntry, type ShelfKind, type SpeakerState, type Track } from "@/lib/media";
+import { mediaTracks, speakerCommand } from "@/lib/services/media";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { coverUrl, player, playerState, usePlayer } from "@/lib/state/player";
 import { useSpeakers } from "@/lib/state/useSpeakers";
+import { speakerWatch, useShelfSpeakers } from "@/lib/state/speakerWatch";
 import { Button, IconButton, LinkButton } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
 import { Panel, PageHeader } from "../ui/Panel";
@@ -165,13 +166,13 @@ export function KidsListen({ memberId }: { memberId: string }) {
  * admin's limit. Where the household turned the screen's own playback off,
  * walls and children only see the speakers (D71).
  */
-export function PlayerSheet({ item, memberId, onClose }: { item: ShelfEntry; memberId?: string; onClose: () => void }) {
+export function PlayerSheet({ item, memberId, output: first, onClose }: { item: ShelfEntry; memberId?: string; output?: string; onClose: () => void }) {
   const { t } = useI18n();
   const { data, viewer } = useStore();
   const speakers = data.media?.speakers ?? [];
   const onScreen = data.household.mediaScreen || viewer.canManage;
   const outputs = onScreen ? [{ entityId: "screen", name: t("media.thisScreen") }, ...speakers] : speakers;
-  const [picked, setOutput] = useState<string>("screen");
+  const [picked, setOutput] = useState<string>(first ?? "screen");
   // A wall that locks again, or a screen turned off meanwhile, falls back to the first speaker.
   const output = outputs.some((o) => o.entityId === picked) ? picked : outputs[0]?.entityId;
   return (
@@ -373,45 +374,123 @@ function TrackList({ tracks, current, onPick, disabled }: { tracks: Track[]; cur
   );
 }
 
+/** Something playing or paused here or on a speaker, with what pauses, carries on and stops it. */
+interface NowPlaying {
+  key: string;
+  item: ShelfEntry;
+  memberId?: string;
+  /** Where it plays when not on this screen. */
+  speaker?: SpeakerState;
+  playing: boolean;
+  busy: boolean;
+  /** The track playing, for an album here. */
+  track?: string;
+  toggle: () => void;
+  stop: () => void;
+}
+
 /**
- * What plays on this screen, from anywhere in the app: the cover, the name,
- * play/pause and stop. Above the phone's bottom navigation; on the wall and
- * the child's view a small pill in the corner.
+ * What plays now: this screen's own player (also what came back after a
+ * reload, paused), then every speaker that plays or pauses something from
+ * the kids' shelf, whoever started it (§23, D73).
  */
-export function MiniPlayer({ kiosk }: { kiosk?: boolean }) {
+export function useNowPlaying(): NowPlaying[] {
+  const { data, run } = useStore();
+  const p = usePlayer();
+  const guard = useGuardedStart("screen");
+  const speakers = useShelfSpeakers((data.media?.speakers.length ?? 0) > 0);
+  const shelf = data.media?.shelf;
+  // What came back after a reload but has left the shelf meanwhile is forgotten.
+  const gone = Boolean(p.item && !p.queue && !shelf?.some((i) => i.id === p.item!.id));
+  useEffect(() => {
+    if (gone) void player.stop();
+  }, [gone]);
+  const command = (s: SpeakerState, c: "play" | "pause" | "stop") => {
+    // Pausing and stopping show at once; playing waits for the speaker (it can need the PIN).
+    if (c !== "play") speakerWatch.patch(s.entityId, { state: c === "pause" ? "paused" : "idle" });
+    void run(() => speakerCommand({ speaker: s.entityId, command: c })).then(() => speakerWatch.refresh());
+  };
+  const now: NowPlaying[] = [];
+  if (p.item && !gone) {
+    now.push({
+      key: "screen", item: p.item, memberId: p.memberId, playing: p.playing, busy: p.loading && !p.playing,
+      track: p.queue && p.queue.tracks.length > 1 ? p.queue.tracks[p.index]?.title : undefined,
+      toggle: () => (p.playing ? player.pause() : void guard.start(() => player.resume())),
+      stop: () => void player.stop(),
+    });
+  }
+  for (const s of speakers) {
+    const item = shelf?.find((i) => i.id === s.itemId);
+    if (item) now.push({ key: s.entityId, item, speaker: s, playing: s.state === "playing", busy: false, toggle: () => command(s, s.state === "playing" ? "pause" : "play"), stop: () => command(s, "stop") });
+  }
+  return now;
+}
+
+/**
+ * What plays, from anywhere in the app (the shelf included): on this screen
+ * and on the household's speakers, a pill each with the cover, the name,
+ * play/pause and stop. Above the phone's bottom navigation; on the wall and
+ * the child's view in the corner; over the photo frame (`frame`) at the top,
+ * where its buttons don't wake the wall.
+ */
+export function MiniPlayer({ kiosk, frame }: { kiosk?: boolean; frame?: boolean }) {
   const { t } = useI18n();
   const { wallTiles } = useStore();
   const path = usePathname();
-  const p = usePlayer();
-  const [open, setOpen] = useState(false);
-  if (!p.item) return null;
-  // The wall's own Listening tile already shows it; a pill would cover a lane.
-  if (kiosk && path === "/wall" && wallTiles.some((x) => x.id === "media" && x.enabled)) return null;
-  const track = p.queue && p.queue.tracks.length > 1 ? p.queue.tracks[p.index]?.title : undefined;
+  const now = useNowPlaying();
+  const [open, setOpen] = useState<NowPlaying | null>(null);
+  let shown = now;
+  if (kiosk && !frame) {
+    // The wall's own Listening tile already shows the first; a pill would cover a lane.
+    if (path === "/wall" && wallTiles.some((x) => x.id === "media" && x.enabled)) shown = now.slice(1);
+    // The photo frame shows its own, above the photos.
+    if (path === "/screensaver") shown = [];
+  }
+  // Over the photo frame a tap anywhere else wakes the wall; these buttons mustn't.
+  const keep = frame ? (e: { stopPropagation: () => void }) => e.stopPropagation() : undefined;
   return (
     <>
-      <div data-testid="mini-player" className={cn("fixed z-40 flex items-center gap-3 rounded-full bg-surface p-2 pr-3 shadow-lg ring-1 ring-line",
-        kiosk ? "bottom-4 right-4 max-w-[min(26rem,calc(100vw-2rem))]" : "inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-6 md:right-6 md:max-w-md")}>
-        <button type="button" onClick={() => setOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={t("media.open", { name: p.item.name })}>
-          <Cover item={p.item} className="h-12 w-12 shrink-0 !rounded-full" iconSize={20} badge={false} />
-          <span className="min-w-0">
-            <span className="block truncate font-bold">{p.item.name}</span>
-            {track && <span className="block truncate text-sm text-soft">{track}</span>}
-          </span>
-        </button>
-        <IconButton label={p.playing ? t("media.pause") : t("media.resume")} onClick={() => player.toggle()}>{p.playing ? <Pause size={22} /> : <Play size={22} />}</IconButton>
-        <IconButton label={t("media.stop")} onClick={() => void player.stop()}><Square size={18} /></IconButton>
-      </div>
-      {open && <PlayerSheet item={p.item} memberId={p.memberId} onClose={() => setOpen(false)} />}
+      {shown.length > 0 && (
+        <div onClick={keep} onKeyDown={keep}
+          className={cn("z-40 flex flex-col gap-2",
+            frame ? "absolute right-6 top-6 w-[min(26rem,calc(100vw-3rem))] cursor-default"
+              : kiosk ? "fixed bottom-4 right-4 w-[min(26rem,calc(100vw-2rem))]"
+                : "fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-6 md:right-6 md:w-[28rem]")}>
+          {shown.map((n) => {
+            const info = (
+              <>
+                <Cover item={n.item} className="h-12 w-12 shrink-0 !rounded-full" iconSize={20} badge={false} />
+                <span className="min-w-0">
+                  <span className="block truncate font-bold">{n.item.name}</span>
+                  {n.speaker ? <span className="flex items-center gap-1 truncate text-sm text-soft"><Speaker size={14} aria-hidden className="shrink-0" />{n.speaker.name}</span>
+                    : n.track && <span className="block truncate text-sm text-soft">{n.track}</span>}
+                </span>
+              </>
+            );
+            return (
+              <div key={n.key} data-testid={n.speaker ? "speaker-mini-player" : "mini-player"} role="group"
+                aria-label={n.speaker ? t("media.onSpeaker", { name: n.item.name, speaker: n.speaker.name }) : n.item.name}
+                className="flex min-w-0 items-center gap-3 rounded-full bg-surface p-2 pr-3 text-ink shadow-lg ring-1 ring-line">
+                {frame ? <span className="flex min-w-0 flex-1 items-center gap-3">{info}</span> : (
+                  <button type="button" onClick={() => setOpen(n)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={t("media.open", { name: n.item.name })}>{info}</button>
+                )}
+                <IconButton label={n.playing ? t("media.pause") : t("media.resume")} disabled={n.busy} onClick={n.toggle}>{n.playing ? <Pause size={22} /> : <Play size={22} />}</IconButton>
+                <IconButton label={t("media.stop")} onClick={n.stop}><Square size={18} /></IconButton>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {open && <PlayerSheet item={open.item} memberId={open.memberId} output={open.speaker?.entityId} onClose={() => setOpen(null)} />}
     </>
   );
 }
 
-/** The wall's listening tile (§23): what plays, or the first covers to start one. A tap beside them opens the shelf. */
+/** The wall's listening tile (§23): what plays here or on a speaker, with pause and stop, or the first covers to start one. A tap beside them opens the shelf. */
 export function MediaTile({ large }: { large?: boolean }) {
   const { t } = useI18n();
   const { data } = useStore();
-  const p = usePlayer();
+  const now = useNowPlaying()[0];
   const [open, setOpen] = useState<ShelfEntry | null>(null);
   if (!data.media) return null;
   const picks = data.media.shelf.slice(0, 4);
@@ -419,18 +498,22 @@ export function MediaTile({ large }: { large?: boolean }) {
     <section data-testid="media-tile" className={cn("media-tile flex flex-col gap-3 rounded-panel bg-surface", large ? "wall-openable p-6" : "p-5")}>
       {large && <Link href="/media" aria-label={t("media.title")} tabIndex={-1} className="wall-open" />}
       <Link href="/media" className={cn("font-bold hover:underline underline-offset-4", large ? "wall-tile-label text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("media.title")}</Link>
-      {p.item ? (
-        // The cover itself plays and pauses: one big target that fits the narrowest tile.
-        <button type="button" onClick={() => player.toggle()} aria-label={p.playing ? t("media.pause") : t("media.resume")}
-          className="relative flex min-w-0 flex-col items-start gap-2 text-left">
-          <span className="relative w-full max-w-[9rem]">
-            <Cover item={p.item} className="w-full" iconSize={28} />
-            <span className="absolute inset-0 grid place-items-center">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-ink/80 text-surface">{p.playing ? <Pause size={24} /> : <Play size={24} className="translate-x-0.5" />}</span>
+      {now ? (
+        <div className="flex min-w-0 items-start gap-2">
+          {/* The cover itself plays and pauses: one big target that fits the narrowest tile. */}
+          <button type="button" onClick={now.toggle} disabled={now.busy} aria-label={now.playing ? t("media.pause") : t("media.resume")}
+            className="relative flex min-w-0 flex-1 flex-col items-start gap-2 text-left">
+            <span className="relative w-full max-w-[9rem]">
+              <Cover item={now.item} className="w-full" iconSize={28} />
+              <span className="absolute inset-0 grid place-items-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-ink/80 text-surface">{now.playing ? <Pause size={24} /> : <Play size={24} className="translate-x-0.5" />}</span>
+              </span>
             </span>
-          </span>
-          <span className="w-full truncate font-bold">{p.item.name}</span>
-        </button>
+            <span className="w-full truncate font-bold">{now.item.name}</span>
+            {now.speaker && <span className="flex w-full items-center gap-1 truncate text-sm text-soft"><Speaker size={14} aria-hidden className="shrink-0" />{now.speaker.name}</span>}
+          </button>
+          <IconButton label={t("media.stop")} onClick={now.stop} className="media-tile-stop relative shrink-0"><Square size={18} /></IconButton>
+        </div>
       ) : (
         <ul className="grid grid-cols-4 gap-2">
           {picks.map((item) => (

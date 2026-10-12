@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { Monitor, MoreHorizontal, Smile, UserRound } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { isActive, navFor } from "./nav";
@@ -13,7 +13,7 @@ import { Avatar } from "../ui/Avatar";
 import { PinDialog } from "./PinDialog";
 import { ErrorToast } from "../ui/ErrorText";
 import { DoorbellWatcher } from "../cameras/Cameras";
-import { MiniPlayer } from "../media/Media";
+import { MiniPlayer, useNowPlaying } from "../media/Media";
 
 /**
  * Management shell for phones, tablets and desktops.
@@ -26,6 +26,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { getMembers, getMember, viewer, home, cameras, data } = useStore();
   const me = getMember(viewer.memberId);
   const NAV = navFor(Boolean(home) || data.voice, cameras.length > 0, Boolean(data.media));
+  // Room below the page for the mini players, so they never hide the last row.
+  const pills = useNowPlaying().length;
 
   return (
     <div className="min-h-dvh md:flex">
@@ -66,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="flex items-center gap-2 coarse:min-h-11"><Logo /><span className="font-display text-lg font-bold">{t("app.name")}</span></Link>
           <QuickPrefs compact />
         </header>
-        <main className="mx-auto w-full max-w-[1500px] px-4 pb-28 pt-2 md:px-6 md:pb-10 md:pt-6 lg:px-8">{children}</main>
+        <main style={{ "--pills": pills } as CSSProperties} className="mx-auto w-full max-w-[1500px] px-4 pb-[calc(7rem+var(--pills)*4.5rem)] pt-2 md:px-6 md:pb-[calc(2.5rem+var(--pills)*4.5rem)] md:pt-6 lg:px-8">{children}</main>
       </div>
 
       {/* Phone bottom navigation: the four things parents reach for most, plus More */}
@@ -82,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </nav>
 
-      {!path.startsWith("/media") && <MiniPlayer />}
+      <MiniPlayer />
       <DoorbellWatcher />
       <PinDialog />
       <ErrorToast />

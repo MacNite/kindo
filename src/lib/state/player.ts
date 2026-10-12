@@ -8,7 +8,9 @@ import { mediaQueue, saveMediaProgress } from "../services/media";
  * outside React so the music carries on from page to page (the wall, the
  * child's view, Settings) and a mini player anywhere can show it. Sound comes
  * through Kindo (`/api/media/<item>/<file>`); an audiobook's place is saved
- * every half minute and whenever it stops.
+ * every half minute and whenever it stops. The device remembers what played
+ * and where for 12 hours, so after a reload or a restarted browser it comes
+ * back paused, one tap from carrying on (§20 D73).
  */
 export interface PlayerState {
   item: ShelfEntry | null;
@@ -32,8 +34,48 @@ let lastSaved = 0;
 /** The latest start: an older one answering late doesn't take over. */
 let ticket = 0;
 
+/** What this device played and where, kept across reloads (D73). */
+const KEPT = "kindo.player";
+const KEEP_MS = 12 * 60 * 60_000;
+const KEEP_EVERY_MS = 5_000;
+interface Kept { item: ShelfEntry; memberId?: string; index: number; position: number; duration: number; at: number }
+let lastKept = 0;
+
+function keep(now = false) {
+  if (typeof window === "undefined" || (!now && Date.now() - lastKept < KEEP_EVERY_MS)) return;
+  lastKept = Date.now();
+  try {
+    if (!state.item) localStorage.removeItem(KEPT);
+    else {
+      const kept: Kept = { item: state.item, memberId: state.memberId, index: state.index, position: state.position, duration: state.duration, at: Date.now() };
+      localStorage.setItem(KEPT, JSON.stringify(kept));
+    }
+  } catch {
+    // No storage (a private window): it just isn't kept.
+  }
+}
+
+let restored = false;
+/** Once per page load: what this device played before, paused, unless it is older than 12 hours. */
+function restore() {
+  if (restored || typeof window === "undefined") return;
+  restored = true;
+  if (state.item) return;
+  try {
+    const k = JSON.parse(localStorage.getItem(KEPT) ?? "null") as Kept | null;
+    if (!k?.item?.id || !(Date.now() - k.at < KEEP_MS)) {
+      localStorage.removeItem(KEPT);
+      return;
+    }
+    set({ item: k.item, memberId: k.memberId, index: k.index || 0, position: k.position || 0, duration: k.duration || 0 });
+  } catch {
+    // Unreadable: start empty.
+  }
+}
+
 function set(patch: Partial<PlayerState>) {
   state = { ...state, ...patch };
+  keep();
   listeners.forEach((l) => l());
 }
 
@@ -53,6 +95,7 @@ function element(): HTMLAudioElement {
   audio.addEventListener("playing", () => set({ playing: true, loading: false, error: undefined }));
   audio.addEventListener("pause", () => {
     set({ playing: false });
+    keep(true);
     void saveProgress();
   });
   audio.addEventListener("waiting", () => set({ loading: true }));
@@ -85,6 +128,7 @@ async function loadTrack(index: number, offset: number, autoplay: boolean) {
     await new Promise<void>((resolve) => a.addEventListener("loadedmetadata", () => resolve(), { once: true }));
     a.currentTime = offset;
   }
+  keep(true);
   if (autoplay) await a.play().catch((e: unknown) => set({ loading: false, playing: false, error: e instanceof DOMException && e.name === "NotAllowedError" ? "tapToPlay" : "remote" }));
   mediaSession();
 }
@@ -105,9 +149,10 @@ export const player = {
    * stopped, or at the start of the file `index` (a track picked from the
    * list). Returns the error code when it couldn't start ("pin": a locked
    * wall, when the household asked for the PIN, D64); what played before
-   * then carries on.
+   * then carries on. `at`: seconds into the item, for music this device
+   * remembered (an audiobook goes on from its saved place).
    */
-  async play(item: ShelfEntry, memberId?: string, index?: number): Promise<string | undefined> {
+  async play(item: ShelfEntry, memberId?: string, index?: number, at?: number): Promise<string | undefined> {
     if (state.item?.id === item.id && state.memberId === memberId && state.queue) return void (await (index === undefined ? player.resume() : player.jump(index)));
     const mine = ++ticket;
     const r = await mediaQueue({ itemId: item.id, memberId }).catch(() => ({ ok: false as const, error: "network" }));
@@ -120,15 +165,24 @@ export const player = {
       set({ loading: false, error: r.error });
       return r.error;
     }
-    const at = index !== undefined && index < r.data.tracks.length ? { index, offset: 0 } : trackAt(r.data.tracks, r.data.position);
+    const from = index !== undefined && index < r.data.tracks.length ? { index, offset: 0 }
+      : trackAt(r.data.tracks, r.data.resumable || at === undefined ? r.data.position : at);
     set({ queue: r.data, duration: totalOf(r.data.tracks) });
-    await loadTrack(at.index, at.offset, true);
+    await loadTrack(from.index, from.offset, true);
     return undefined;
   },
-  async resume() {
+  /**
+   * Carries on. What came back after a reload starts again where it was:
+   * a start, so it can need the PIN like any other (its error code then).
+   */
+  async resume(): Promise<string | undefined> {
+    if (state.item && !state.queue) {
+      const { item, memberId, position, duration } = state;
+      return player.play(item, memberId, undefined, duration && position >= duration - 1 ? 0 : position);
+    }
     if (!audio || !state.queue) return;
     // A finished item starts again.
-    if (state.duration && state.position >= state.duration - 1) return loadTrack(0, 0, true);
+    if (state.duration && state.position >= state.duration - 1) return void (await loadTrack(0, 0, true));
     await audio.play().catch(() => set({ error: "remote" }));
   },
   pause() {
@@ -168,11 +222,13 @@ export const player = {
     if (audio) audio.removeAttribute("src");
     audio?.load();
     set(IDLE);
+    keep(true);
     if (typeof navigator !== "undefined" && "mediaSession" in navigator) navigator.mediaSession.metadata = null;
   },
 };
 
 const subscribe = (l: () => void) => {
+  restore();
   listeners.add(l);
   return () => listeners.delete(l);
 };
