@@ -374,31 +374,47 @@ function TrackList({ tracks, current, onPick, disabled }: { tracks: Track[]; cur
 }
 
 /**
- * What plays on this screen, from anywhere in the app: the cover, the name,
- * play/pause and stop. Above the phone's bottom navigation; on the wall and
- * the child's view a small pill in the corner.
+ * What plays on this screen, from anywhere in the app (the shelf included):
+ * the cover, the name, play/pause and stop. Above the phone's bottom
+ * navigation; on the wall and the child's view a small pill in the corner;
+ * over the photo frame (`frame`) a pill at the top whose buttons don't wake
+ * the wall, so the music can be paused or stopped without leaving the photos.
  */
-export function MiniPlayer({ kiosk }: { kiosk?: boolean }) {
+export function MiniPlayer({ kiosk, frame }: { kiosk?: boolean; frame?: boolean }) {
   const { t } = useI18n();
   const { wallTiles } = useStore();
   const path = usePathname();
   const p = usePlayer();
   const [open, setOpen] = useState(false);
   if (!p.item) return null;
-  // The wall's own Listening tile already shows it; a pill would cover a lane.
-  if (kiosk && path === "/wall" && wallTiles.some((x) => x.id === "media" && x.enabled)) return null;
+  if (kiosk && !frame) {
+    // The wall's own Listening tile already shows it; a pill would cover a lane.
+    if (path === "/wall" && wallTiles.some((x) => x.id === "media" && x.enabled)) return null;
+    // The photo frame shows its own, above the photos.
+    if (path === "/screensaver") return null;
+  }
   const track = p.queue && p.queue.tracks.length > 1 ? p.queue.tracks[p.index]?.title : undefined;
+  const info = (
+    <>
+      <Cover item={p.item} className="h-12 w-12 shrink-0 !rounded-full" iconSize={20} badge={false} />
+      <span className="min-w-0">
+        <span className="block truncate font-bold">{p.item.name}</span>
+        {track && <span className="block truncate text-sm text-soft">{track}</span>}
+      </span>
+    </>
+  );
+  // Over the photo frame a tap anywhere else wakes the wall; these buttons mustn't.
+  const keep = frame ? (e: { stopPropagation: () => void }) => e.stopPropagation() : undefined;
   return (
     <>
-      <div data-testid="mini-player" className={cn("fixed z-40 flex items-center gap-3 rounded-full bg-surface p-2 pr-3 shadow-lg ring-1 ring-line",
-        kiosk ? "bottom-4 right-4 max-w-[min(26rem,calc(100vw-2rem))]" : "inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-6 md:right-6 md:max-w-md")}>
-        <button type="button" onClick={() => setOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={t("media.open", { name: p.item.name })}>
-          <Cover item={p.item} className="h-12 w-12 shrink-0 !rounded-full" iconSize={20} badge={false} />
-          <span className="min-w-0">
-            <span className="block truncate font-bold">{p.item.name}</span>
-            {track && <span className="block truncate text-sm text-soft">{track}</span>}
-          </span>
-        </button>
+      <div data-testid="mini-player" onClick={keep} onKeyDown={keep}
+        className={cn("z-40 flex items-center gap-3 rounded-full bg-surface p-2 pr-3 text-ink shadow-lg ring-1 ring-line",
+          frame ? "absolute right-6 top-6 max-w-[min(26rem,calc(100vw-3rem))] cursor-default"
+            : kiosk ? "fixed bottom-4 right-4 max-w-[min(26rem,calc(100vw-2rem))]"
+              : "fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:inset-x-auto md:bottom-6 md:right-6 md:max-w-md")}>
+        {frame ? <span className="flex min-w-0 flex-1 items-center gap-3">{info}</span> : (
+          <button type="button" onClick={() => setOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={t("media.open", { name: p.item.name })}>{info}</button>
+        )}
         <IconButton label={p.playing ? t("media.pause") : t("media.resume")} onClick={() => player.toggle()}>{p.playing ? <Pause size={22} /> : <Play size={22} />}</IconButton>
         <IconButton label={t("media.stop")} onClick={() => void player.stop()}><Square size={18} /></IconButton>
       </div>
@@ -407,7 +423,7 @@ export function MiniPlayer({ kiosk }: { kiosk?: boolean }) {
   );
 }
 
-/** The wall's listening tile (§23): what plays, or the first covers to start one. A tap beside them opens the shelf. */
+/** The wall's listening tile (§23): what plays, with pause and stop, or the first covers to start one. A tap beside them opens the shelf. */
 export function MediaTile({ large }: { large?: boolean }) {
   const { t } = useI18n();
   const { data } = useStore();
@@ -420,17 +436,20 @@ export function MediaTile({ large }: { large?: boolean }) {
       {large && <Link href="/media" aria-label={t("media.title")} tabIndex={-1} className="wall-open" />}
       <Link href="/media" className={cn("font-bold hover:underline underline-offset-4", large ? "wall-tile-label text-lg text-soft" : "font-display text-lg font-semibold tracking-tight")}>{t("media.title")}</Link>
       {p.item ? (
-        // The cover itself plays and pauses: one big target that fits the narrowest tile.
-        <button type="button" onClick={() => player.toggle()} aria-label={p.playing ? t("media.pause") : t("media.resume")}
-          className="relative flex min-w-0 flex-col items-start gap-2 text-left">
-          <span className="relative w-full max-w-[9rem]">
-            <Cover item={p.item} className="w-full" iconSize={28} />
-            <span className="absolute inset-0 grid place-items-center">
-              <span className="grid h-12 w-12 place-items-center rounded-full bg-ink/80 text-surface">{p.playing ? <Pause size={24} /> : <Play size={24} className="translate-x-0.5" />}</span>
+        <div className="flex min-w-0 items-start gap-2">
+          {/* The cover itself plays and pauses: one big target that fits the narrowest tile. */}
+          <button type="button" onClick={() => player.toggle()} aria-label={p.playing ? t("media.pause") : t("media.resume")}
+            className="relative flex min-w-0 flex-1 flex-col items-start gap-2 text-left">
+            <span className="relative w-full max-w-[9rem]">
+              <Cover item={p.item} className="w-full" iconSize={28} />
+              <span className="absolute inset-0 grid place-items-center">
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-ink/80 text-surface">{p.playing ? <Pause size={24} /> : <Play size={24} className="translate-x-0.5" />}</span>
+              </span>
             </span>
-          </span>
-          <span className="w-full truncate font-bold">{p.item.name}</span>
-        </button>
+            <span className="w-full truncate font-bold">{p.item.name}</span>
+          </button>
+          <IconButton label={t("media.stop")} onClick={() => void player.stop()} className="media-tile-stop relative shrink-0"><Square size={18} /></IconButton>
+        </div>
       ) : (
         <ul className="grid grid-cols-4 gap-2">
           {picks.map((item) => (

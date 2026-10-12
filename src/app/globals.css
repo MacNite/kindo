@@ -186,6 +186,8 @@ body {
 @container tile (max-height: 9.25rem) { .wall-meal-cook { display: none; } }
 @container tile (max-height: 7.5rem) { .wall-meal-dish { -webkit-line-clamp: 1; } }
 @container tile (max-width: 12rem) { .wall-meal-dish { font-size: 1.5rem; line-height: 1.2; hyphens: auto; overflow-wrap: anywhere; } }
+/* Listening: Stop beside the cover while there is room; the cover alone still pauses. */
+@container tile (max-width: 7rem) { .media-tile-stop { display: none; } }
 /* Dates: as many as fit, one line each. */
 @container tile (min-width: 0px) { .wall-dates .date-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
 @container tile (max-height: 12.5rem) { .wall-dates > li:nth-child(n+3) { display: none; } }
