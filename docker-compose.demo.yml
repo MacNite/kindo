@@ -1,0 +1,105 @@
+# A throwaway Kindo with the Müller demo family (§20 D73). One command, no .env:
+#
+#   docker compose -f docker-compose.demo.yml up -d
+#
+# Open http://localhost:3000 and sign in as anna@demo.kindo / kindo-demo.
+# Everything can be clicked and changed. The family is loaded afresh every
+# KINDO_DEMO_RESET_MINUTES (default 60, 0 = never) and on every `down`/`up`:
+# the database lives in memory only. Never use this file for a real household:
+# its secret key is public and nothing is kept.
+#
+#   docker compose -f docker-compose.demo.yml down   # stop and forget everything
+name: kindo-demo
+
+x-db-url: &db-url postgresql://kindo:kindo-demo@db:5432/kindo?schema=public
+
+services:
+  db:
+    image: postgres:17.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kindo
+      POSTGRES_USER: kindo
+      POSTGRES_PASSWORD: kindo-demo
+    # In memory: nothing outlives the demo.
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kindo -d kindo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    expose:
+      - "5432"
+
+  migrate:
+    image: ${MIGRATE_IMAGE:-ghcr.io/macnite/kindo-migrate:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    restart: "no"
+    environment:
+      DATABASE_URL: *db-url
+      TZ: ${TZ:-Europe/Berlin}
+      KINDO_DEMO: "true"
+      KINDO_DEMO_EMAIL: anna@demo.kindo
+      KINDO_DEMO_PASSWORD: kindo-demo
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+  # Wipes the demo family and loads it again, so every visitor finds it as new.
+  reset:
+    image: ${MIGRATE_IMAGE:-ghcr.io/macnite/kindo-migrate:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    restart: unless-stopped
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        minutes="$${KINDO_DEMO_RESET_MINUTES:-60}"
+        if [ "$$minutes" = "0" ]; then echo "Demo reset is off."; exec tail -f /dev/null; fi
+        while sleep "$$((minutes * 60))"; do node --import tsx ./prisma/seed-demo.ts --reset; done
+    environment:
+      DATABASE_URL: *db-url
+      TZ: ${TZ:-Europe/Berlin}
+      KINDO_DEMO_EMAIL: anna@demo.kindo
+      KINDO_DEMO_PASSWORD: kindo-demo
+      KINDO_DEMO_RESET_MINUTES: ${KINDO_DEMO_RESET_MINUTES:-60}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/macnite/kindo:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: *db-url
+      TZ: ${TZ:-Europe/Berlin}
+      # The built-in development key: public, fine for a demo, never for a family.
+      KINDO_ALLOW_DEV_SECRET: "true"
+    ports:
+      - "${KINDO_DEMO_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    security_opt:
+      - no-new-privileges:true

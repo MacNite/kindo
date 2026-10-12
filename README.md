@@ -32,6 +32,19 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 - **Customization:** show, hide, reorder and resize home widgets.
 - **Languages and themes:** English and German (separate language and region formats), light, dark and system themes.
 
+## Website and live demo
+
+The website in [`website/`](website/) (overview, technical data and setup guide, live demo; English and German) is published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). Enable it once under *Settings → Pages → Source: GitHub Actions*; set the repository variable `KINDO_DEMO_URL` to point its Live demo buttons at a hosted demo.
+
+To try Kindo with the Müller demo family, no `.env` needed:
+
+```sh
+docker compose -f docker-compose.demo.yml up -d     # http://localhost:3000, anna@demo.kindo / kindo-demo
+docker compose -f docker-compose.demo.yml down      # stop and forget everything
+```
+
+The demo keeps its database in memory and loads the family afresh every hour (`KINDO_DEMO_RESET_MINUTES`, `0` = never). It uses a public secret key: never keep real data in it.
+
 ## Running with Docker Compose
 
 Requirements: Docker with Compose v2.
@@ -117,7 +130,7 @@ npm run dev               # http://localhost:3000
 | `npm run check` | lint + typecheck + tests |
 | `npm run db:migrate` / `db:migrate:dev` | Apply migrations / create a new one after changing `prisma/schema.prisma` |
 | `npm run db:drift` | Fails when the schema and the committed migrations disagree (needs `SHADOW_DATABASE_URL`) |
-| `npm run db:seed:demo` | Load the demo family into an empty database |
+| `npm run db:seed:demo` | Load the demo family into an empty database (`-- --reset` wipes a demo household and loads it afresh) |
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above against PostgreSQL on every push. It also builds both images, migrates a fresh database with the migrate image, and checks that the app starts, becomes healthy, carries no Prisma CLI and runs as a non-root user.
 

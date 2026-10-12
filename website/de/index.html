@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kindo – das Familien-Dashboard</title>
+  <meta name="description" content="Kindo ist ein selbst gehostetes Familien-Dashboard für die Küchenwand, Handys und Rechner: Heute, Routinen, Kalender und Belohnungen auf einem Bildschirm.">
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="alternate" hreflang="en" href="../">
+  <link rel="stylesheet" href="../site.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="../icon.svg" alt="">Kindo</a>
+      <nav class="nav" aria-label="Hauptmenü">
+        <a href="./" aria-current="page">Überblick</a>
+        <a href="setup.html">Einrichtung</a>
+        <a href="demo.html">Live-Demo</a>
+        <a href="https://github.com/MacNite/kindo">GitHub</a>
+        <a class="lang" href="../" hreflang="en" lang="en">English</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div class="dots" aria-hidden="true"><span style="background:var(--anna)"></span><span style="background:var(--max)"></span><span style="background:var(--lena)"></span><span style="background:var(--paul)"></span></div>
+        <h1>Ein Bildschirm für den Tag der ganzen Familie.</h1>
+        <p class="lead">Kindo ist ein selbst gehostetes Familien-Dashboard für die Küchenwand, Handys und Rechner. Ein Blick genügt: Was steht heute an, und was hat jede und jeder noch zu tun? Eine Vierjährige folgt ihrer Routine allein anhand von Bildern.</p>
+        <ul class="flow" aria-label="Kernablauf">
+          <li>Menschen</li><li>Heute</li><li>Routinen &amp; Aufgaben</li><li>Kalender</li><li>Belohnungen</li>
+        </ul>
+        <div class="actions">
+          <a class="btn primary" href="demo.html" data-demo-link>▶ Live-Demo</a>
+          <a class="btn" href="setup.html">Mit Docker einrichten</a>
+        </div>
+        <div class="shot"><img src="../screenshots/wall-display.png" width="1600" height="900" alt="Kindos Wandanzeige: eine Spalte pro Familienmitglied mit Routine, Terminen und Aufgaben"></div>
+      </div>
+    </section>
+
+    <section class="alt" id="funktionen">
+      <div class="wrap">
+        <h2>Gebaut um den Familienalltag</h2>
+        <p class="soft">Kein weiteres Smart-Home-Panel: Kindo fängt bei den Menschen an und bei dem, was ihr Tag bringt.</p>
+        <div class="grid">
+          <div class="card"><div class="icon">👨‍👩‍👧‍👦</div><h3>Familienspalten</h3><p>Eine Spalte pro Person, in ihrer Farbe: die aktuelle Routine als Bildkacheln, Termine und Aufgaben. Schule und Kita erscheinen als ruhige Zeile.</p></div>
+          <div class="card"><div class="icon">🧸</div><h3>Kinderansicht</h3><p>Große Bildkarten, Fortschritt als Punkte, Morgen, Nachmittag und Abend per Symbol. Text ist optional; die Bilder tragen die Bedeutung.</p></div>
+          <div class="card"><div class="icon">🖼️</div><h3>Wandanzeige</h3><p>Ein Kiosk-Layout, lesbar aus ein paar Metern. Ohne Berührung wird sie zum Bilderrahmen; ein Tippen holt das Dashboard zurück.</p></div>
+          <div class="card"><div class="icon">📅</div><h3>Kalender</h3><p>Monat, Woche und Liste, farbig nach Person. Nextcloud/CalDAV, Google Kalender, ICS-Abos und Kindos eigener.</p></div>
+          <div class="card"><div class="icon">🔁</div><h3>Routinen &amp; Aufgaben</h3><p>Täglich, an bestimmten Tagen, alle N Wochen, monatlich, an Schultagen. Tägliches Zurücksetzen, Ferien aus dem Feed eures Bundeslands, zwei Wochen Verlauf.</p></div>
+          <div class="card"><div class="icon">⭐</div><h3>Ruhige Belohnungen</h3><p>Aus, Sterne, Taler oder Taschengeld, optional pro Aufgabe, auf Wunsch mit Freigabe durch die Eltern. Keine übertriebene Gamification.</p></div>
+          <div class="card"><div class="icon">🛒</div><h3>Alltagslisten</h3><p>Einkaufslisten, die offline funktionieren, Aufgaben, ein Wochen-Essensplan und wichtige Termine mit Countdown.</p></div>
+          <div class="card"><div class="icon">🏠</div><h3>Home Assistant</h3><p>Anwesenheit für den Bilderrahmen, ein paar Schalter und der Solarfluss, Frigate-Kameras mit Türklingel und Sprechen mit Assist.</p></div>
+          <div class="card"><div class="icon">🎧</div><h3>Kinderregal</h3><p>Musik aus Jellyfin und Hörbücher aus Audiobookshelf, auf dem Bildschirm oder einem Home-Assistant-Lautsprecher.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap split">
+        <div class="shot"><img src="../screenshots/child-view-lena.png" width="1280" height="800" alt="Die Kinderansicht: große Bildkarten für jeden Schritt der Routine"></div>
+        <div>
+          <h2>Für Kinder, die noch nicht lesen</h2>
+          <p>Lenas Morgenroutine ist eine Reihe großer Bildkarten. Sie tippt eine an, wenn sie fertig ist; ein Punkt füllt sich, und ist die Routine geschafft, erscheint der Abendhimmel. Die Ansicht verlässt man nur durch langes Drücken, damit kleine Finger bleiben, wo sie hingehören.</p>
+          <ul class="chips"><li>Große Flächen</li><li>Ruhige Rückmeldung</li><li>Bilder zuerst</li><li>Punkte nur, wenn ihr wollt</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap split flip">
+        <div class="shot"><img src="../screenshots/calendar-week-dark.png" width="1440" height="950" alt="Der Wochenkalender im dunklen Design"></div>
+        <div>
+          <h2>Die Woche aller, ein Kalender</h2>
+          <p>Jeder Termin trägt die Farbe seiner Person. Filtert nach Person oder Kalender und ordnet jeden Nextcloud-, Google- oder ICS-Kalender den Menschen zu, zu denen er gehört. Hell, dunkel oder wie das System.</p>
+          <ul class="chips"><li>Nextcloud / CalDAV</li><li>Google Kalender</li><li>ICS</li><li>Deutsch &amp; Englisch</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Auf jedem Bildschirm</h2>
+        <div class="gallery">
+          <figure><div class="shot"><img src="../screenshots/home-desktop.png" width="1440" height="1000" alt="Kindos Startseite am Rechner" loading="lazy"></div><figcaption>Die Startseite am Rechner: Widgets ein- und ausblenden, sortieren, in der Größe ändern.</figcaption></figure>
+          <figure><div class="shot"><img src="../screenshots/screensaver.png" width="1600" height="900" alt="Der Bilderrahmen als Bildschirmschoner" loading="lazy"></div><figcaption>Der Bilderrahmen an der Wand, aus euren Immich-Alben.</figcaption></figure>
+          <figure><div class="shot" style="max-width:16rem;margin:0 auto"><img src="../screenshots/mobile-home.png" width="780" height="1688" alt="Kindo auf dem Handy" loading="lazy"></div><figcaption>Als installierbare PWA auf den Handys der Eltern.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap split">
+        <div>
+          <h2>Eures, auf eurem eigenen Server</h2>
+          <p>Kindo läuft mit Docker Compose neben euren anderen selbst gehosteten Diensten. Die Daten eurer Familie bleiben in eurer PostgreSQL; Integrationen laufen auf dem Server, ihre Zugangsdaten erreichen nie den Browser. Open Source unter der AGPL-3.0.</p>
+          <div class="actions">
+            <a class="btn primary" href="setup.html">Einrichtungsanleitung</a>
+            <a class="btn" href="demo.html">Demo ausprobieren</a>
+          </div>
+        </div>
+        <pre><code>curl -O https://raw.githubusercontent.com/MacNite/kindo/main/docker-compose.demo.yml
+docker compose -f docker-compose.demo.yml up -d
+# → http://localhost:3000</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Kindo · AGPL-3.0 · <a href="https://github.com/MacNite/kindo">github.com/MacNite/kindo</a></span>
+      <span><a href="setup.html">Einrichtung</a> · <a href="demo.html">Live-Demo</a> · <a href="../" hreflang="en">English</a></span>
+    </div>
+  </footer>
+  <script src="../config.js"></script>
+  <script src="../site.js"></script>
+</body>
+</html>

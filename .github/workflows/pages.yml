@@ -1,0 +1,50 @@
+name: Website
+
+# Kindo's website (website/, §20 D73) on GitHub Pages. Static files only, no
+# build step; the screenshots come from docs/screenshots so they exist once.
+# Needs Settings → Pages → Source: GitHub Actions. With the repository variable
+# KINDO_DEMO_URL set, the Live demo buttons open that hosted demo.
+on:
+  push:
+    branches: ["main"]
+    paths: ["website/**", "docs/screenshots/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble the site
+        env:
+          KINDO_DEMO_URL: ${{ vars.KINDO_DEMO_URL }}
+        run: |
+          mkdir _site
+          cp -r website/. _site/
+          rm -f _site/README.md
+          cp -r docs/screenshots _site/screenshots
+          # JSON-quoted, so any address is a safe JavaScript string.
+          printf 'window.KINDO_DEMO_URL = %s;\n' "$(jq -Rn --arg u "$KINDO_DEMO_URL" '$u')" > _site/config.js
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

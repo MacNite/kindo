@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kindo – Setup with Docker</title>
+  <meta name="description" content="Technical data and a quick setup guide for running Kindo with Docker Compose.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="alternate" hreflang="de" href="de/setup.html">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="icon.svg" alt="">Kindo</a>
+      <nav class="nav" aria-label="Main">
+        <a href="./">Overview</a>
+        <a href="setup.html" aria-current="page">Setup</a>
+        <a href="demo.html">Live demo</a>
+        <a href="https://github.com/MacNite/kindo">GitHub</a>
+        <a class="lang" href="de/setup.html" hreflang="de" lang="de">Deutsch</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="wrap doc">
+    <nav class="toc" aria-label="On this page">
+      <a href="#quick">Quick setup</a>
+      <a href="#requirements">Requirements</a>
+      <a href="#data">Technical data</a>
+      <a href="#services">Services</a>
+      <a href="#config">Configuration</a>
+      <a href="#wall">Wall display</a>
+      <a href="#proxy">Reverse proxy</a>
+      <a href="#update">Updates &amp; backups</a>
+      <a href="#integrations">Integrations</a>
+    </nav>
+    <main>
+      <h1>Setup with Docker</h1>
+      <p class="lead soft">Kindo ships as two container images and runs with Docker Compose next to a PostgreSQL. Five minutes from nothing to your family's first screen.</p>
+
+      <h2 id="quick">Quick setup</h2>
+      <ol class="steps">
+        <li>
+          <strong>Get the compose file and the example configuration.</strong>
+          <pre><code>mkdir kindo &amp;&amp; cd kindo
+curl -O https://raw.githubusercontent.com/MacNite/kindo/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/MacNite/kindo/main/.env.example</code></pre>
+        </li>
+        <li>
+          <strong>Set the two required values in <code>.env</code>.</strong>
+          <pre><code>POSTGRES_PASSWORD=a-long-random-password
+KINDO_SECRET_KEY=$(openssl rand -base64 32)   # paste the output, keep it safe
+APP_URL=https://kindo.example.home            # recommended: the address the family opens</code></pre>
+          <p class="soft">Keep <code>KINDO_SECRET_KEY</code>: it signs sessions and encrypts the integrations' passwords. Changing it signs everyone out and makes stored secrets unreadable.</p>
+        </li>
+        <li>
+          <strong>Start it.</strong>
+          <pre><code>docker compose up -d</code></pre>
+          <p class="soft">The <code>migrate</code> service applies the database migrations once and exits; the app waits for it.</p>
+        </li>
+        <li>
+          <strong>Open <code>http://&lt;host&gt;:3000</code></strong> and set up your household and your admin login, or tick <em>Start with the demo family</em> to look around first.
+        </li>
+      </ol>
+      <div class="note">To build from source instead of pulling the images, clone the repository and run <code>docker compose up -d --build</code>.</div>
+
+      <h2 id="requirements">Requirements</h2>
+      <div class="table"><table>
+        <tr><th>Host</th><td>Linux with Docker and Compose v2. <code>linux/amd64</code>; <code>linux/arm64</code> (e.g. Raspberry Pi 4/5) from release tags.</td></tr>
+        <tr><th>Resources</th><td>No special hardware: a small home server or NAS that already runs Docker. Disk for the database plus the photo cache (500 MB by default).</td></tr>
+        <tr><th>Screens</th><td>Any current browser. The wall: an Android tablet with Chrome (https) or a kiosk browser such as Fully Kiosk Browser. Phones: installable as a PWA.</td></tr>
+        <tr><th>Network</th><td>One published port (3000). https through a reverse proxy is recommended, and needed for the wall's screen wake lock and the PWA.</td></tr>
+      </table></div>
+
+      <h2 id="data">Technical data</h2>
+      <div class="table"><table>
+        <tr><th>App image</th><td><code>ghcr.io/macnite/kindo</code>: Next.js standalone server on <code>node:26-alpine</code>, non-root user <code>kindo</code> (uid 1001), healthcheck <code>/api/health</code> including a database round-trip</td></tr>
+        <tr><th>Migration image</th><td><code>ghcr.io/macnite/kindo-migrate</code>: one-shot <code>prisma migrate deploy</code>, the only image with the Prisma CLI</td></tr>
+        <tr><th>Tags</th><td><code>latest</code>, <code>main</code>, <code>sha-&lt;short&gt;</code>, and <code>1.2.3</code> / <code>1.2</code> for releases. Pin the same version on both images.</td></tr>
+        <tr><th>Supply chain</th><td>Published only after the full CI suite passed for that commit; provenance attestations and an SBOM on every image</td></tr>
+        <tr><th>Stack</th><td>Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Prisma 6, PostgreSQL 17, Server Actions, Server-Sent Events over PostgreSQL LISTEN/NOTIFY for live sync between screens</td></tr>
+        <tr><th>Sign-in</th><td>Local logins (better-auth) and single sign-on with any OpenID Connect provider (authentik, Keycloak …). Wall tablets are paired by code or QR and need no login; a settings PIN guards them.</td></tr>
+        <tr><th>Languages</th><td>English and German, with separate language and region formats</td></tr>
+        <tr><th>Data</th><td>Everything in PostgreSQL (<code>./data/postgres</code>); proxied photos in the <code>kindo-cache</code> volume. Integration secrets are encrypted at rest and never reach the browser.</td></tr>
+        <tr><th>Licence</th><td>AGPL-3.0-only</td></tr>
+      </table></div>
+
+      <h2 id="services">Services</h2>
+      <div class="table"><table>
+        <tr><th>Service</th><th>What it does</th></tr>
+        <tr><td><code>db</code></td><td>PostgreSQL 17. Data in <code>./data/postgres</code> (<code>POSTGRES_DATA_PATH</code>). Only reachable inside the compose network.</td></tr>
+        <tr><td><code>migrate</code></td><td>Applies pending migrations, then exits. With <code>KINDO_DEMO=true</code> it loads the demo family into an empty database.</td></tr>
+        <tr><td><code>app</code></td><td>The Kindo server on port 3000 (<code>APP_PORT</code>). Starts after <code>migrate</code> completed. Runs the background jobs: calendar, contact and photo sync, holiday feeds, Home Assistant.</td></tr>
+      </table></div>
+
+      <h2 id="config">Configuration</h2>
+      <p>All settings live in <code>.env</code>; <a href="https://github.com/MacNite/kindo/blob/main/.env.example"><code>.env.example</code></a> documents every one. The most important:</p>
+      <div class="table"><table>
+        <tr><th>Variable</th><th>Meaning</th></tr>
+        <tr><td><code>POSTGRES_PASSWORD</code></td><td><strong>Required.</strong> The database password.</td></tr>
+        <tr><td><code>KINDO_SECRET_KEY</code></td><td><strong>Required.</strong> At least 32 characters: <code>openssl rand -base64 32</code>.</td></tr>
+        <tr><td><code>APP_URL</code></td><td>The address the family opens; sets the sign-in callbacks and Secure cookies for https.</td></tr>
+        <tr><td><code>KINDO_TRUSTED_ORIGINS</code></td><td>Further addresses, comma-separated (e.g. a LAN IP next to the hostname).</td></tr>
+        <tr><td><code>APP_PORT</code></td><td>Host port, default <code>3000</code>.</td></tr>
+        <tr><td><code>TZ</code></td><td>The household's time zone for the daily reset and sync, default <code>Europe/Berlin</code>.</td></tr>
+        <tr><td><code>APP_IMAGE</code>, <code>MIGRATE_IMAGE</code></td><td>Image tags; pin a version for reproducible deployments.</td></tr>
+        <tr><td><code>OIDC_ISSUER</code>, <code>OIDC_CLIENT_ID</code>, <code>OIDC_CLIENT_SECRET</code></td><td>Single sign-on. Redirect URI <code>&lt;APP_URL&gt;/api/auth/callback/oidc</code>.</td></tr>
+        <tr><td><code>KINDO_PASSWORD_LOGIN</code></td><td><code>false</code> makes single sign-on the only way in.</td></tr>
+        <tr><td><code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code></td><td>Google Calendar through your own OAuth client.</td></tr>
+        <tr><td><code>KINDO_TRUST_PROXY</code></td><td><code>true</code> only behind a reverse proxy that is the only way in.</td></tr>
+        <tr><td><code>KINDO_SYNC_MINUTES</code></td><td>Calendar sync interval, default 5.</td></tr>
+        <tr><td><code>KINDO_PHOTO_CACHE_MB</code></td><td>Photo cache size, default 500.</td></tr>
+        <tr><td><code>LOG_LEVEL</code></td><td><code>debug</code>, <code>info</code>, <code>warn</code> or <code>error</code>; one JSON line per entry.</td></tr>
+      </table></div>
+
+      <h2 id="wall">The wall display</h2>
+      <p>Open <code>/pair</code> on the tablet. It shows a code and a QR code; an admin confirms it in <em>Settings → Devices</em>. The tablet then shows the wall and the child view without a login; anything beyond ticking things off asks for the settings PIN.</p>
+      <p>Open <code>/wall</code> to keep the screen on (https or a kiosk browser). Turn Android's own screensaver off and its screen timeout up, so Kindo's photo frame shows. The <a href="https://github.com/MacNite/kindo#logins-and-the-wall-display">README</a> has the full checklist.</p>
+
+      <h2 id="proxy">Reverse proxy</h2>
+      <p>Put Kindo behind Traefik, Caddy or nginx for https. Set <code>APP_URL</code> to the public address and <code>KINDO_TRUST_PROXY=true</code>. The live sync uses Server-Sent Events on <code>/api/stream</code>; disable response buffering there. A minimal Caddyfile:</p>
+      <pre><code>kindo.example.home {
+  reverse_proxy localhost:3000 {
+    flush_interval -1
+  }
+}</code></pre>
+
+      <h2 id="update">Updates and backups</h2>
+      <pre><code>docker compose pull &amp;&amp; docker compose up -d      # update; migrations run automatically
+docker compose exec db pg_dump -U kindo kindo &gt; kindo.sql   # backup</code></pre>
+      <p class="soft">Or back up the <code>./data/postgres</code> directory while the stack is stopped.</p>
+
+      <h2 id="integrations">Integrations</h2>
+      <p>Connected in <em>Settings → Integrations</em>, all server-side:</p>
+      <ul class="chips">
+        <li>Nextcloud / CalDAV (read &amp; write, contacts)</li><li>Google Calendar</li><li>ICS subscriptions</li><li>Immich photos</li><li>Home Assistant</li><li>Frigate cameras &amp; doorbell</li><li>Jellyfin</li><li>Audiobookshelf</li><li>OpenID Connect</li><li>Open-Meteo weather</li>
+      </ul>
+    </main>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Kindo · AGPL-3.0 · <a href="https://github.com/MacNite/kindo">github.com/MacNite/kindo</a></span>
+      <span><a href="./">Overview</a> · <a href="demo.html">Live demo</a> · <a href="de/setup.html" hreflang="de">Deutsch</a></span>
+    </div>
+  </footer>
+  <script src="config.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>
