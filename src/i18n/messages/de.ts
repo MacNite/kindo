@@ -201,6 +201,7 @@ const de: Messages = {
     position: "Position", part: "Teil {n} von {total}", tapToPlay: "Tippe noch einmal auf Abspielen, um den Ton zu starten.", unavailable: "Das lässt sich gerade nicht abspielen.",
     speakerUnavailable: "Der Lautsprecher ist nicht erreichbar.", speakerPlaying: "Läuft: {title}", speaker_playing: "Spielt", speaker_paused: "Pausiert",
     speaker_idle: "Bereit", speaker_off: "Aus", speaker_unavailable: "Nicht erreichbar", playOn: "{name} auf {speaker} abspielen", needsPin: "Braucht die Einstellungs-PIN", volume: "Lautstärke",
+    noSpeakers: "Das Regal spielt nur auf Lautsprechern, und es ist noch keiner eingerichtet.",
     source_jellyfin: "Musik", source_audiobookshelf: "Hörbuch",
   },
   voice: {
@@ -314,6 +315,14 @@ const de: Messages = {
       requiresHint: "Das Regal wird aus den Jellyfin- und Audiobookshelf-Verbindungen unter Integrationen gefüllt. Hinein kann nur, was deren Konten sehen dürfen.",
       openIntegrations: "Zu den Integrationen",
       shelfOf: "Kinderregal: {name}", items: "{count} im Regal",
+      speakers: "Lautsprecher aus Home Assistant",
+      speakersHint: "Das Regal spielt auf Mediaplayern aus Home Assistant. Es sind dieselben Lautsprecher wie unter Integrationen → Home Assistant → Lautsprecher & Sprechen; wähle sie aus und stelle ein, wie laut ein Tippen sie machen darf.",
+      speakersNoHa: "Lautsprecher kommen aus Home Assistant. Verbinde Home Assistant unter Integrationen, um das Regal darauf abzuspielen.",
+      editSpeakers: "Lautsprecher in {name} einrichten",
+      screen: "Auf dem Bildschirm selbst abspielen",
+      screenOn: "Wandanzeigen und Kinder dürfen das Regal auf dem eigenen Bildschirm und auf den Lautsprechern abspielen.",
+      screenOff: "Wandanzeigen und Kinder mit eigenem Login spielen das Regal nur auf den Lautsprechern oben ab. Erwachsene und eine mit der PIN entsperrte Wandanzeige dürfen weiter auf ihrem Bildschirm abspielen.",
+      screenNoSpeakers: "Es sind keine Lautsprecher eingerichtet, also können Wandanzeigen und Kinder nichts aus dem Regal abspielen.",
     },
     integrations: {
       hint: "Kindo spricht vom Server aus mit diesen Diensten, Passwörter und Schlüssel erreichen nie ein Gerät.",

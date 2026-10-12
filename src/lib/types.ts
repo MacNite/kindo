@@ -313,6 +313,8 @@ export interface HouseholdSettings {
   night: NightRest;
   /** What of the kids' shelf needs the PIN to start on a wall (§23, D64). */
   mediaPin: MediaPin;
+  /** Whether walls and children's own logins may play the shelf on the screen itself, not only on speakers (§23, D71). */
+  mediaScreen: boolean;
   widgets: WidgetConfig[];
   wallTiles: WallTile[];
   demo: boolean;
