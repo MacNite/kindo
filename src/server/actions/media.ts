@@ -36,6 +36,7 @@ export const listSpeakerChoices = act(M.M.byId, async (db, input) => M.listSpeak
 export const saveSpeakers = act(M.M.speakers, async (db, input) => M.saveSpeakers(db, input), { level: "admin", topic: "household" });
 export const listVoicePipelines = act(V.V.byId, async (db, input) => V.voiceChoices(db, input), { level: "admin", topic: null });
 export const setMediaPin = act(M.M.mediaPin, async (db, input) => M.setMediaPin(db, input), { level: "admin", topic: "household" });
+export const setMediaScreen = act(M.M.mediaScreen, async (db, input) => M.setMediaScreen(db, input), { level: "admin", topic: "household" });
 export const saveVoice = act(V.V.setup, async (db, input) => V.saveVoice(db, input), { level: "admin", topic: "household" });
 
 /**

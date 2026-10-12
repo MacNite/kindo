@@ -55,6 +55,7 @@ export const M = {
   cast: z.object({ itemId: shelfId, memberId: id.optional(), speaker: speakerId }),
   speaker: z.object({ speaker: speakerId, command: z.enum(["play", "pause", "stop", "volume"]), volume: z.number().min(0).max(100).optional() }),
   mediaPin: z.object({ mode: z.enum(["off", "speakers", "all"]) }),
+  mediaScreen: z.object({ on: z.boolean() }),
   none: z.object({}).optional(),
 };
 type In<K extends keyof typeof M> = z.output<(typeof M)[K]>;
@@ -258,14 +259,22 @@ export async function saveAccount(db: Tx, input: In<"account">) {
  * guarded; what plays carries on, and pause, stop and volume stay free.
  */
 export async function mayStart(db: Tx, actor: Actor, where: "screen" | "speaker") {
-  const h = await db.household.findUnique({ where: { id: 1 }, select: { mediaPin: true } });
-  if (!startNeedsPin(h?.mediaPin ?? "off", where) || can(actor, "manage")) return;
+  const h = await db.household.findUnique({ where: { id: 1 }, select: { mediaPin: true, mediaScreen: true } });
+  if (can(actor, "manage")) return;
+  // With the screen's own playback off, walls and children only play on speakers (D71).
+  if (where === "screen" && h?.mediaScreen === false) throw new UserError(actor.kind === "device" ? "pin" : "forbidden", "the shelf plays on speakers only");
+  if (!startNeedsPin(h?.mediaPin ?? "off", where)) return;
   throw new UserError(actor.kind === "device" ? "pin" : "forbidden", "starting playback needs the PIN");
 }
 
 /** Which starts need the PIN (admin). */
 export async function setMediaPin(db: Tx, input: In<"mediaPin">) {
   await db.household.update({ where: { id: 1 }, data: { mediaPin: input.mode } });
+}
+
+/** Whether walls and children's own logins may play on the screen itself (admin, D71). */
+export async function setMediaScreen(db: Tx, input: In<"mediaScreen">) {
+  await db.household.update({ where: { id: 1 }, data: { mediaScreen: input.on } });
 }
 
 /** A shelf item and its connection. Only what is on the shelf can be played. */

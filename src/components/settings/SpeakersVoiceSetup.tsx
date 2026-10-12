@@ -17,8 +17,9 @@ interface Stored { speakers?: Speaker[]; voice?: { on: boolean; pipeline?: strin
  * Home Assistant's part in listening and talking (§23, §24): the speakers
  * the kids' shelf may play on and how loud a tap may make them, and whether
  * adults may talk to Home Assistant through Kindo, with which Assist pipeline.
+ * From Settings → Media & kids' shelf it opens with the speakers only.
  */
-export function SpeakersVoiceDialog({ conn, onClose }: { conn: ConnectionInfo; onClose: () => void }) {
+export function SpeakersVoiceDialog({ conn, onClose, speakersOnly }: { conn: ConnectionInfo; onClose: () => void; speakersOnly?: boolean }) {
   const { t } = useI18n();
   const { run } = useStore();
   const stored = conn.config as Stored;
@@ -34,7 +35,7 @@ export function SpeakersVoiceDialog({ conn, onClose }: { conn: ConnectionInfo; o
   useEffect(() => {
     let live = true;
     listSpeakerChoices({ id: conn.id }).then((r) => live && (r.ok ? setPlayers(r.data) : setError(r.error)), () => live && setError("network"));
-    listVoicePipelines({ id: conn.id }).then((r) => {
+    if (!speakersOnly) listVoicePipelines({ id: conn.id }).then((r) => {
       if (!live) return;
       if (r.ok) setPipelines(r.data.pipelines);
       else setNoAssist(true);
@@ -42,20 +43,20 @@ export function SpeakersVoiceDialog({ conn, onClose }: { conn: ConnectionInfo; o
     return () => {
       live = false;
     };
-  }, [conn.id]);
+  }, [conn.id, speakersOnly]);
 
   const available = (players ?? []).filter((p) => !speakers.some((s) => s.entityId === p.entityId));
   const save = async () => {
     setBusy(true);
     const a = await run(() => saveSpeakers({ id: conn.id, speakers: speakers.map((s) => ({ ...s, name: s.name.trim() || s.entityId })) }));
-    const b = a.ok ? await run(() => saveVoice({ id: conn.id, on: voiceOn, pipeline: pipeline || undefined })) : a;
+    const b = a.ok && !speakersOnly ? await run(() => saveVoice({ id: conn.id, on: voiceOn, pipeline: pipeline || undefined })) : a;
     setBusy(false);
     if (b.ok) onClose();
     else setError(b.error);
   };
 
   return (
-    <Dialog open onClose={onClose} wide title={t("speakerSetup.title")}
+    <Dialog open onClose={onClose} wide title={t(speakersOnly ? "speakerSetup.speakers" : "speakerSetup.title")}
       footer={<><ErrorText code={error} className="mr-auto self-center" /><Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
         <Button variant="primary" disabled={busy} onClick={save}>{t("common.save")}</Button></>}>
       <div className="flex flex-col gap-6">
@@ -96,7 +97,7 @@ export function SpeakersVoiceDialog({ conn, onClose }: { conn: ConnectionInfo; o
           )}
         </section>
 
-        <section className="flex flex-col gap-3">
+        {!speakersOnly && <section className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <span><span className="block font-bold">{t("speakerSetup.voice")}</span><span className="text-sm text-soft">{t("speakerSetup.voiceHint")}</span></span>
             <Switch label={t("speakerSetup.voice")} checked={voiceOn} onChange={setVoiceOn} />
@@ -110,7 +111,7 @@ export function SpeakersVoiceDialog({ conn, onClose }: { conn: ConnectionInfo; o
               </select>
             </Field>
           )}
-        </section>
+        </section>}
       </div>
     </Dialog>
   );

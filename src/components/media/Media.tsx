@@ -159,20 +159,25 @@ export function KidsListen({ memberId }: { memberId: string }) {
  * One shelf item: a big cover, a big play button, and where it plays (this
  * screen or one of the admin's speakers). On this screen it also skips and
  * seeks; on a speaker it pauses, stops and turns the volume up to the
- * admin's limit.
+ * admin's limit. Where the household turned the screen's own playback off,
+ * walls and children only see the speakers (D71).
  */
 export function PlayerSheet({ item, memberId, onClose }: { item: ShelfEntry; memberId?: string; onClose: () => void }) {
   const { t } = useI18n();
-  const { data } = useStore();
+  const { data, viewer } = useStore();
   const speakers = data.media?.speakers ?? [];
-  const [output, setOutput] = useState<string>("screen");
+  const onScreen = data.household.mediaScreen || viewer.canManage;
+  const outputs = onScreen ? [{ entityId: "screen", name: t("media.thisScreen") }, ...speakers] : speakers;
+  const [picked, setOutput] = useState<string>("screen");
+  // A wall that locks again, or a screen turned off meanwhile, falls back to the first speaker.
+  const output = outputs.some((o) => o.entityId === picked) ? picked : outputs[0]?.entityId;
   return (
     <Dialog open onClose={onClose} title={item.name}>
       <div className="flex flex-col items-center gap-5">
         <Cover item={item} className="w-full max-w-[18rem] shadow-md" iconSize={72} />
-        {speakers.length > 0 && (
+        {(outputs.length > 1 || !onScreen) && outputs.length > 0 && (
           <div role="radiogroup" aria-label={t("media.output")} className="flex flex-wrap justify-center gap-2">
-            {[{ entityId: "screen", name: t("media.thisScreen") }, ...speakers].map((s) => {
+            {outputs.map((s) => {
               const I = s.entityId === "screen" ? MonitorSmartphone : Speaker;
               return (
                 <button key={s.entityId} type="button" role="radio" aria-checked={output === s.entityId} onClick={() => setOutput(s.entityId)}
@@ -183,7 +188,8 @@ export function PlayerSheet({ item, memberId, onClose }: { item: ShelfEntry; mem
             })}
           </div>
         )}
-        {output === "screen" ? <ScreenControls item={item} memberId={memberId} /> : <SpeakerControls speaker={output} item={item} memberId={memberId} />}
+        {!output ? <p role="status" className="text-center text-soft">{t("media.noSpeakers")}</p>
+          : output === "screen" ? <ScreenControls item={item} memberId={memberId} /> : <SpeakerControls speaker={output} item={item} memberId={memberId} />}
       </div>
     </Dialog>
   );

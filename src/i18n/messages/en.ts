@@ -205,6 +205,7 @@ const en = {
     position: "Position", part: "Part {n} of {total}", tapToPlay: "Tap play once more to start the sound.", unavailable: "This can't be played right now.",
     speakerUnavailable: "The speaker isn't reachable.", speakerPlaying: "Playing: {title}", speaker_playing: "Playing", speaker_paused: "Paused",
     speaker_idle: "Ready", speaker_off: "Off", speaker_unavailable: "Not reachable", playOn: "Play {name} on {speaker}", needsPin: "Needs the settings PIN", volume: "Volume",
+    noSpeakers: "The shelf plays on speakers only, and none are set up yet.",
     source_jellyfin: "Music", source_audiobookshelf: "Audiobook",
   },
   voice: {
@@ -319,6 +320,14 @@ const en = {
       requiresHint: "The shelf is filled from the Jellyfin and Audiobookshelf connections set up under Integrations. Only what their accounts may see can go on it.",
       openIntegrations: "Go to Integrations",
       shelfOf: "Kids' shelf: {name}", items: "{count} on the shelf",
+      speakers: "Speakers from Home Assistant",
+      speakersHint: "The shelf plays on media players from Home Assistant. They are the same speakers as under Integrations → Home Assistant → Speakers & talking; pick them and set how loud a tap may make them.",
+      speakersNoHa: "Speakers come from Home Assistant. Connect Home Assistant under Integrations to play the shelf on them.",
+      editSpeakers: "Set up speakers in {name}",
+      screen: "Play on the screen itself",
+      screenOn: "Walls and children may play the shelf on their own screen as well as on the speakers.",
+      screenOff: "Walls and children's own logins play the shelf only on the speakers above. Adults and a wall unlocked with the PIN may still play on their screen.",
+      screenNoSpeakers: "No speakers are set up, so walls and children can't play anything from the shelf.",
     },
     integrations: {
       hint: "Kindo talks to these services from the server, so passwords and keys never reach a device.",

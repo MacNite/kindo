@@ -251,3 +251,93 @@ test("a locked wall asks for the PIN to start the shelf, and plays once it is in
   await expect(card.getByRole("button", { name: "Disconnect" })).toHaveCount(0);
   assertNoErrors();
 });
+
+test("speakers set up under Media & kids' shelf, and a wall that only plays on them (D71)", async ({ browser, request }) => {
+  test.setTimeout(90_000);
+  const admin = await (await browser.newContext({ storageState: ADMIN_STATE })).newPage();
+  const wall = await (await browser.newContext({ storageState: { cookies: [], origins: [] } })).newPage();
+  const { assertNoErrors } = await prepare(admin);
+  await prepare(wall);
+  await request.post(`${MEDIA}/__reset`);
+  await request.post(`${HA}/__reset`);
+  admin.on("dialog", (d) => void d.accept());
+
+  // Without Home Assistant the panel says where speakers come from.
+  await admin.goto("/settings?section=media");
+  const panel = admin.getByTestId("media-speakers");
+  await expect(panel).toContainText("Speakers come from Home Assistant");
+
+  // Home Assistant, and Jellyfin with one album on the shelf.
+  await admin.goto("/settings?section=integrations");
+  const haCard = admin.getByTestId("integration-homeassistant");
+  await haCard.getByRole("button", { name: /Set up|Add another/ }).click();
+  let dialog = admin.getByRole("dialog");
+  await dialog.getByLabel("Server address").fill(HA);
+  await dialog.getByLabel("Long-lived access token").fill("e2e-home-assistant-long-lived-token");
+  await dialog.getByRole("button", { name: "Connect" }).click();
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
+  const card = admin.getByTestId("integration-jellyfin");
+  await card.getByRole("button", { name: /Set up|Add another/ }).click();
+  dialog = admin.getByRole("dialog");
+  await dialog.getByLabel("Server address").fill(`${MEDIA}/jellyfin`);
+  await dialog.getByRole("radio", { name: "Username & password" }).click();
+  await dialog.getByLabel("Username").fill("kids");
+  await dialog.getByLabel("Password", { exact: true }).fill("secret");
+  await dialog.getByRole("button", { name: "Connect" }).click();
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
+  await card.getByRole("button", { name: /^Settings for / }).click();
+  await admin.getByRole("dialog").getByRole("button", { name: "Kids' shelf" }).click();
+  dialog = admin.getByRole("dialog");
+  await dialog.getByRole("button", { name: /Bibi & Tina Songs/ }).click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+
+  // The speaker, from Media & kids' shelf: only the speakers, no talking.
+  await admin.goto("/settings?section=media");
+  await panel.getByRole("button", { name: /^Set up speakers in / }).click();
+  dialog = admin.getByRole("dialog");
+  await expect(dialog.getByRole("switch", { name: "Talk to Home Assistant" })).toHaveCount(0);
+  await dialog.getByRole("button", { name: /Kitchen speaker/ }).click();
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(panel).toContainText("Kitchen speaker");
+  // The screen's own playback off.
+  const screen = panel.getByRole("switch", { name: "Play on the screen itself" });
+  await screen.click();
+  await expect(screen).toHaveAttribute("aria-checked", "false");
+  await admin.reload();
+  await expect(admin.getByTestId("media-speakers").getByRole("switch", { name: "Play on the screen itself" })).toHaveAttribute("aria-checked", "false");
+
+  // Pair the wall: it only offers the speaker, and plays there.
+  await wall.goto("/pair");
+  const code = (await wall.getByTestId("pairing-code").innerText()).replace(/\D/g, "");
+  await admin.goto(`/settings?section=devices&code=${code}`);
+  await admin.getByLabel("Name").fill(`Speaker wall ${Date.now()}`);
+  await admin.getByRole("button", { name: "Pair", exact: true }).click();
+  await expect(wall).toHaveURL(/\/wall$/, { timeout: 15_000 });
+  await wall.goto("/media");
+  await wall.getByRole("button", { name: "Open Bibi & Tina Songs" }).click();
+  const player = wall.getByRole("dialog");
+  await expect(player.getByRole("radio", { name: "This screen" })).toHaveCount(0);
+  await expect(player.getByRole("radio", { name: "Kitchen speaker" })).toHaveAttribute("aria-checked", "true");
+  await expect(player.getByRole("button", { name: "Play Bibi & Tina Songs", exact: true })).toHaveCount(0);
+  await player.getByRole("button", { name: "Play Bibi & Tina Songs on Kitchen speaker" }).click();
+  await expect(player.getByRole("status")).toHaveText("Playing: Bibi & Tina Songs", { timeout: 15_000 });
+
+  // An adult still plays on their own screen.
+  await admin.goto("/media");
+  await admin.getByRole("button", { name: "Open Bibi & Tina Songs" }).click();
+  await expect(admin.getByRole("dialog").getByRole("radio", { name: "This screen" })).toBeVisible();
+  await admin.keyboard.press("Escape");
+
+  // Leave nothing behind.
+  await admin.goto("/settings?section=media");
+  await admin.getByTestId("media-speakers").getByRole("switch", { name: "Play on the screen itself" }).click();
+  await expect(admin.getByTestId("media-speakers").getByRole("switch", { name: "Play on the screen itself" })).toHaveAttribute("aria-checked", "true");
+  await admin.goto("/settings?section=integrations");
+  await card.getByRole("button", { name: "Disconnect" }).click();
+  await expect(card.getByRole("button", { name: "Disconnect" })).toHaveCount(0);
+  await haCard.getByRole("button", { name: "Disconnect" }).click();
+  await expect(haCard.getByRole("button", { name: "Disconnect" })).toHaveCount(0);
+  assertNoErrors();
+});

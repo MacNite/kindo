@@ -101,6 +101,8 @@ model Household {
   nightUntil       String     @default("06:00")
   /// Whether starting the kids' shelf needs the settings PIN on a wall (§23, D64).
   mediaPin         MediaPin   @default(off)
+  /// Whether walls and children's own logins may play the kids' shelf on the screen itself, or only on speakers (§23, D71).
+  mediaScreen      Boolean    @default(true)
   /// `WidgetConfig[]`: which home cards show, their order and size.
   widgets          Json
   /// `WallTile[]`: which household tiles the wall display shows beside the lanes, in order (§4, §21).

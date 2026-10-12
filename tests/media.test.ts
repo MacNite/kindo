@@ -222,6 +222,24 @@ describe.skipIf(!TEST_DB)("Listening and talking (§23, §24)", () => {
     await M.mayStart(db, child, "speaker");
   });
 
+  it("keeps walls and children to the speakers when the screen's own playback is off (D71)", async () => {
+    const wall = { kind: "device" as const, deviceId: "d", name: "Kitchen", elevated: false };
+    const unlocked = { ...wall, elevated: true };
+    const child = { kind: "user" as const, userId: "u", memberId: mia, role: "child" as const, name: "Lena" };
+    const adult = { kind: "user" as const, userId: "a", memberId: "anna", role: "adult" as const, name: "Anna" };
+    expect((await loadSnapshot(db, VIEWER))?.household.mediaScreen).toBe(true);
+    await M.setMediaScreen(db, { on: false });
+    expect((await loadSnapshot(db, VIEWER))?.household.mediaScreen).toBe(false);
+    await expect(M.mayStart(db, wall, "screen")).rejects.toMatchObject({ code: "pin" });
+    await expect(M.mayStart(db, child, "screen")).rejects.toMatchObject({ code: "forbidden" });
+    await M.mayStart(db, wall, "speaker");
+    await M.mayStart(db, child, "speaker");
+    await M.mayStart(db, unlocked, "screen");
+    await M.mayStart(db, adult, "screen");
+    await M.setMediaScreen(db, { on: true });
+    await M.mayStart(db, child, "screen");
+  });
+
   it("talks to Home Assistant: what was heard, the answer and its sound", async () => {
     expect((await loadSnapshot(db, VIEWER))?.voice).toBe(false);
     await expect(V.assist(db, new Uint8Array(6400))).rejects.toMatchObject({ code: "notFound" });
