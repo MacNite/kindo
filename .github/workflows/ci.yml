@@ -101,6 +101,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The GitHub Pages demo (§20 D74) is the same app with the Server Actions
+      # swapped for its in-browser household; a change that breaks it fails here.
+      - name: Build the static demo
+        run: npm run build:demo
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
         timeout-minutes: 10

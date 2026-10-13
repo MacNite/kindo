@@ -11,7 +11,7 @@ export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts", "demo/src/**/*.test.ts"],
     // Playwright specs run through `npm run test:e2e`, not Vitest.
     exclude: ["**/node_modules/**", "e2e/**"],
     // The integration tests share one PostgreSQL database (TEST_DATABASE_URL).

@@ -11,6 +11,7 @@ import { currentPeriod } from "../recurrence";
 import { DEFAULT_NIGHT, type NightRest } from "../night";
 import { guessCategory } from "../shopping";
 import { useToday } from "../useToday";
+import { STATIC_DEMO, withBase } from "../basePath";
 import { calendarSelectors } from "../services/calendar";
 import { householdSelectors } from "../services/household";
 import * as A from "../services/actions";
@@ -95,7 +96,7 @@ function useHousehold(initial: HouseholdWire) {
     try {
       const w = await A.getSnapshot();
       if (!w) {
-        window.location.assign("/login");
+        window.location.assign(withBase("/login"));
         return;
       }
       if (pending.current === 0) setData(applyQueued(hydrate(w), opsOf(queue.current)));
@@ -185,7 +186,7 @@ function useHousehold(initial: HouseholdWire) {
     if (!unreachable) void flush();
     if (!result.ok) {
       stale.current = true;
-      if (result.error === "unauthenticated") window.location.assign("/login");
+      if (result.error === "unauthenticated") window.location.assign(withBase("/login"));
       // A wall display needs the PIN: ask for it, then try again (§19.4).
       else if (result.error === "pin") setPinRequest({ retry: call });
       else setError(result.error);
@@ -223,6 +224,8 @@ function useHousehold(initial: HouseholdWire) {
 
   // Live updates from the server; the browser reconnects EventSource on its own.
   useEffect(() => {
+    // The static demo has no server to hear from: its household lives on this device (D74).
+    if (STATIC_DEMO) return setSync("live");
     if (typeof EventSource === "undefined") return;
     const es = new EventSource("/api/stream");
     es.onopen = () => {

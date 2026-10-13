@@ -1,13 +1,24 @@
 name: Website
 
-# Kindo's website (website/, §20 D73) on GitHub Pages. Static files only, no
-# build step; the screenshots come from docs/screenshots so they exist once.
-# Needs Settings → Pages → Source: GitHub Actions. With the repository variable
-# KINDO_DEMO_URL set, the Live demo buttons open that hosted demo.
+# Kindo's website (website/, §20 D73) on GitHub Pages, with the static demo
+# under demo/ (§20 D74): the real app exported as plain files, its household
+# kept in the visitor's browser. The screenshots come from docs/screenshots so
+# they exist once. Needs Settings → Pages → Source: GitHub Actions.
 on:
   push:
     branches: ["main"]
-    paths: ["website/**", "docs/screenshots/**", ".github/workflows/pages.yml"]
+    paths:
+      - "website/**"
+      - "docs/screenshots/**"
+      - "demo/**"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/build-demo.mjs"
+      - "tailwind.config.ts"
+      - "postcss.config.mjs"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -22,25 +33,36 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Assemble the site
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build the static demo
+        # Served at <pages address>/demo, e.g. /kindo/demo on macnite.github.io.
         env:
-          KINDO_DEMO_URL: ${{ vars.KINDO_DEMO_URL }}
+          KINDO_DEMO_BASE_PATH: ${{ steps.pages.outputs.base_path }}/demo
+        run: npm run build:demo
+
+      - name: Assemble the site
         run: |
           mkdir _site
           cp -r website/. _site/
           rm -f _site/README.md
           cp -r docs/screenshots _site/screenshots
-          # JSON-quoted, so any address is a safe JavaScript string.
-          printf 'window.KINDO_DEMO_URL = %s;\n' "$(jq -Rn --arg u "$KINDO_DEMO_URL" '$u')" > _site/config.js
-
-      - uses: actions/configure-pages@v5
+          cp -r demo/out _site/demo
 
       - uses: actions/upload-pages-artifact@v3
         with:

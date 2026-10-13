@@ -28,6 +28,10 @@ decision in §20 in the same PR.
   integrations, jobs; the demo family in `src/server/demo`). Components never
   import from `src/server` directly. Go through `src/lib/services` or
   `src/lib/state`.
+- The GitHub Pages demo (`demo/src`, D74) replaces whole Server Action modules
+  with in-browser ones of the same type. A new or changed Server Action needs
+  its demo twin in `demo/src/server/actions` too (`demo/parity.ts` makes a
+  missing one a type error; CI builds the demo).
 - No hard-coded UI strings. Add keys to `src/i18n/messages/en.ts` **and**
   `de.ts` (German is first-class, and the types and tests enforce parity).
 - Member colour comes from the member (`--m` + `.tint`, `.m-text`, `.m-bg`).
@@ -52,6 +56,7 @@ npm run check        # lint + typecheck + unit tests
 npm run build        # production build (standalone)
 npm run test:e2e     # Playwright (starts the standalone server itself)
 npm run db:drift     # schema vs. migrations (needs SHADOW_DATABASE_URL)
+npm run build:demo   # static GitHub Pages demo into demo/out (§20 D74)
 docker compose up -d --build
 ```
 
