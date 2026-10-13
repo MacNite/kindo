@@ -30,15 +30,8 @@
         <h1>Das sind die Müllers</h1>
         <p class="lead" style="margin:0 auto 2rem">Anna, Max, Lena und der kleine Paul wohnen in Freiburg. Routinen, Termine, Aufgaben, Einkaufslisten, Essensplan und Belohnungen sind ausgefüllt. Klickt euch durch das komplette Kindo, ändert, was ihr wollt, und schaut, wie es sich anfühlt.</p>
 
-        <div data-demo-hosted hidden>
-          <div class="actions"><a class="btn primary" href="#" data-demo-link>▶ Live-Demo öffnen</a></div>
-          <p class="soft" style="margin-top:1rem"><span data-demo-url></span></p>
-        </div>
-
-        <div class="creds" aria-label="Demo-Login">
-          <span class="soft">E-Mail</span><code>anna@demo.kindo</code>
-          <span class="soft">Passwort</span><code>kindo-demo</code>
-        </div>
+        <div class="actions"><a class="btn primary" href="../demo/?lang=de">▶ Live-Demo öffnen</a></div>
+        <p class="soft" style="margin-top:1rem">Sie läuft direkt hier im Browser: ohne Anmeldung, ohne Installation. Eure Änderungen bleiben auf diesem Gerät, und <em>Neu anfangen</em> holt die Müllers so zurück, wie sie waren.</p>
       </div>
     </section>
 
@@ -46,10 +39,14 @@
       <div class="wrap split">
         <div>
           <h2>Die Demo selbst starten</h2>
-          <p>Ein Befehl startet die komplette Installation (Datenbank, Migrationen, Familie Müller und die App) auf eurem eigenen Rechner. Ihr braucht nur Docker, nicht einmal eine Konfigurationsdatei.</p>
+          <p>Die Browser-Demo zeigt jeden Bildschirm, aber was einen eigenen Server braucht (Kalender, Fotoserver, Home Assistant, Kameras, das Kinderregal, Logins und das Koppeln der Wand) lässt sich dort nur anschauen. Ein Befehl startet die komplette Installation (Datenbank, Migrationen, Familie Müller und die App) auf eurem eigenen Rechner. Ihr braucht nur Docker, nicht einmal eine Konfigurationsdatei.</p>
           <pre><code>curl -O https://raw.githubusercontent.com/MacNite/kindo/main/docker-compose.demo.yml
 docker compose -f docker-compose.demo.yml up -d</code></pre>
-          <p>Dann <a href="http://localhost:3000">http://localhost:3000</a> öffnen und mit dem Login oben anmelden.</p>
+          <p>Dann <a href="http://localhost:3000">http://localhost:3000</a> öffnen und als Anna anmelden:</p>
+          <div class="creds" aria-label="Demo-Login">
+            <span class="soft">E-Mail</span><code>anna@demo.kindo</code>
+            <span class="soft">Passwort</span><code>kindo-demo</code>
+          </div>
           <pre><code>docker compose -f docker-compose.demo.yml down   # stoppen und alles vergessen</code></pre>
         </div>
         <div class="card">
@@ -84,7 +81,5 @@ docker compose -f docker-compose.demo.yml up -d</code></pre>
       <span><a href="./">Überblick</a> · <a href="setup.html">Einrichtung</a> · <a href="../demo.html" hreflang="en">English</a></span>
     </div>
   </footer>
-  <script src="../config.js"></script>
-  <script src="../site.js"></script>
 </body>
 </html>

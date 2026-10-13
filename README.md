@@ -34,9 +34,9 @@ Kindo puts one screen on the wall that the whole family can read at a glance: wh
 
 ## Website and live demo
 
-The website in [`website/`](website/) (overview, technical data and setup guide, live demo; English and German) is published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml). Enable it once under *Settings → Pages → Source: GitHub Actions*; set the repository variable `KINDO_DEMO_URL` to point its Live demo buttons at a hosted demo.
+The website in [`website/`](website/) (overview, technical data and setup guide, live demo; English and German) is published to GitHub Pages by [`.github/workflows/pages.yml`](.github/workflows/pages.yml), together with a **[live demo that runs in your browser](https://macnite.github.io/kindo/demo/)**: the real app with the Müller family kept on your device, nothing to sign in to (see [`demo/`](demo/README.md)). Enable it once under *Settings → Pages → Source: GitHub Actions*.
 
-To try Kindo with the Müller demo family, no `.env` needed:
+To try the complete Kindo with the Müller demo family, integrations and logins included, no `.env` needed:
 
 ```sh
 docker compose -f docker-compose.demo.yml up -d     # http://localhost:3000, anna@demo.kindo / kindo-demo
@@ -130,6 +130,7 @@ npm run dev               # http://localhost:3000
 | `npm run check` | lint + typecheck + tests |
 | `npm run db:migrate` / `db:migrate:dev` | Apply migrations / create a new one after changing `prisma/schema.prisma` |
 | `npm run db:drift` | Fails when the schema and the committed migrations disagree (needs `SHADOW_DATABASE_URL`) |
+| `npm run build:demo` | Build the static GitHub Pages demo into `demo/out` (see [`demo/README.md`](demo/README.md)) |
 | `npm run db:seed:demo` | Load the demo family into an empty database (`-- --reset` wipes a demo household and loads it afresh) |
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs all of the above against PostgreSQL on every push. It also builds both images, migrates a fresh database with the migrate image, and checks that the app starts, becomes healthy, carries no Prisma CLI and runs as a non-root user.
@@ -198,8 +199,9 @@ src/
     demo/             The Müller demo family and the seed
   i18n/               messages/en.ts + de.ts (parity enforced by types and tests), formats
   instrumentation.ts  Starts the background jobs when the server starts
+demo/                 The static GitHub Pages demo: Server Actions swapped for an in-browser household (§20 D74)
 prisma/               schema.prisma, migrations, seed-demo.ts
-scripts/              start-standalone.mjs, check-migration-drift.mjs, make-icons.mjs
+scripts/              start-standalone.mjs, check-migration-drift.mjs, make-icons.mjs, build-demo.mjs
 tests/                Integration tests against PostgreSQL
 e2e/                  Playwright specs, mock servers (OIDC, Immich, Home Assistant, Frigate, Jellyfin and Audiobookshelf), and prepare-db.ts for the suite's own database
 docker/               entrypoint.sh, migrate.sh, healthcheck.sh

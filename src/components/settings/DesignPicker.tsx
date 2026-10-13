@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { usePrefs } from "@/lib/state/prefs";
 import { DESIGNS } from "@/lib/designs";
+import { withBase } from "@/lib/basePath";
 import { cn } from "../ui/cn";
 
 /**
@@ -26,7 +27,7 @@ export function DesignPicker() {
             <button key={d} type="button" role="radio" aria-checked={on} onClick={() => setPrefs({ design: d })}
               className={cn("group flex flex-col gap-2 rounded-card p-1.5 text-left transition-colors", on ? "bg-sunken" : "hover:bg-sunken/60")}>
               <span className={cn("relative block overflow-hidden rounded-tile ring-2 ring-offset-2 ring-offset-surface", on ? "ring-ink" : "ring-transparent")}>
-                <img src={`/designs/${d}.webp`} alt="" width={480} height={270} loading="lazy" className="block aspect-video w-full object-cover" />
+                <img src={withBase(`/designs/${d}.webp`)} alt="" width={480} height={270} loading="lazy" className="block aspect-video w-full object-cover" />
                 {on && <span className="absolute right-1.5 top-1.5 grid h-7 w-7 place-items-center rounded-full bg-ink text-surface"><Check size={16} strokeWidth={3} /></span>}
               </span>
               <span className="px-1 pb-1 font-bold">{t(`settings.appearance.designs.${d}`)}</span>

@@ -30,15 +30,8 @@
         <h1>Meet the Müllers</h1>
         <p class="lead" style="margin:0 auto 2rem">Anna, Max, Lena and little Paul live in Freiburg. Their routines, appointments, chores, shopping lists, meals and rewards are all filled in, so you can click through the complete Kindo, change anything, and see how it feels.</p>
 
-        <div data-demo-hosted hidden>
-          <div class="actions"><a class="btn primary" href="#" data-demo-link>▶ Open the live demo</a></div>
-          <p class="soft" style="margin-top:1rem"><span data-demo-url></span></p>
-        </div>
-
-        <div class="creds" aria-label="Demo login">
-          <span class="soft">Email</span><code>anna@demo.kindo</code>
-          <span class="soft">Password</span><code>kindo-demo</code>
-        </div>
+        <div class="actions"><a class="btn primary" href="demo/">▶ Open the live demo</a></div>
+        <p class="soft" style="margin-top:1rem">It runs right here in your browser: no sign-in, nothing to install. Your changes stay on this device, and <em>Start over</em> brings the Müllers back as they were.</p>
       </div>
     </section>
 
@@ -46,10 +39,14 @@
       <div class="wrap split">
         <div>
           <h2>Run the demo yourself</h2>
-          <p>One command starts the complete setup (database, migrations, the Müller family and the app) on your own computer. You need Docker; nothing else, not even a configuration file.</p>
+          <p>The browser demo shows every screen, but what needs a server of your own (calendars, photo servers, Home Assistant, cameras, the kids' shelf, logins and wall pairing) can only be looked at there. One command starts the complete setup (database, migrations, the Müller family and the app) on your own computer. You need Docker; nothing else, not even a configuration file.</p>
           <pre><code>curl -O https://raw.githubusercontent.com/MacNite/kindo/main/docker-compose.demo.yml
 docker compose -f docker-compose.demo.yml up -d</code></pre>
-          <p>Then open <a href="http://localhost:3000">http://localhost:3000</a> and sign in with the login above.</p>
+          <p>Then open <a href="http://localhost:3000">http://localhost:3000</a> and sign in as Anna:</p>
+          <div class="creds" aria-label="Demo login">
+            <span class="soft">Email</span><code>anna@demo.kindo</code>
+            <span class="soft">Password</span><code>kindo-demo</code>
+          </div>
           <pre><code>docker compose -f docker-compose.demo.yml down   # stop and forget everything</code></pre>
         </div>
         <div class="card">
@@ -84,7 +81,5 @@ docker compose -f docker-compose.demo.yml up -d</code></pre>
       <span><a href="./">Overview</a> · <a href="setup.html">Setup</a> · <a href="de/demo.html" hreflang="de">Deutsch</a></span>
     </div>
   </footer>
-  <script src="config.js"></script>
-  <script src="site.js"></script>
 </body>
 </html>

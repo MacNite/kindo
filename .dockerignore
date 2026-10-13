@@ -9,3 +9,6 @@ playwright-report
 test-results
 docs
 *.md
+# The static GitHub Pages demo (§20 D74) is no part of the image.
+demo
+.demo-build

@@ -16,3 +16,7 @@ e2e/.auth/
 /public/sw.js.map
 /public/swe-worker-*.js
 /website/screenshots
+
+# The static demo (scripts/build-demo.mjs)
+/.demo-build/
+/demo/out/
