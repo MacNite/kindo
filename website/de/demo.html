@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kindo – Live-Demo</title>
+  <meta name="description" content="Kindo mit der Demo-Familie Müller ausprobieren: Ein Befehl startet die komplette Installation mit Beispieldaten.">
+  <link rel="icon" href="../icon.svg" type="image/svg+xml">
+  <link rel="alternate" hreflang="en" href="../demo.html">
+  <link rel="stylesheet" href="../site.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="../icon.svg" alt="">Kindo</a>
+      <nav class="nav" aria-label="Hauptmenü">
+        <a href="./">Überblick</a>
+        <a href="setup.html">Einrichtung</a>
+        <a href="demo.html" aria-current="page">Live-Demo</a>
+        <a href="https://github.com/MacNite/kindo">GitHub</a>
+        <a class="lang" href="../demo.html" hreflang="en" lang="en">English</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero demo-box">
+      <div class="wrap">
+        <div class="dots" style="justify-content:center" aria-hidden="true"><span style="background:var(--anna)"></span><span style="background:var(--max)"></span><span style="background:var(--lena)"></span><span style="background:var(--paul)"></span></div>
+        <h1>Das sind die Müllers</h1>
+        <p class="lead" style="margin:0 auto 2rem">Anna, Max, Lena und der kleine Paul wohnen in Freiburg. Routinen, Termine, Aufgaben, Einkaufslisten, Essensplan und Belohnungen sind ausgefüllt. Klickt euch durch das komplette Kindo, ändert, was ihr wollt, und schaut, wie es sich anfühlt.</p>
+
+        <div data-demo-hosted hidden>
+          <div class="actions"><a class="btn primary" href="#" data-demo-link>▶ Live-Demo öffnen</a></div>
+          <p class="soft" style="margin-top:1rem"><span data-demo-url></span></p>
+        </div>
+
+        <div class="creds" aria-label="Demo-Login">
+          <span class="soft">E-Mail</span><code>anna@demo.kindo</code>
+          <span class="soft">Passwort</span><code>kindo-demo</code>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap split">
+        <div>
+          <h2>Die Demo selbst starten</h2>
+          <p>Ein Befehl startet die komplette Installation (Datenbank, Migrationen, Familie Müller und die App) auf eurem eigenen Rechner. Ihr braucht nur Docker, nicht einmal eine Konfigurationsdatei.</p>
+          <pre><code>curl -O https://raw.githubusercontent.com/MacNite/kindo/main/docker-compose.demo.yml
+docker compose -f docker-compose.demo.yml up -d</code></pre>
+          <p>Dann <a href="http://localhost:3000">http://localhost:3000</a> öffnen und mit dem Login oben anmelden.</p>
+          <pre><code>docker compose -f docker-compose.demo.yml down   # stoppen und alles vergessen</code></pre>
+        </div>
+        <div class="card">
+          <h3>Gut zu wissen</h3>
+          <ul>
+            <li>Die Demo setzt sich jede Stunde zurück (<code>KINDO_DEMO_RESET_MINUTES</code>, <code>0</code> schaltet das ab) und bei jedem Neustart: Ihre Datenbank liegt nur im Arbeitsspeicher.</li>
+            <li>Ein anderer Port: <code>KINDO_DEMO_PORT=8080 docker compose -f docker-compose.demo.yml up -d</code></li>
+            <li>Die Demo nutzt einen öffentlichen Schlüssel. Keine echten Familiendaten darin ablegen; dafür gibt es die <a href="setup.html">Einrichtungsanleitung</a>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>Zum Ausprobieren</h2>
+        <div class="grid">
+          <div class="card"><div class="icon">🖼️</div><h3>Die Wand</h3><p><code>/wall</code> öffnen: die Spalten aller, der nächste Termin und nach einer Weile ohne Berührung der Bilderrahmen.</p></div>
+          <div class="card"><div class="icon">🧸</div><h3>Lenas Routine</h3><p>Lenas Kinderansicht öffnen und ihre Routine nur mit Bildern abarbeiten.</p></div>
+          <div class="card"><div class="icon">📅</div><h3>Der Familienkalender</h3><p>Zwischen Monat, Woche und Liste wechseln und nach Person filtern.</p></div>
+          <div class="card"><div class="icon">⭐</div><h3>Belohnungen</h3><p>Die Extra-Aufgaben freigeben, auf die Lena und Paul warten, und schauen, wie weit es bis zum Filmabend ist.</p></div>
+          <div class="card"><div class="icon">🛒</div><h3>Einkaufen</h3><p>Listen für Lebensmittel, Baumarkt und Drogerie, mit Schnelleingabe.</p></div>
+          <div class="card"><div class="icon">🇬🇧</div><h3>In English</h3><p>Einstellungen → Sprache &amp; Region stellt alles auf Englisch um, die Demo-Familie eingeschlossen.</p></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Kindo · AGPL-3.0 · <a href="https://github.com/MacNite/kindo">github.com/MacNite/kindo</a></span>
+      <span><a href="./">Überblick</a> · <a href="setup.html">Einrichtung</a> · <a href="../demo.html" hreflang="en">English</a></span>
+    </div>
+  </footer>
+  <script src="../config.js"></script>
+  <script src="../site.js"></script>
+</body>
+</html>

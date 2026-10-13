@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
+import { hashPassword } from "better-auth/crypto";
 import type { Tx } from "../db";
 import { addDays, at, dateKey, startOfDay } from "@/lib/dates";
 import { toStoredEvent } from "../events";
@@ -22,6 +24,34 @@ export async function createHousehold(db: Tx, opts: { name: string; timezone: st
 
 /** Is there a household yet? Everything else waits for first-run setup until there is. */
 export const hasHousehold = async (db: Tx) => (await db.household.count()) > 0;
+
+/**
+ * Empties the demo instance so the Müller family can load again (§20 D73).
+ * Refuses a real household: only one loaded from the demo is ever wiped.
+ * Migrations stay; everything else (logins and sessions included) goes.
+ */
+export async function wipeDemo(db: Tx) {
+  const household = await db.household.findFirst();
+  if (household && !household.demo) throw new Error("This household isn't the demo family; it is never wiped.");
+  const tables = await db.$queryRaw<{ name: string }[]>`
+    SELECT tablename AS name FROM pg_tables WHERE schemaname = current_schema() AND tablename <> '_prisma_migrations'`;
+  if (tables.length) await db.$executeRawUnsafe(`TRUNCATE ${tables.map((t) => `"${t.name}"`).join(", ")} RESTART IDENTITY CASCADE`);
+}
+
+/**
+ * A ready login for Anna, the demo's admin, so a throwaway demo opens without
+ * first-run setup (§20 D73). Only for the demo family.
+ */
+export async function createDemoLogin(db: Tx, email: string, password: string) {
+  const household = await db.household.findFirst();
+  if (!household?.demo) throw new Error("Demo logins are only made for the demo family.");
+  const anna = await db.member.findUniqueOrThrow({ where: { id: "anna" } });
+  if (anna.userId) return;
+  const userId = randomUUID();
+  await db.user.create({ data: { id: userId, name: anna.name, email: email.trim().toLowerCase(), emailVerified: false } });
+  await db.account.create({ data: { id: randomUUID(), accountId: userId, providerId: "credential", userId, password: await hashPassword(password) } });
+  await db.member.update({ where: { id: anna.id }, data: { userId } });
+}
 
 /**
  * Loads the Müller family into an empty database (§20 D11). Refuses to run

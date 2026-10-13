@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kindo – the family dashboard</title>
+  <meta name="description" content="Kindo is a self-hosted family dashboard for the kitchen wall, phones and desktops: today, routines, calendar and rewards on one screen.">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="alternate" hreflang="de" href="de/">
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="icon.svg" alt="">Kindo</a>
+      <nav class="nav" aria-label="Main">
+        <a href="./" aria-current="page">Overview</a>
+        <a href="setup.html">Setup</a>
+        <a href="demo.html">Live demo</a>
+        <a href="https://github.com/MacNite/kindo">GitHub</a>
+        <a class="lang" href="de/" hreflang="de" lang="de">Deutsch</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div class="dots" aria-hidden="true"><span style="background:var(--anna)"></span><span style="background:var(--max)"></span><span style="background:var(--lena)"></span><span style="background:var(--paul)"></span></div>
+        <h1>One screen for the whole family's day.</h1>
+        <p class="lead">Kindo is a self-hosted family dashboard for the kitchen wall, phones and desktops. Glance at it and see what's happening today and what each person still has to do. A four-year-old can follow their routine through pictures alone.</p>
+        <ul class="flow" aria-label="Core flow">
+          <li>People</li><li>Today</li><li>Routines &amp; Tasks</li><li>Calendar</li><li>Rewards</li>
+        </ul>
+        <div class="actions">
+          <a class="btn primary" href="demo.html" data-demo-link>▶ Live demo</a>
+          <a class="btn" href="setup.html">Set up with Docker</a>
+        </div>
+        <div class="shot"><img src="screenshots/wall-display.png" width="1600" height="900" alt="Kindo's wall display: a column per family member with their routine, appointments and chores"></div>
+      </div>
+    </section>
+
+    <section class="alt" id="features">
+      <div class="wrap">
+        <h2>Built around the family's day</h2>
+        <p class="soft">Not another smart-home panel: Kindo starts with the people and what their day looks like.</p>
+        <div class="grid">
+          <div class="card"><div class="icon">👨‍👩‍👧‍👦</div><h3>Family lanes</h3><p>One column per person, in their colour: the current routine as picture tiles, appointments and chores. School and Kita appear as a quiet line.</p></div>
+          <div class="card"><div class="icon">🧸</div><h3>Child view</h3><p>Large pictogram cards, progress as dots, morning, afternoon and evening picked by icon. Text is optional; pictures carry the meaning.</p></div>
+          <div class="card"><div class="icon">🖼️</div><h3>Wall display</h3><p>A kiosk layout readable from a few metres. Idle, it becomes a photo frame; a tap returns to the dashboard.</p></div>
+          <div class="card"><div class="icon">📅</div><h3>Calendar</h3><p>Month, week and agenda, colour-coded by person. Nextcloud/CalDAV, Google Calendar, ICS subscriptions and Kindo's own.</p></div>
+          <div class="card"><div class="icon">🔁</div><h3>Routines &amp; chores</h3><p>Daily, selected days, every N weeks, monthly, school days. A daily reset, holidays from your state's feed, two weeks of history.</p></div>
+          <div class="card"><div class="icon">⭐</div><h3>Calm rewards</h3><p>Off, stars, tokens or pocket money, optional per chore, with parent approval if you like. No excessive gamification.</p></div>
+          <div class="card"><div class="icon">🛒</div><h3>Everyday lists</h3><p>Shopping lists that work offline, tasks, a weekly meal plan and important dates with countdowns.</p></div>
+          <div class="card"><div class="icon">🏠</div><h3>Home Assistant</h3><p>Presence for the photo frame, a few switches and the solar flow, Frigate cameras with the doorbell, and talking to Assist.</p></div>
+          <div class="card"><div class="icon">🎧</div><h3>Kids' shelf</h3><p>Music from Jellyfin and audiobooks from Audiobookshelf, played on the screen or a Home Assistant speaker.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap split">
+        <div class="shot"><img src="screenshots/child-view-lena.png" width="1280" height="800" alt="The child view: large picture cards for each routine step"></div>
+        <div>
+          <h2>Made for children who can't read yet</h2>
+          <p>Lena's morning routine is a row of big picture cards. She taps one when she's done; a dot fills, and when the routine is finished the evening sky appears. Leaving the view needs a press-and-hold, so little fingers stay where they belong.</p>
+          <ul class="chips"><li>Large targets</li><li>Calm feedback</li><li>Pictures first</li><li>Points only if you want them</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap split flip">
+        <div class="shot"><img src="screenshots/calendar-week-dark.png" width="1440" height="950" alt="The week calendar in the dark theme"></div>
+        <div>
+          <h2>Everyone's week, one calendar</h2>
+          <p>Every appointment carries its person's colour. Filter by person or calendar, and map each Nextcloud, Google or ICS calendar to the people it belongs to. Light, dark or follow the system.</p>
+          <ul class="chips"><li>Nextcloud / CalDAV</li><li>Google Calendar</li><li>ICS</li><li>English &amp; German</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <h2>On every screen</h2>
+        <div class="gallery">
+          <figure><div class="shot"><img src="screenshots/home-desktop.png" width="1440" height="1000" alt="Kindo's home page on a desktop" loading="lazy"></div><figcaption>Home on the desktop: widgets you can show, hide, reorder and resize.</figcaption></figure>
+          <figure><div class="shot"><img src="screenshots/screensaver.png" width="1600" height="900" alt="The photo frame screensaver" loading="lazy"></div><figcaption>The wall's photo frame, from your Immich albums.</figcaption></figure>
+          <figure><div class="shot" style="max-width:16rem;margin:0 auto"><img src="screenshots/mobile-home.png" width="780" height="1688" alt="Kindo on a phone" loading="lazy"></div><figcaption>An installable PWA on the parents' phones.</figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt">
+      <div class="wrap split">
+        <div>
+          <h2>Yours, on your own server</h2>
+          <p>Kindo runs with Docker Compose next to your other self-hosted services. Your family's data stays in your PostgreSQL; integrations run on the server and their secrets never reach the browser. Open source under the AGPL-3.0.</p>
+          <div class="actions">
+            <a class="btn primary" href="setup.html">Setup guide</a>
+            <a class="btn" href="demo.html">Try the demo</a>
+          </div>
+        </div>
+        <pre><code>curl -O https://raw.githubusercontent.com/MacNite/kindo/main/docker-compose.demo.yml
+docker compose -f docker-compose.demo.yml up -d
+# → http://localhost:3000</code></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Kindo · AGPL-3.0 · <a href="https://github.com/MacNite/kindo">github.com/MacNite/kindo</a></span>
+      <span><a href="setup.html">Setup</a> · <a href="demo.html">Live demo</a> · <a href="de/" hreflang="de">Deutsch</a></span>
+    </div>
+  </footer>
+  <script src="config.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>
