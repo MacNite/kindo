@@ -206,7 +206,7 @@ const en = {
     speakerUnavailable: "The speaker isn't reachable.", speakerPlaying: "Playing: {title}", speaker_playing: "Playing", speaker_paused: "Paused",
     speaker_idle: "Ready", speaker_off: "Off", speaker_unavailable: "Not reachable", playOn: "Play {name} on {speaker}", needsPin: "Needs the settings PIN", volume: "Volume",
     noSpeakers: "The shelf plays on speakers only, and none are set up yet.",
-    tracks: "Tracks ({n})", trackList: "Tracks", playTrack: "Play track {n}: {title}",
+    onSpeaker: "{name} on {speaker}", tracks: "Tracks ({n})", trackList: "Tracks", playTrack: "Play track {n}: {title}",
     source_jellyfin: "Music", source_audiobookshelf: "Audiobook",
   },
   voice: {

@@ -202,7 +202,7 @@ const de: Messages = {
     speakerUnavailable: "Der Lautsprecher ist nicht erreichbar.", speakerPlaying: "Läuft: {title}", speaker_playing: "Spielt", speaker_paused: "Pausiert",
     speaker_idle: "Bereit", speaker_off: "Aus", speaker_unavailable: "Nicht erreichbar", playOn: "{name} auf {speaker} abspielen", needsPin: "Braucht die Einstellungs-PIN", volume: "Lautstärke",
     noSpeakers: "Das Regal spielt nur auf Lautsprechern, und es ist noch keiner eingerichtet.",
-    tracks: "Titel ({n})", trackList: "Titelliste", playTrack: "Titel {n} abspielen: {title}",
+    onSpeaker: "{name} auf {speaker}", tracks: "Titel ({n})", trackList: "Titelliste", playTrack: "Titel {n} abspielen: {title}",
     source_jellyfin: "Musik", source_audiobookshelf: "Hörbuch",
   },
   voice: {

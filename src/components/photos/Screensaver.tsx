@@ -6,8 +6,12 @@ import { useNow } from "@/lib/useNow";
 import { usePhotoPlaylist } from "@/lib/state/photos";
 import { useNight } from "@/lib/state/useNight";
 import { FramedPhoto } from "./FramedPhoto";
+import { MiniPlayer } from "../media/Media";
 
-/** Full-screen photo frame; plain black during the night rest (D59). Any touch calls onWake. */
+/**
+ * Full-screen photo frame; plain black during the night rest (D59). Any touch
+ * calls onWake, except on what plays here, which stays on top of the photos.
+ */
 export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; interval?: number }) {
   const { albums, showPhotoMeta } = useStore();
   const { t, fmt } = useI18n();
@@ -48,6 +52,7 @@ export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; i
           </div>
         )}
       </div>
+      <MiniPlayer kiosk frame />
       <style>{`@keyframes kenburns{from{transform:scale(1.08)}to{transform:scale(1)}}`}</style>
     </div>
   );
