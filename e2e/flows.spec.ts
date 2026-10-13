@@ -26,6 +26,20 @@ test("a child can tick off a routine step by tapping its picture", async ({ page
   await expect(card).toHaveAttribute("aria-pressed", before === "true" ? "false" : "true");
 });
 
+test("the child's page becomes the photo frame when idle, like the wall (§13)", async ({ page }) => {
+  await page.clock.install();
+  await prepare(page);
+  await page.goto("/kids/paul");
+  const frame = page.getByRole("button", { name: "Tap to return" });
+  await expect(frame).toHaveCount(0);
+  // Past the household's idle minutes without a touch.
+  await page.clock.fastForward("15:00");
+  await expect(frame).toBeVisible();
+  await frame.click();
+  await expect(frame).toHaveCount(0);
+  await expect(page).toHaveURL(/\/kids\/paul$/);
+});
+
 test("the last step of a routine plays the avatar's celebration (D60)", async ({ page }) => {
   const today = new Date();
   await page.clock.install({ time: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 19, 0) });
