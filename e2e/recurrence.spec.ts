@@ -12,11 +12,13 @@ test("routines reset at the household's reset time, not at midnight (§19.3)", a
   await expect(bath).toHaveAttribute("aria-pressed", "true");
 
   // Half past midnight: still yesterday evening for the routines.
-  await page.clock.runFor(2.5 * 3_600_000);
+  await page.clock.fastForward(2.5 * 3_600_000);
   await expect(bath).toHaveAttribute("aria-pressed", "true");
 
   // After 03:00 the new day starts fresh.
-  await page.clock.runFor(3 * 3_600_000);
+  await page.clock.fastForward(3 * 3_600_000);
+  // Hours without a touch: the photo frame is over the child's page (§13); a tap brings it back.
+  await page.getByRole("button", { name: "Tap to return" }).click();
   await page.getByRole("radio", { name: "Evening" }).click();
   await expect(bath).toHaveAttribute("aria-pressed", "false");
 });

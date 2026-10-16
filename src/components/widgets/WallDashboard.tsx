@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { ImageIcon, LayoutGrid } from "lucide-react";
 import type { WallTileId } from "@/lib/types";
 import { useI18n } from "@/i18n";
@@ -8,6 +8,7 @@ import { useStore } from "@/lib/state/store";
 import { useToday } from "@/lib/useToday";
 import { useWakeLock } from "@/lib/useWakeLock";
 import { useNight } from "@/lib/state/useNight";
+import { useIdleSaver } from "@/lib/state/useIdleSaver";
 import { sameDay } from "@/lib/dates";
 import { FamilyLanes } from "./FamilyLanes";
 import { NextUp } from "./NextUp";
@@ -29,38 +30,14 @@ import { useGreeting } from "./HomeScreen";
 export function WallDashboard() {
   const today = useToday();
   const { t, tx } = useI18n();
-  const { idleMinutes, shopping, shoppingLists, data, getMember, presence, sync, wallTiles } = useStore();
+  const { shopping, shoppingLists, data, getMember, sync, wallTiles } = useStore();
   const greeting = useGreeting();
-  const [saver, setSaver] = useState(false);
+  const { saver, show, wake } = useIdleSaver();
   /** The birthday wheel over the whole screen (D46). */
   const [wheel, setWheel] = useState(false);
   // The wall stays on, the photo frame is its screensaver (§13), except in the night rest (D59).
   const night = useNight();
   useWakeLock(!night);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const poke = useCallback(() => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setSaver(true), idleMinutes * 60_000);
-  }, [idleMinutes]);
-
-  useEffect(() => {
-    poke();
-    const evs = ["pointerdown", "keydown"] as const;
-    evs.forEach((e) => window.addEventListener(e, poke));
-    return () => { clearTimeout(timer.current); evs.forEach((e) => window.removeEventListener(e, poke)); };
-  }, [poke]);
-
-  // Home Assistant presence: someone there wakes the wall, nobody there brings the photos back (§13).
-  // At night only a touch wakes it.
-  useEffect(() => {
-    if (!presence) return;
-    if (presence.present) {
-      if (night) return;
-      setSaver(false);
-      poke();
-    } else setSaver(true);
-  }, [presence, poke, night]);
 
   const tonight = data.meals.find((m) => sameDay(m.date, today));
   const cook = getMember(tonight?.cookId);
@@ -113,7 +90,7 @@ export function WallDashboard() {
         {wallTiles.filter((x) => x.enabled).map((x) => <Fragment key={x.id}>{tiles[x.id]}</Fragment>)}
         {/* The tiles open their own pages (D60); what is left is the photo frame and the way back to the app. */}
         <nav className="wall-actions">
-          <button onClick={() => setSaver(true)} className={WALL_BTN}><ImageIcon size={26} />{t("nav.photos")}</button>
+          <button onClick={show} className={WALL_BTN}><ImageIcon size={26} />{t("nav.photos")}</button>
           <Link href="/" className={WALL_BTN}><LayoutGrid size={26} />{t("nav.home")}</Link>
         </nav>
       </aside>
@@ -124,7 +101,7 @@ export function WallDashboard() {
       </main>
 
       {wheel && <BirthdaysFullscreen onClose={() => setWheel(false)} />}
-      {saver && <Screensaver onWake={() => { setSaver(false); poke(); }} />}
+      {saver && <Screensaver onWake={wake} />}
     </div>
   );
 }
