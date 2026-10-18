@@ -2,6 +2,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { Member, Period } from "@/lib/types";
 import { celebrationFor, type Motion } from "@/lib/avatars";
+import { ExtendedAvatar } from "./ExtendedAvatar";
 import { useI18n, type MessageKey } from "@/i18n";
 import { cn } from "../ui/cn";
 
@@ -19,9 +20,10 @@ export function Celebration({ member, period, day, play, onReplay, children }: {
   member: Member; period: Period; day: string; play: number | null; onReplay: () => void; children?: ReactNode;
 }) {
   const { t } = useI18n();
-  const { motion, figure, body, cheer } = celebrationFor(member, day, period);
+  const { motion, figure, body, extendedFigure, cheer } = celebrationFor(member, day, period);
   const avatar = member.avatar;
-  const hero = figure ? <span className={cn("cel-hero", body && "cel-body")} aria-hidden>{figure}</span>
+  const hero = figure && extendedFigure ? <ExtendedAvatar figure={extendedFigure} face={figure} />
+    : figure ? <span className={cn("cel-hero", body && "cel-body")} aria-hidden>{figure}</span>
     : avatar.kind === "photo" ? <span className="cel-hero"><img src={avatar.url} alt="" className="cel-photo" /></span>
     : <span className="cel-hero cel-letter font-display font-bold" aria-hidden>{member.name[0]}</span>;
 
