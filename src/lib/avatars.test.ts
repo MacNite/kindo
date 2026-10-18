@@ -37,6 +37,19 @@ describe("celebrationFor", () => {
     expect(celebrationFor(paul, "2026-10-10", "morning")).toMatchObject({ figure: "🦖", body: false });
   });
 
+  it("extends every face-only avatar with a full-body illustration", () => {
+    const figures = [
+      ["🦊", "fox"], ["🐻", "bear"], ["🦄", "unicorn"], ["🐼", "panda"],
+      ["🐸", "frog"], ["🦁", "lion"], ["🐨", "koala"],
+    ] as const;
+    for (const [emoji, extendedFigure] of figures) {
+      expect(celebrationFor({ id: emoji, avatar: { kind: "emoji", value: emoji } }, "2026-10-10", "morning"))
+        .toMatchObject({ figure: emoji, body: true, extendedFigure });
+    }
+    expect(celebrationFor(lena, "2026-10-10", "morning"))
+      .toMatchObject({ figure: "🐎", body: true, extendedFigure: null });
+  });
+
   it("ignores an emoji's variation selector", () => {
     const star = { id: "x", avatar: { kind: "emoji", value: "🐴️" } } satisfies Pick<Member, "id" | "avatar">;
     expect(celebrationFor(star, "2026-10-10", "morning").figure).toBe("🐎");
