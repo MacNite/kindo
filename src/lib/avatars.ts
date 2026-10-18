@@ -18,23 +18,25 @@ export const MOTIONS = [
 ] as const;
 export type Motion = (typeof MOTIONS)[number];
 
+export type ExtendedFigure = "fox" | "bear" | "unicorn" | "panda" | "frog" | "lion" | "koala";
+
 type Moves = readonly [Motion, Motion, Motion];
 
 /**
- * Three motions per avatar, and the whole animal where the avatar emoji is only
- * its head (🐴 → 🐎). Emoji not listed here, photos and initials hop, spin and wiggle.
+ * Three motions per avatar. Whole-animal emoji bodies are used where they exist;
+ * face-only emoji get a small illustrated body for the celebration.
  */
-const FIGURES: Record<string, { body?: string; moves: Moves }> = {
-  "🦊": { moves: ["peek", "hop", "wiggle"] },
-  "🐻": { moves: ["stomp", "roar", "wiggle"] },
-  "🦄": { moves: ["toss", "spin", "hop"] },
+const FIGURES: Record<string, { body?: string; extended?: ExtendedFigure; moves: Moves }> = {
+  "🦊": { extended: "fox", moves: ["peek", "hop", "wiggle"] },
+  "🐻": { extended: "bear", moves: ["stomp", "roar", "wiggle"] },
+  "🦄": { extended: "unicorn", moves: ["toss", "spin", "hop"] },
   "🐴": { body: "🐎", moves: ["gallop", "rear", "jump"] },
   "🦖": { moves: ["stomp", "roar", "hatch"] },
-  "🐼": { moves: ["wiggle", "peek", "spin"] },
-  "🐸": { moves: ["hop", "peek", "swim"] },
-  "🦁": { moves: ["roar", "toss", "stomp"] },
+  "🐼": { extended: "panda", moves: ["wiggle", "peek", "spin"] },
+  "🐸": { extended: "frog", moves: ["hop", "peek", "swim"] },
+  "🦁": { extended: "lion", moves: ["roar", "toss", "stomp"] },
   "🐯": { body: "🐅", moves: ["gallop", "roar", "hop"] },
-  "🐨": { moves: ["peek", "wiggle", "spin"] },
+  "🐨": { extended: "koala", moves: ["peek", "wiggle", "spin"] },
   "🐰": { body: "🐇", moves: ["hop", "gallop", "peek"] },
   "🐶": { body: "🐕", moves: ["gallop", "jump", "wiggle"] },
   "🐱": { body: "🐈", moves: ["peek", "gallop", "spin"] },
@@ -66,8 +68,10 @@ export type Celebration = {
   motion: Motion;
   /** The emoji that moves: the whole animal where there is one. Null for photos and initials. */
   figure: string | null;
-  /** True when the figure is the whole animal in place of the avatar's head. */
+  /** True when an emoji body or illustrated body is used instead of the face alone. */
   body: boolean;
+  /** Custom full-body art for face-only avatars with no whole-animal emoji. */
+  extendedFigure: ExtendedFigure | null;
   /** 1-based cheer for the period. */
   cheer: number;
 };
@@ -100,7 +104,8 @@ export function celebrationFor(member: Pick<Member, "id" | "avatar">, day: strin
   return {
     motion: moves[(n + hash(`${member.id}:${period}:motion`)) % moves.length],
     figure: emoji ? known?.body ?? emoji : null,
-    body: !!known?.body,
+    body: !!known?.body || !!known?.extended,
+    extendedFigure: known?.extended ?? null,
     cheer: ((n + hash(`${member.id}:${period}:cheer`)) % CHEER_COUNT) + 1,
   };
 }
