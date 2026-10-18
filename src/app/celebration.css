@@ -17,6 +17,9 @@
 .cel-mover { display: grid; place-items: center; position: relative; }
 .cel-hero { display: block; font-size: 5.45em; line-height: 1; transform-origin: 50% 85%; user-select: none; }
 .cel-hero.cel-body { font-size: 5.9em; }
+.cel-hero.cel-extended { position: relative; width: 1.8em; height: 1.95em; font-size: 4.25em; }
+.cel-extended svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cel-extended-face { position: absolute; z-index: 1; top: -.08em; left: 50%; transform: translateX(-50%); font-size: .92em; line-height: 1; }
 .cel-hero.cel-letter { font-size: 5em; color: #fff; }
 .cel-photo { display: block; width: var(--d); height: var(--d); border-radius: 50%; object-fit: cover; }
 
