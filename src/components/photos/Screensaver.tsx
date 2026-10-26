@@ -1,9 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
-import { usePhotoPlaylist } from "@/lib/state/photos";
+import { usePhotoFrame } from "@/lib/state/photos";
 import { useNight } from "@/lib/state/useNight";
 import { FramedPhoto } from "./FramedPhoto";
 import { MiniPlayer } from "../media/Media";
@@ -16,16 +15,9 @@ export function Screensaver({ onWake, interval = 9000 }: { onWake: () => void; i
   const { albums, showPhotoMeta } = useStore();
   const { t, fmt } = useI18n();
   const now = useNow(10_000);
-  const pool = usePhotoPlaylist();
-  const night = useNight();
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (pool.length < 2) return;
-    const id = setInterval(() => setI((x) => (x + 1) % pool.length), interval);
-    return () => clearInterval(id);
-  }, [pool.length, interval]);
   // No albums selected → clock on black, no photos.
-  const photo = pool.length ? pool[i % pool.length] : undefined;
+  const photo = usePhotoFrame(interval);
+  const night = useNight();
   const album = photo && albums.find((a) => a.id === photo.albumId);
 
   // Night rest: nothing lit, so the screen can go dark (§13, D59).
