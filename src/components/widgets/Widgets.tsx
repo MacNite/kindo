@@ -7,7 +7,7 @@ import { useI18n } from "@/i18n";
 import { useStore } from "@/lib/state/store";
 import { useNow } from "@/lib/useNow";
 import { useToday } from "@/lib/useToday";
-import { usePhotoPlaylist } from "@/lib/state/photos";
+import { usePhotoFrame } from "@/lib/state/photos";
 import { upcomingDates } from "@/lib/dates-important";
 import { sameDay, daysUntil } from "@/lib/dates";
 import { Panel } from "../ui/Panel";
@@ -313,10 +313,8 @@ function BirthdaysWidget() {
 // ── Photos ──────────────────────────────────────────────────────────────────
 function PhotosWidget() {
   const { t, fmt } = useI18n();
-  const now = useNow(20_000);
-  const photos = usePhotoPlaylist();
+  const p = usePhotoFrame(20_000);
   const { albums } = useStore();
-  const p = photos.length ? photos[Math.floor(now.getTime() / 20_000) % photos.length] : undefined;
   const album = p && albums.find((a) => a.id === p.albumId);
   return (
     <section className="relative min-h-[220px] overflow-hidden rounded-panel bg-sunken">

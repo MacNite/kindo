@@ -27,6 +27,21 @@ describe("weightedPlaylist", () => {
     expect(new Set(pool.map((p) => p.id)).size).toBe(5);
   });
 
+  it("hands slots a small album can't fill to the others, by weight", () => {
+    const sizes: Record<string, number> = { a: 5, b: 100, c: 100 };
+    const pool = weightedPlaylist([album("a", true, 50), album("b", true, 30), album("c", true, 20)], (id) => photos(id, sizes[id]), 48, seeded);
+    const count = (id: string) => pool.filter((p) => p.albumId === id).length;
+    expect(pool).toHaveLength(48);
+    expect(count("a")).toBe(5);
+    expect(count("b")).toBeGreaterThan(count("c"));
+    expect(new Set(pool.map((p) => p.id)).size).toBe(48);
+  });
+
+  it("stops when every selected album is used up", () => {
+    const pool = weightedPlaylist([album("a", true, 90), album("b", true, 10)], (id) => photos(id, id === "a" ? 3 : 4), 48, seeded);
+    expect(pool).toHaveLength(7);
+  });
+
   it("is empty when no album is selected or the selected ones are empty", () => {
     expect(weightedPlaylist([album("a", false, 50)], of)).toEqual([]);
     expect(weightedPlaylist([album("a", true, 50)], () => [])).toEqual([]);
